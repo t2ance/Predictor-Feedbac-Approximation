@@ -7,9 +7,9 @@ from model import PredictionFNO
 
 if __name__ == '__main__':
     # operator = FNO1d(n_modes_height=16, hidden_channels=64, in_channels=1, out_channels=1)
-    operator = PredictionFNO(n_modes_height=16, hidden_channels=64, in_channels=1, out_channels=1, in_features=100,
+    operator = PredictionFNO(n_modes_height=16, hidden_channels=64, in_features=100,
                              out_features=3)
-    batch = torch.ones(size=(16, 1, 100))
+    batch = torch.ones(size=(16, 100))
     result = operator(batch)
     # train_loader, test_loaders, data_processor = load_darcy_flow_small(
     #     n_train=100, batch_size=4,
