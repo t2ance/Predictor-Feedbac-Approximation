@@ -41,6 +41,7 @@ class DatasetConfig:
     n_sample_per_dataset: Optional[int] = field(default=100)
     n_dataset: Optional[int] = field(default=100)
     recreate_dataset: Optional[bool] = field(default=True)
+    implicit: Optional[bool] = field(default=False)
     dataset_file: Optional[str] = field(default='./datasets/dataset.pkl')
     trajectory: Optional[bool] = field(default=False)
 
