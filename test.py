@@ -58,6 +58,7 @@ if __name__ == '__main__':
     # # Compute P(t0) without knowing the specific time t0
     # P_t0_example = compute_Z_at_t_plus_D(U_vector_example, Z_at_t0_example, 0.01)
     # P_t0_example
+
     duration = 8
     n_point = 800
     second_th = 3
@@ -68,6 +69,7 @@ if __name__ == '__main__':
     U, Z, P = run(
         method='explict', silence=True, duration=duration, D=delay, Z0=(0, 1), n_point=n_point, plot=True
     )
+
     # U, Z, P = run(
     #     method='numerical', silence=True, duration=duration, D=delay, Z0=(0, 1),
     #     n_point=n_point, plot=True, plot_predict=True
