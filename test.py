@@ -1,11 +1,8 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.integrate import solve_ivp
-from setuptools.command.saveopts import saveopts
 
 from config import DatasetConfig
-from main import create_trajectory_dataset, f, predict_by_integral, run, integral_prediction_general, \
-    integral_prediction_explict, control_law, system
+from main import run, integral_prediction_explict, control_law, system
 
 
 def compute_Z_at_t_plus_D(U_vector, Z_at_t, delta_t):

@@ -61,13 +61,14 @@ def solve_z_explict(t, D, Z0):
     return Z1, Z2
 
 
-def solve_z_neural_operator(model, Us, z_t, time_step):
-    u_tensor = torch.tensor(Us, dtype=torch.float32).view(1, -1)
-    z_tensor = torch.tensor(z_t, dtype=torch.float32).view(1, -1)
-    inputs = [torch.cat([z_tensor, u_tensor], dim=1), torch.tensor(time_step, dtype=torch.float32).view(1, -1)]
+def solve_z_neural_operator(model, U_D, Z_t, t):
+    u_tensor = torch.tensor(U_D, dtype=torch.float32).view(1, -1)
+    z_tensor = torch.tensor(Z_t, dtype=torch.float32).view(1, -1)
+    inputs = [torch.cat([z_tensor, u_tensor], dim=1), torch.tensor(t, dtype=torch.float32).view(1, -1)]
     if isinstance(model, PredictionFNO):
-        inputs = inputs[0]
-    outputs = model(inputs)
+        outputs = model(inputs[0])
+    else:
+        outputs = model(inputs)
     [P1, P2] = outputs.to('cpu').detach().numpy()[0]
     return P1, P2
 
@@ -112,30 +113,31 @@ def run(delay: float, Z0: Tuple, duration: float, dt: float, silence: bool = Fal
         sequence = tqdm(list(range(n_point_delay, n_point_total)))
 
     for t_i in sequence:
+        t_minus_D_i = t_i - n_point_delay
+        t = ts[t_i]
         if method == 'explict':
-            U[t_i] = control_law_explict(ts[t_i], Z0, delay)
-            Z[t_i, :] = solve_z_explict(ts[t_i], delay, Z0)
+            U[t_i] = control_law_explict(t, Z0, delay)
+            Z[t_i, :] = solve_z_explict(t, delay, Z0)
         elif method == 'no':
-            if ts[t_i] < delay:
-                U[t_i] = control_law_explict(ts[t_i], Z0, delay)
+            # TODO:
+            Z[t_i, :] = solve_z_explict(t, delay, Z0)
+            if t < delay:
+                U[t_i] = control_law_explict(t, Z0, delay)
             else:
-                U_input = padding_leading_zero(U, t_i, n_point_delay)
-                P[t_i, :] = solve_z_neural_operator(model, U_input, Z[t_i, :], t_i)
+                U_input = U[t_minus_D_i:t_i]
+                P[t_i, :] = solve_z_neural_operator(model=model, U_D=U_input, Z_t=Z[t_i, :], t=t)
                 U[t_i] = control_law(P[t_i, :])
         elif method == 'numerical':
-            t_minus_D_i = t_i - n_point_delay
             Z_t = Z[t_i, :]
-            Z1_t = Z[t_i, 0]
-            Z2_t = Z[t_i, 1]
-            P1_t, P2_t = integral_prediction_explict(t=ts[t_i], delay=delay, Z1_t=Z1_t, Z2_t=Z2_t,
-                                                     U_D=U[t_minus_D_i:t_i],
-                                                     ts_D=ts[t_minus_D_i:t_i], dt=dt)
+            # P1_t, P2_t = integral_prediction_explict(t=ts[t_i], delay=delay, Z1_t=Z1_t, Z2_t=Z2_t,
+            #                                          U_D=U[t_minus_D_i:t_i], ts_D=ts[t_minus_D_i:t_i], dt=dt)
+            P1_t, P2_t = integral_prediction_general(f=system, Z_t=Z[t_i, :], P_D=P[t_minus_D_i:t_i],
+                                                     U_D=U[t_minus_D_i:t_i], dt=dt)
             P[t_i, :] = [P1_t, P2_t]
             U_t = control_law(P[t_i, :])
-            Z_t_dot = system(Z[t_i, :], U[t_minus_D_i])
-            if t_i + 1 < n_point_total:
-                Z[t_i + 1, :] = ode_forward(Z_t, Z_t_dot, dt)
             U[t_i] = U_t
+            if t_i + 1 < n_point_total:
+                Z[t_i + 1, :] = ode_forward(Z_t, system(Z[t_i, :], U[t_minus_D_i]), dt)
         else:
             raise NotImplementedError()
 
@@ -231,7 +233,7 @@ def no_predict(model_name, inputs, device, model):
 
 
 def run_train(n_state: int, batch_size: int, hidden_size: int, n_hidden: int, merge_size: int, lr: float, n_epoch: int,
-              weight_decay: float, training_dataloader=None, validating_dataloader=None, D_steps=None,
+              weight_decay: float, training_dataloader=None, validating_dataloader=None, n_delay_point=None,
               dataset_path: str = None, n_modes_height=8, hidden_channels=16,
               model_name: Literal['DeepONet', 'FNO'] = 'DeepONet', device='cuda', img_save_path: str = None):
     if training_dataloader is None:
@@ -241,17 +243,17 @@ def run_train(n_state: int, batch_size: int, hidden_size: int, n_hidden: int, me
         U = dataset['u']
         D = dataset['d']
         ts = dataset['ts']
-        D_steps = int(D / (ts[1] - ts[0]))
+        n_delay_point = int(D / (ts[1] - ts[0]))
         prediction_dataset = ImplicitDataset(
             torch.tensor(Z, dtype=torch.float32),
             torch.tensor(U, dtype=torch.float32),
-            D_steps)
+            n_delay_point, dt=None)
         training_dataloader = DataLoader(
             prediction_dataset, batch_size=batch_size, shuffle=True, generator=torch.Generator(device='cuda'))
 
-    layer_size_branch = [D_steps + n_state] + [hidden_size] * n_hidden + [merge_size]
-    layer_size_trunk = [1] + [hidden_size] * n_hidden + [merge_size]
     if model_name == 'DeepONet':
+        layer_size_branch = [n_delay_point + n_state] + [hidden_size] * n_hidden + [merge_size]
+        layer_size_trunk = [1] + [hidden_size] * n_hidden + [merge_size]
         model = dde.nn.DeepONet(
             layer_size_branch,
             layer_size_trunk,
@@ -262,7 +264,7 @@ def run_train(n_state: int, batch_size: int, hidden_size: int, n_hidden: int, me
         ).to(device)
     elif model_name == 'FNO':
         model = PredictionFNO(
-            n_modes_height=n_modes_height, hidden_channels=hidden_channels, in_features=D_steps + n_state,
+            n_modes_height=n_modes_height, hidden_channels=hidden_channels, in_features=n_delay_point + n_state,
             out_features=n_state).to(device)
     else:
         raise NotImplementedError()
@@ -338,19 +340,19 @@ def split_list(list, ratio):
 
 
 def create_trajectory_dataset(n_dataset: int, duration: float, delay: float, n_delay_point: int,
-                              n_sample_per_dataset: int,
-                              implicit: bool, dataset_file: str, dt: float):
+                              n_sample_per_dataset: int, implicit: bool, dataset_file: str, dt: float):
     all_samples = []
     if implicit:
         print('creating implicit datasets (Use Z(t+D) as P(t))')
     else:
         print('creating explicit datasets (Calculate P(t))')
     for z in tqdm(list(np.random.uniform(0, 1, (n_dataset, 2)))):
-        U, Z, P = run(method='explict', silence=True, duration=duration, delay=delay, Z0=z, dt=dt)
         if implicit:
+            U, Z, _ = run(method='explict', silence=True, duration=duration, delay=delay, Z0=z, dt=dt)
             dataset = ImplicitDataset(
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32), n_delay_point, dt)
         else:
+            U, Z, P = run(method='numerical', silence=True, duration=duration, delay=delay, Z0=z, dt=dt)
             dataset = ExplictDataset(
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
                 torch.tensor(P, dtype=torch.float32), n_delay_point, dt)
@@ -363,30 +365,17 @@ def create_trajectory_dataset(n_dataset: int, duration: float, delay: float, n_d
     return all_samples
 
 
-def predict_by_integral(f, Z_t, U, D_steps, dt, n_state):
-    P = np.zeros((n_state, D_steps))
-    P[:, 0] = Z_t
-    for i in range(D_steps - 1):
-        increment = f(P[:, i], U[i])
-        P[:, i + 1] = P[:, i] + dt * increment
-    return P[:, -1]
-
-
-def f(Z_t, U_t_minus_D):
-    return np.array([Z_t[1] - Z_t[1] ** 2 * U_t_minus_D, U_t_minus_D])
-
-
-def create_stateless_dataset(n_dataset: int, dt: float, D_steps: int,
-                             n_sample_per_dataset: int, dataset_file: str, n_state: int):
+def create_stateless_dataset(n_dataset: int, dt: float, D_steps: int, n_sample_per_dataset: int, dataset_file: str,
+                             n_state: int):
     all_samples = []
     for i in range(n_dataset * n_sample_per_dataset):
         U = np.sin(np.sqrt(i) * np.linspace(0, 1, D_steps))
 
         Z_t = np.random.uniform(0, 1, 2)
-        P = predict_by_integral(f, Z_t, U, D_steps, dt, n_state)
+        # P = predict_by_integral(f, Z_t, U, D_steps, dt, n_state)
         features = np.concatenate([[i * dt], Z_t, U])
-        label = P
-        all_samples.append((features, label))
+        # label = P
+        # all_samples.append((features, label))
     with open(dataset_file, 'wb') as file:
         pickle.dump(all_samples, file)
     return all_samples
@@ -401,35 +390,31 @@ def prepare_dataset(samples, training_ratio: float, batch_size: int, device: str
     return training_dataloader, validating_dataloader
 
 
-def run_test(test_points: List[Tuple[float, float]], base_path: str, delay: float, duration: float, n_point: int,
-             ts: np.ndarray, D_steps: int):
+def run_test(test_points: List[Tuple[float, float]], base_path: str, delay: float, duration: float, ts: np.ndarray,
+             n_delay_point: int, dt: float):
     for test_point in test_points:
         img_save_path = f'{base_path}/{test_point}'
         check_dir(img_save_path)
         U_no, Z_no, P_no = run(model=m, delay=delay, Z0=test_point, method='no', plot=True, title='no',
-                               duration=duration,
-                               n_point=n_point, img_save_path=img_save_path)
+                               duration=duration, img_save_path=img_save_path, dt=dt)
         U_explict, Z_explict, P_explict = run(model=m, delay=delay, Z0=test_point, method='explict', plot=False,
-                                              title='explict', duration=duration, n_point=n_point,
-                                              img_save_path=img_save_path)
-        t_comparison = ts[D_steps:]
+                                              title='explict', duration=duration,
+                                              img_save_path=img_save_path, dt=dt)
+        t_comparison = ts[n_delay_point:]
         plt.title('Comparison')
-        plt.plot(t_comparison, P_no[:-D_steps], label='approximation')
-        plt.plot(t_comparison, Z_explict[D_steps:], label='ground truth')
+        plt.plot(t_comparison, P_no[:-n_delay_point], label='approximation')
+        plt.plot(t_comparison, Z_explict[n_delay_point:], label='ground truth')
         plt.legend()
         plt.savefig(f'{img_save_path}/comparison.png')
         plt.clf()
         plt.title('Difference')
-        difference = P_no[:-D_steps] - Z_explict[D_steps:]
+        difference = P_no[:-n_delay_point] - Z_explict[n_delay_point:]
         plt.ylim([-1, 1])
         plt.plot(t_comparison, difference[:, 0], label='difference of prediction1')
         plt.plot(t_comparison, difference[:, 1], label='difference of prediction2')
         plt.legend()
         plt.savefig(f'{img_save_path}/difference.png')
         plt.clf()
-        # epsilon_z = metric(P_no[D_steps:-D_steps], Z_explict[2 * D_steps:])
-        # epsilon_u = metric(U_no, U_explict)
-        # print(f'error z: {epsilon_z}, error u: {epsilon_u}')
 
 
 if __name__ == '__main__':
@@ -440,13 +425,15 @@ if __name__ == '__main__':
     if not os.path.exists(dataset_config.dataset_file) or dataset_config.recreate_dataset:
         if dataset_config.trajectory:
             samples_ = create_trajectory_dataset(
-                dataset_config.n_dataset, dataset_config.duration, dataset_config.delay, dataset_config.n_delay_step,
-                dataset_config.n_sample_per_dataset, dataset_config.implicit,
-                dataset_config.dataset_file, dataset_config.dt)
+                dataset_config.n_dataset, dataset_config.duration, dataset_config.delay, dataset_config.n_delay_point,
+                dataset_config.n_sample_per_dataset, dataset_config.implicit, dataset_config.dataset_file,
+                dataset_config.dt
+            )
         else:
-            samples_ = create_stateless_dataset(dataset_config.n_dataset, dataset_config.dt,
-                                                dataset_config.n_delay_step, dataset_config.n_sample_per_dataset,
-                                                dataset_config.dataset_file, dataset_config.n_state)
+            samples_ = create_stateless_dataset(
+                dataset_config.n_dataset, dataset_config.dt, dataset_config.n_delay_point,
+                dataset_config.n_sample_per_dataset, dataset_config.dataset_file, dataset_config.n_state
+            )
     else:
         with open(dataset_config.dataset_file, 'rb') as file:
             samples_ = pickle.load(file)
@@ -454,12 +441,13 @@ if __name__ == '__main__':
         samples_, train_config.training_ratio, train_config.batch_size, train_config.device)
     check_dir(model_config.base_path)
     m = run_train(n_state=dataset_config.n_state, training_dataloader=training_dataloader,
-                  validating_dataloader=validating_dataloader, D_steps=dataset_config.n_delay_step,
+                  validating_dataloader=validating_dataloader, n_delay_point=dataset_config.n_delay_point,
                   weight_decay=train_config.weight_decay, n_hidden=model_config.deeponet_n_hidden,
                   n_epoch=train_config.n_epoch, merge_size=model_config.deeponet_n_merge_size,
                   hidden_size=model_config.deeponet_n_hidden_size, lr=train_config.learning_rate,
                   batch_size=train_config.batch_size, img_save_path=model_config.base_path,
                   n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
                   model_name=model_config.model_name)
-    run_test(dataset_config.test_points, model_config.base_path, dataset_config.delay, dataset_config.duration,
-             dataset_config.n_point, dataset_config.time_steps, dataset_config.n_delay_step)
+    run_test(test_points=dataset_config.test_points, base_path=model_config.base_path, delay=dataset_config.delay,
+             duration=dataset_config.duration, ts=dataset_config.ts, n_delay_point=dataset_config.n_delay_point,
+             dt=dataset_config.dt)

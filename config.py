@@ -33,29 +33,29 @@ class TrainConfig:
 @dataclass
 class DatasetConfig:
     delay: Optional[float] = field(default=3.)
-    duration: Optional[int] = field(default=8)
-    dt: Optional[float] = field(default=0.01)
+    duration: Optional[int] = field(default=16)
+    dt: Optional[float] = field(default=0.005)
     test_points: Optional[List[Tuple[float, float]]] = \
         field(default_factory=lambda: [(0, 1), (1, 0), (1, 1)])
     n_state: Optional[int] = field(default=2)
-    n_sample_per_dataset: Optional[int] = field(default=100)
-    n_dataset: Optional[int] = field(default=100)
+    n_sample_per_dataset: Optional[int] = field(default=500)
+    n_dataset: Optional[int] = field(default=20)
     recreate_dataset: Optional[bool] = field(default=True)
-    implicit: Optional[bool] = field(default=False)
     dataset_file: Optional[str] = field(default='./datasets/dataset.pkl')
     trajectory: Optional[bool] = field(default=True)
+    implicit: Optional[bool] = field(default=False)
 
     @property
-    def time_steps(self) -> np.ndarray:
+    def ts(self) -> np.ndarray:
         return np.linspace(0, self.duration, self.n_point)
 
     @property
     def n_point(self) -> int:
-        return int(self.duration / self.dt)
+        return int(round(self.duration / self.dt))
 
     @property
-    def n_delay_step(self) -> int:
-        return int(self.delay / (self.time_steps[1] - self.time_steps[0]))
+    def n_delay_point(self) -> int:
+        return int(self.delay / self.dt)
 
 
 if __name__ == '__main__':

@@ -1,8 +1,6 @@
 import torch
 from torch.utils.data import Dataset
 
-from utils import padding_leading_zero
-
 
 def sample_to_tensor(z_features, u_features, time_step_position):
     features = torch.cat((torch.tensor(time_step_position).view(-1), z_features, u_features))
@@ -29,20 +27,20 @@ class ImplicitDataset(Dataset):
 
 
 class ExplictDataset(Dataset):
-    def __init__(self, Z, U, P, D_steps, dt):
+    def __init__(self, Z, U, P, n_delay_point, dt):
         self.Z = Z
         self.U = U
         self.P = P
         self.dt = dt
-        self.D_steps = D_steps
+        self.n_delay_point = n_delay_point
 
     def __len__(self):
-        return len(self.U) - self.D_steps
+        return len(self.U) - self.n_delay_point
 
     def __getitem__(self, idx):
-        idx += self.D_steps
+        idx += self.n_delay_point
         z_features = self.Z[idx]
-        u_features = self.U[idx - self.D_steps:idx].view(-1)
+        u_features = self.U[idx - self.n_delay_point:idx].view(-1)
         label = self.P[idx]
         features = sample_to_tensor(z_features, u_features, idx * self.dt)
         return features, label
