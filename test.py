@@ -1,8 +1,11 @@
 import numpy as np
+from matplotlib import pyplot as plt
 from scipy.integrate import solve_ivp
+from setuptools.command.saveopts import saveopts
 
 from config import DatasetConfig
-from main import create_trajectory_dataset, f, predict_by_integral, run
+from main import create_trajectory_dataset, f, predict_by_integral, run, integral_prediction_general, \
+    integral_prediction_explict, control_law, system
 
 
 def compute_Z_at_t_plus_D(U_vector, Z_at_t, delta_t):
@@ -36,49 +39,79 @@ def compute_Z_at_t_plus_D(U_vector, Z_at_t, delta_t):
     return Z_current
 
 
-if __name__ == '__main__':
-    # samples_ = create_trajectory_dataset(
-    #     1, dataset_config.duration, dataset_config.delay, 800, dataset_config.n_delay_step,
-    #     dataset_config.n_sample_per_dataset, dataset_config.dataset_file)
-    # loss = 0.
-    # for sample in samples_:
-    #     features, label = sample
-    #     t = features[:1].cpu().numpy()
-    #     z = features[1:3].cpu().numpy()
-    #     u = features[3:].cpu().numpy()
-    #     label = label.cpu().numpy()
-    #     P = compute_Z_at_t_plus_D(u, z, dataset_config.dt)
-    #     loss += (P - label) ** 2
-    # P = compute_Z_at_t_plus_D(u, z, dataset_config.dt)
-    # print(loss)
-    # Constants
-    # U_vector_example = np.random.rand(300)  # Assuming D=3 and delta_t=0.01, so 300 steps
-    # Z_at_t0_example = np.array([0, 1])  # Example Z(t0) values
-    #
-    # # Compute P(t0) without knowing the specific time t0
-    # P_t0_example = compute_Z_at_t_plus_D(U_vector_example, Z_at_t0_example, 0.01)
-    # P_t0_example
-
+def simulation():
     duration = 8
-    n_point = 800
-    second_th = 3
-    delay = 3
-    dt = duration / n_point
-    idx = int(n_point * (second_th / duration))
-    n_delay_step = int(n_point * (delay / duration))
-    U, Z, P = run(
-        method='explict', silence=True, duration=duration, D=delay, Z0=(0, 1), n_point=n_point, plot=True
-    )
+    D = 3
+    dt = 0.001
+    n_point = int(duration / dt)
+    n_point_delay = int(D / dt)
+    n_point_total = n_point + n_point_delay
+    ts = np.linspace(-D, duration, n_point_total)
 
-    # U, Z, P = run(
-    #     method='numerical', silence=True, duration=duration, D=delay, Z0=(0, 1),
-    #     n_point=n_point, plot=True, plot_predict=True
-    # )
-    # U_input = U[idx - n_delay_step:idx]
-    # Z_input = Z[idx: idx + n_delay_step]
-    # assert len(U_input) == len(Z_input)
-    # Z_t = Z[idx]
-    # Z_t_plus_D = Z[idx + n_delay_step]
-    # integral = np.array([f(z, u) for z, u in zip(Z_input, U_input)]).sum(axis=0) * dt
-    # Z_t_plus_D_predict = Z_t + integral
-    # z_t_D_2 = np.sum(U_input) * dt + Z_t[1]
+    U = np.zeros(n_point_total)
+    Z = np.zeros((n_point_total, 2))
+    P = np.zeros((n_point_total, 2))
+    Z[n_point_delay, :] = [0, 1]
+
+    for i in range(n_point_delay, n_point_total):
+        t_i = i
+        t_minus_D_i = i - n_point_delay
+        Z1_t = Z[t_i, 0]
+        Z2_t = Z[t_i, 1]
+        P1_t, P2_t = integral_prediction_explict(t=ts[t_i], delay=D, Z1_t=Z1_t, Z2_t=Z2_t, U_D=U[t_minus_D_i:t_i],
+                                                 ts_D=ts[t_minus_D_i:t_i], dt=dt)
+        # P1_t, P2_t = integral_prediction_general(f=system, Z_t=Z[t_i, :], P_D=P[t_minus_D_i:t_i],
+        #                                          U_D=U[t_minus_D_i:t_i], dt=dt)
+        P[t_i, :] = [P1_t, P2_t]
+        U_t = control_law(P[t_i, :])
+        Z1_t_dot, Z2_t_dot = system(Z[t_i, :], U[t_minus_D_i])
+        Z1_t_plus_1 = Z1_t + Z1_t_dot * dt
+        Z2_t_plus_1 = Z2_t + Z2_t_dot * dt
+        if t_i + 1 < n_point_total:
+            Z[t_i + 1, :] = [Z1_t_plus_1, Z2_t_plus_1]
+        U[t_i] = U_t
+
+    P = P[n_point_delay:, :]
+    U = U[n_point_delay:]
+    Z = Z[n_point_delay:, :]
+    ts = ts[n_point_delay:]
+
+    plt.plot(ts, Z[:, 0], label='$Z_1(t)$')
+    plt.xlabel('time')
+    plt.ylabel('$Z_1(t)$')
+    plt.grid(True)
+    plt.show()
+
+    plt.plot(ts, Z[:, 1], label='$Z_2(t)$')
+    plt.xlabel('time')
+    plt.ylabel('$Z_2(t)$')
+    plt.grid(True)
+    plt.show()
+
+    plt.plot(ts, U, label='$U(t)$', color='black')
+    plt.xlabel('time')
+    plt.ylabel('$U(t)$')
+    plt.grid(True)
+    plt.show()
+
+    plt.plot(ts, P[:, 0], label='$P_1(t)$')
+    plt.ylabel('$P_1(t)$')
+    plt.grid(True)
+    plt.show()
+
+    plt.plot(ts, P[:, 1], label='$P_2(t)$')
+    plt.ylabel('$P_2(t)$')
+    plt.grid(True)
+    plt.show()
+
+    for idx in range(2):
+        plt.plot(ts[n_point_delay:], P[:-n_point_delay, idx], label=f'$P_{idx + 1}(t-{D})$')
+        plt.plot(ts[n_point_delay:], Z[n_point_delay:, idx], label=f'$Z_{idx + 1}(t)$')
+    plt.legend()
+    plt.show()
+
+
+if __name__ == '__main__':
+    dataset_config = DatasetConfig()
+    U, Z, P = run(method='numerical', silence=True, duration=dataset_config.duration, delay=dataset_config.delay,
+                  Z0=(0, 1), dt=dataset_config.dt, plot=True)

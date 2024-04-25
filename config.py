@@ -34,7 +34,7 @@ class TrainConfig:
 class DatasetConfig:
     delay: Optional[float] = field(default=3.)
     duration: Optional[int] = field(default=8)
-    n_point: Optional[int] = field(default=800)
+    dt: Optional[float] = field(default=0.01)
     test_points: Optional[List[Tuple[float, float]]] = \
         field(default_factory=lambda: [(0, 1), (1, 0), (1, 1)])
     n_state: Optional[int] = field(default=2)
@@ -43,15 +43,15 @@ class DatasetConfig:
     recreate_dataset: Optional[bool] = field(default=True)
     implicit: Optional[bool] = field(default=False)
     dataset_file: Optional[str] = field(default='./datasets/dataset.pkl')
-    trajectory: Optional[bool] = field(default=False)
+    trajectory: Optional[bool] = field(default=True)
 
     @property
     def time_steps(self) -> np.ndarray:
         return np.linspace(0, self.duration, self.n_point)
 
     @property
-    def dt(self) -> float:
-        return self.time_steps[1] - self.time_steps[0]
+    def n_point(self) -> int:
+        return int(self.duration / self.dt)
 
     @property
     def n_delay_step(self) -> int:

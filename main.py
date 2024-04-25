@@ -17,16 +17,12 @@ from model import PredictionFNO
 from utils import count_params, padding_leading_zero
 
 
-def system(z, t, u_t_minus_D, Z0, D):
-    z1, z2 = z
-    if t < D:
-        return Z0[0] + Z0[1] * t, Z0[1]
-    else:
-        try:
-            return [z2 - z2 ** 2 * u_t_minus_D, u_t_minus_D]
-        except:
-            print(z, t, D, Z0)
-            raise NotImplementedError()
+def system(Z_t, U_t_minus_D):
+    Z1_t = Z_t[0]
+    Z2_t = Z_t[1]
+    Z1_t_dot = Z2_t - Z2_t ** 2 * U_t_minus_D
+    Z2_t_dot = U_t_minus_D
+    return np.array([Z1_t_dot, Z2_t_dot])
 
 
 def control_law_explict(t, Z0, D):
@@ -65,11 +61,6 @@ def solve_z_explict(t, D, Z0):
     return Z1, Z2
 
 
-def solve_z_ode(u, i, span, D, Z):
-    raise NotImplementedError()
-    return odeint(system, Z[i, :], span, args=(D))
-
-
 def solve_z_neural_operator(model, Us, z_t, time_step):
     u_tensor = torch.tensor(Us, dtype=torch.float32).view(1, -1)
     z_tensor = torch.tensor(z_t, dtype=torch.float32).view(1, -1)
@@ -81,84 +72,84 @@ def solve_z_neural_operator(model, Us, z_t, time_step):
     return P1, P2
 
 
-def integral_prediction_for_example(t, D, Z0, Z, i, n_point_theta=1000):
-    d_theta = 1 / n_point_theta
-    term1 = sum(
-        [control_law_explict(theta, Z0, D) * d_theta for theta in
-         np.linspace(t - D, t, n_point_theta)]
-    )
-    term2 = sum(
-        [(t - theta) * control_law_explict(theta, Z0, D) * d_theta for theta in
-         np.linspace(t - D, t, n_point_theta)]
-    )
-    # term3 = sum([(2 + t - theta) * control_law_explict(theta, Z0[0], Z0[1], D) * 0.001 for theta in
-    #              np.linspace(t - D, t, 1000)])
-    Z1_t = Z[i, :][0]
-    Z2_t = Z[i, :][1]
-    P1_t = Z1_t + D * Z2_t + term2 - Z2_t ** 2 * term1 - Z2_t * term1 ** 2
+def integral_prediction_explict(t, delay, Z1_t, Z2_t, U_D, ts_D, dt):
+    assert len(ts_D) == len(U_D)
+    term1 = sum(U_D) * dt
+    term2 = sum([(t - theta) * u * dt for u, theta in zip(U_D, ts_D)])
+    P1_t = Z1_t + delay * Z2_t + term2 - Z2_t ** 2 * term1 - Z2_t * term1 ** 2
     P2_t = Z2_t + term1
-    return [P1_t, P2_t]
+    return P1_t, P2_t
 
 
-def integral_prediction_general(t, D, Z0, n_point_theta=1000):
-    d_theta = 1 / n_point_theta
-    term1 = np.array(
-        [f(solve_z_explict(theta + D, D, Z0), control_law_explict(theta, Z0, D)) * d_theta for theta in
-         np.linspace(t - D, t, n_point_theta)]
-    ).sum(axis=0)
-    return term1 + solve_z_explict(t, D, Z0)
+def integral_prediction_general(f, Z_t, P_D, U_D, dt):
+    assert len(P_D) == len(U_D)
+    integral = sum([f(p, u) for p, u in zip(P_D, U_D)]) * dt
+    return integral + Z_t
 
 
-def run(D: float, Z0: Tuple, duration: float, n_point: int, silence: bool = False, plot: bool = False, model=None,
-        method: Literal['explict', 'numerical', 'no'] = None, title='', save_path: str = None,
+def ode_forward(Z_t, Z_t_dot, dt):
+    return Z_t + Z_t_dot * dt
+
+
+def run(delay: float, Z0: Tuple, duration: float, dt: float, silence: bool = False, plot: bool = False,
+        model=None, method: Literal['explict', 'numerical', 'no'] = None, title='', save_path: str = None,
         img_save_path: str = None):
     if not silence:
         print(f'Solving with method "{method}"')
-    ts = np.linspace(0, duration, n_point)
-    dt = ts[1] - ts[0]
-    D_steps = int(D / dt)
-    Z = np.zeros((len(ts), 2))
-    P = np.zeros((len(ts), 2))
-    U = np.zeros(len(ts))
-    Z[0, :] = Z0
+    n_point = int(duration / dt)
+    n_point_delay = int(delay / dt)
+    n_point_total = n_point + n_point_delay
+    ts = np.linspace(-delay, duration, n_point_total)
+
+    U = np.zeros(n_point_total)
+    Z = np.zeros((n_point_total, 2))
+    P = np.zeros((n_point_total, 2))
+    Z[n_point_delay, :] = [0, 1]
 
     if silence:
-        sequence = range(len(ts))
+        sequence = range(n_point_delay, n_point_total)
     else:
-        sequence = tqdm(list(range(len(ts))))
+        sequence = tqdm(list(range(n_point_delay, n_point_total)))
 
-    for i in sequence:
-        t = ts[i]
-        Z[i, :] = solve_z_explict(ts[i], D, Z0)
-        # P[i, :] = integral_prediction_general(t, D, Z0)
-        if t < D:
-            U[i] = control_law_explict(t, Z0, D)
-        else:
-            if method == 'explict':
-                U[i] = control_law_explict(t, Z0, D)
-                # U_t = -Z1_t - (2 + D) * Z2_t - 1 / 3 * Z2_t ** 3 - term3
-                # print(U_t - U[i])
-                P[i, :] = integral_prediction_for_example(t, D, Z0, Z, i)
-            elif method == 'no':
-                U_input = padding_leading_zero(U, i, D_steps)
-                P[i, :] = solve_z_neural_operator(model, U_input, Z[i, :], i)
-                U[i] = control_law(P[i, :])
-            elif method == 'numerical':
-                # sum_ = np.array([f(p, u) for p, u in zip(P[i - D_steps:i, :], U[i - D_steps:i])]).sum(axis=0)
-                sum_ = np.array([f(p, u) for p, u in zip(Z[i:i + D_steps, :], U[i - D_steps:i])]).sum(axis=0)
-                integral = sum_ * dt
-                P[i, :] = integral + Z[i, :]
-                # U[i] = control_law(P[i, :])
-                U[i] = control_law_explict(t, Z0, D)
+    for t_i in sequence:
+        if method == 'explict':
+            U[t_i] = control_law_explict(ts[t_i], Z0, delay)
+            Z[t_i, :] = solve_z_explict(ts[t_i], delay, Z0)
+        elif method == 'no':
+            if ts[t_i] < delay:
+                U[t_i] = control_law_explict(ts[t_i], Z0, delay)
             else:
-                raise NotImplementedError()
+                U_input = padding_leading_zero(U, t_i, n_point_delay)
+                P[t_i, :] = solve_z_neural_operator(model, U_input, Z[t_i, :], t_i)
+                U[t_i] = control_law(P[t_i, :])
+        elif method == 'numerical':
+            t_minus_D_i = t_i - n_point_delay
+            Z_t = Z[t_i, :]
+            Z1_t = Z[t_i, 0]
+            Z2_t = Z[t_i, 1]
+            P1_t, P2_t = integral_prediction_explict(t=ts[t_i], delay=delay, Z1_t=Z1_t, Z2_t=Z2_t,
+                                                     U_D=U[t_minus_D_i:t_i],
+                                                     ts_D=ts[t_minus_D_i:t_i], dt=dt)
+            P[t_i, :] = [P1_t, P2_t]
+            U_t = control_law(P[t_i, :])
+            Z_t_dot = system(Z[t_i, :], U[t_minus_D_i])
+            if t_i + 1 < n_point_total:
+                Z[t_i + 1, :] = ode_forward(Z_t, Z_t_dot, dt)
+            U[t_i] = U_t
+        else:
+            raise NotImplementedError()
+
+    P = P[n_point_delay:, :]
+    U = U[n_point_delay:]
+    Z = Z[n_point_delay:, :]
+    ts = ts[n_point_delay:]
     if not silence:
         print(f'Finish solving')
     if save_path is not None:
         result = {
             "u": U,
             "z": Z,
-            "d": D,
+            "d": delay,
             "duration": duration,
             "n_point": n_point,
             "ts": ts
@@ -186,31 +177,45 @@ def run(D: float, Z0: Tuple, duration: float, n_point: int, silence: bool = Fals
         plt.grid(True)
 
         plt.subplot(514)
-        plt.ylim([0, 1])
         plt.plot(ts, P[:, 0], label='$P_1(t)$')
         plt.ylabel('$P_1(t)$')
         plt.grid(True)
 
         plt.subplot(515)
-        plt.ylim([-1, 1])
         plt.plot(ts, P[:, 1], label='$P_2(t)$')
         plt.ylabel('$P_2(t)$')
         plt.grid(True)
-        plt.clf()
-
-        plt.title('Comparison')
-        # plt.ylim([-5, 5])
-        for i in range(2):
-            plt.plot(ts[D_steps:], P[:-D_steps, i], label=f'$P_{i + 1}(t-{D})$')
-            plt.plot(ts[D_steps:], Z[D_steps:, i], label=f'$Z_{i + 1}(t)$')
-        plt.legend()
-
         plt.tight_layout()
+
         if img_save_path is not None:
             plt.savefig(f'{img_save_path}/system.png')
             plt.clf()
         else:
             plt.show()
+
+        plt.title('Comparison')
+        for t_i in range(2):
+            plt.plot(ts[n_point_delay:], P[:-n_point_delay, t_i], label=f'$P_{t_i + 1}(t-{delay})$')
+            plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$')
+        plt.legend()
+        if img_save_path is not None:
+            plt.savefig(f'{img_save_path}/comparison_full.png')
+            plt.clf()
+        else:
+            plt.show()
+
+        plt.title('Comparison')
+        for t_i in range(2):
+            plt.plot(ts[n_point_delay:], P[:-n_point_delay, t_i], label=f'$P_{t_i + 1}(t-{delay})$')
+            plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$')
+        plt.legend()
+        if img_save_path is not None:
+            plt.savefig(f'{img_save_path}/comparison_zoom.png')
+            plt.clf()
+        else:
+            plt.show()
+    if method == 'explict':
+        return U, Z, None
     return U, Z, P
 
 
@@ -332,22 +337,23 @@ def split_list(list, ratio):
     return list[:n_sample], list[n_sample:]
 
 
-def create_trajectory_dataset(n_dataset: int, duration: float, D: float, n_point: int, D_steps: int,
-                              n_sample_per_dataset: int, implicit: bool, dataset_file: str):
+def create_trajectory_dataset(n_dataset: int, duration: float, delay: float, n_delay_point: int,
+                              n_sample_per_dataset: int,
+                              implicit: bool, dataset_file: str, dt: float):
     all_samples = []
     if implicit:
-        print('creating implicit datasets')
+        print('creating implicit datasets (Use Z(t+D) as P(t))')
     else:
-        print('creating explicit datasets')
+        print('creating explicit datasets (Calculate P(t))')
     for z in tqdm(list(np.random.uniform(0, 1, (n_dataset, 2)))):
-        U, Z, P = run(method='explict', silence=True, duration=duration, D=D, Z0=z, n_point=n_point)
+        U, Z, P = run(method='explict', silence=True, duration=duration, delay=delay, Z0=z, dt=dt)
         if implicit:
             dataset = ImplicitDataset(
-                torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32), D_steps)
+                torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32), n_delay_point, dt)
         else:
             dataset = ExplictDataset(
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
-                torch.tensor(P, dtype=torch.float32), D_steps)
+                torch.tensor(P, dtype=torch.float32), n_delay_point, dt)
         dataset = list(dataset)
         random.shuffle(dataset)
         all_samples += dataset[:n_sample_per_dataset]
@@ -400,9 +406,10 @@ def run_test(test_points: List[Tuple[float, float]], base_path: str, delay: floa
     for test_point in test_points:
         img_save_path = f'{base_path}/{test_point}'
         check_dir(img_save_path)
-        U_no, Z_no, P_no = run(model=m, D=delay, Z0=test_point, method='no', plot=True, title='no', duration=duration,
+        U_no, Z_no, P_no = run(model=m, delay=delay, Z0=test_point, method='no', plot=True, title='no',
+                               duration=duration,
                                n_point=n_point, img_save_path=img_save_path)
-        U_explict, Z_explict, P_explict = run(model=m, D=delay, Z0=test_point, method='explict', plot=False,
+        U_explict, Z_explict, P_explict = run(model=m, delay=delay, Z0=test_point, method='explict', plot=False,
                                               title='explict', duration=duration, n_point=n_point,
                                               img_save_path=img_save_path)
         t_comparison = ts[D_steps:]
@@ -433,9 +440,9 @@ if __name__ == '__main__':
     if not os.path.exists(dataset_config.dataset_file) or dataset_config.recreate_dataset:
         if dataset_config.trajectory:
             samples_ = create_trajectory_dataset(
-                dataset_config.n_dataset, dataset_config.duration, dataset_config.delay, dataset_config.n_point,
-                dataset_config.n_delay_step, dataset_config.n_sample_per_dataset, dataset_config.implicit,
-                dataset_config.dataset_file)
+                dataset_config.n_dataset, dataset_config.duration, dataset_config.delay, dataset_config.n_delay_step,
+                dataset_config.n_sample_per_dataset, dataset_config.implicit,
+                dataset_config.dataset_file, dataset_config.dt)
         else:
             samples_ = create_stateless_dataset(dataset_config.n_dataset, dataset_config.dt,
                                                 dataset_config.n_delay_step, dataset_config.n_sample_per_dataset,
