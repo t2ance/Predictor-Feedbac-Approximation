@@ -23,10 +23,10 @@ class ModelConfig:
 @dataclass
 class TrainConfig:
     batch_size: Optional[int] = field(default=64)
-    learning_rate: Optional[float] = field(default=2e-5)
+    learning_rate: Optional[float] = field(default=3e-5)
     weight_decay: Optional[float] = field(default=1e-5)
     training_ratio: Optional[float] = field(default=0.8)
-    n_epoch: Optional[int] = field(default=20)
+    n_epoch: Optional[int] = field(default=100)
     device: Optional[str] = field(default='cuda')
 
 
@@ -40,7 +40,7 @@ class DatasetConfig:
     n_state: Optional[int] = field(default=2)
     n_sample_per_dataset: Optional[int] = field(default=500)
     n_dataset: Optional[int] = field(default=20)
-    recreate_dataset: Optional[bool] = field(default=True)
+    recreate_dataset: Optional[bool] = field(default=False)
     dataset_file: Optional[str] = field(default='./datasets/dataset.pkl')
     trajectory: Optional[bool] = field(default=True)
     implicit: Optional[bool] = field(default=False)

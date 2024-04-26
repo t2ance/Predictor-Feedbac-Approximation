@@ -7,17 +7,17 @@ import deepxde as dde
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from scipy.integrate import odeint
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ImplicitDataset, PredictionDataset, ExplictDataset
 from model import PredictionFNO
-from utils import count_params, padding_leading_zero
+from utils import count_params
+from scipy.integrate import odeint
 
 
-def system(Z_t, U_t_minus_D):
+def system(Z_t, t, U_t_minus_D):
     Z1_t = Z_t[0]
     Z2_t = Z_t[1]
     Z1_t_dot = Z2_t - Z2_t ** 2 * U_t_minus_D
@@ -82,9 +82,9 @@ def integral_prediction_explict(t, delay, Z1_t, Z2_t, U_D, ts_D, dt):
     return P1_t, P2_t
 
 
-def integral_prediction_general(f, Z_t, P_D, U_D, dt):
+def integral_prediction_general(f, Z_t, P_D, U_D, dt, t):
     assert len(P_D) == len(U_D)
-    integral = sum([f(p, u) for p, u in zip(P_D, U_D)]) * dt
+    integral = sum([f(p, t, u) for p, u in zip(P_D, U_D)]) * dt
     return integral + Z_t
 
 
@@ -119,25 +119,23 @@ def run(delay: float, Z0: Tuple, duration: float, dt: float, silence: bool = Fal
             U[t_i] = control_law_explict(t, Z0, delay)
             Z[t_i, :] = solve_z_explict(t, delay, Z0)
         elif method == 'no':
-            # TODO:
             Z[t_i, :] = solve_z_explict(t, delay, Z0)
-            if t < delay:
-                U[t_i] = control_law_explict(t, Z0, delay)
-            else:
-                U_input = U[t_minus_D_i:t_i]
-                P[t_i, :] = solve_z_neural_operator(model=model, U_D=U_input, Z_t=Z[t_i, :], t=t)
-                U[t_i] = control_law(P[t_i, :])
+            U_input = U[t_minus_D_i:t_i]
+            P[t_i, :] = solve_z_neural_operator(model=model, U_D=U_input, Z_t=Z[t_i, :], t=t)
+            U[t_i] = control_law(P[t_i, :])
         elif method == 'numerical':
             Z_t = Z[t_i, :]
             # P1_t, P2_t = integral_prediction_explict(t=ts[t_i], delay=delay, Z1_t=Z1_t, Z2_t=Z2_t,
             #                                          U_D=U[t_minus_D_i:t_i], ts_D=ts[t_minus_D_i:t_i], dt=dt)
             P1_t, P2_t = integral_prediction_general(f=system, Z_t=Z[t_i, :], P_D=P[t_minus_D_i:t_i],
-                                                     U_D=U[t_minus_D_i:t_i], dt=dt)
+                                                     U_D=U[t_minus_D_i:t_i], dt=dt, t=t)
             P[t_i, :] = [P1_t, P2_t]
             U_t = control_law(P[t_i, :])
             U[t_i] = U_t
             if t_i + 1 < n_point_total:
-                Z[t_i + 1, :] = ode_forward(Z_t, system(Z[t_i, :], U[t_minus_D_i]), dt)
+                Z[t_i + 1, :] = ode_forward(Z_t, system(Z[t_i, :], t, U[t_minus_D_i]), dt)
+                odeint(system, Z_t, [ts[t_i], ts[t_i + 1]], args=(U[t_minus_D_i],))
+
         else:
             raise NotImplementedError()
 
