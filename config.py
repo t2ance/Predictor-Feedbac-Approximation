@@ -23,7 +23,7 @@ class ModelConfig:
 @dataclass
 class TrainConfig:
     batch_size: Optional[int] = field(default=64)
-    learning_rate: Optional[float] = field(default=3e-5)
+    learning_rate: Optional[float] = field(default=7e-5)
     weight_decay: Optional[float] = field(default=1e-5)
     training_ratio: Optional[float] = field(default=0.8)
     n_epoch: Optional[int] = field(default=100)
@@ -47,11 +47,11 @@ class DatasetConfig:
 
     @property
     def ts(self) -> np.ndarray:
-        return np.linspace(0, self.duration, self.n_point)
+        return np.linspace(-self.delay, self.duration, self.n_point)
 
     @property
     def n_point(self) -> int:
-        return int(round(self.duration / self.dt))
+        return int(round((self.duration + self.delay) / self.dt))
 
     @property
     def n_delay_point(self) -> int:

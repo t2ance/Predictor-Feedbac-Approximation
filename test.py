@@ -112,4 +112,6 @@ def simulation():
 if __name__ == '__main__':
     dataset_config = DatasetConfig()
     U, Z, P = run(method='numerical', silence=True, duration=dataset_config.duration, delay=dataset_config.delay,
-                  Z0=(0, 1), dt=dataset_config.dt, plot=True)
+                  Z0=(0.5, 0.5), dt=dataset_config.dt, plot=True)
+    # U, Z, _ = run(method='explict', silence=True, duration=dataset_config.duration, delay=dataset_config.delay,
+    #               Z0=(0, 1), dt=dataset_config.dt, plot=True)

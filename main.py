@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config import DatasetConfig, ModelConfig, TrainConfig
-from dataset import ImplicitDataset, PredictionDataset, ExplictDataset
+from dataset import ImplicitDataset, PredictionDataset, ExplictDataset, sample_to_tensor
 from model import PredictionFNO
 from utils import count_params, padding_leading_zero
 from scipy.integrate import odeint
@@ -363,6 +363,9 @@ def create_trajectory_dataset(n_dataset: int, duration: float, delay: float, n_d
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32), n_delay_point, dt)
         else:
             U, Z, P = run(method='numerical', silence=True, duration=duration, delay=delay, Z0=z, dt=dt)
+            U = U[2 * n_delay_point:]
+            Z = Z[2 * n_delay_point:]
+            P = P[2 * n_delay_point:]
             dataset = ExplictDataset(
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
                 torch.tensor(P, dtype=torch.float32), n_delay_point, dt)
@@ -375,17 +378,19 @@ def create_trajectory_dataset(n_dataset: int, duration: float, delay: float, n_d
     return all_samples
 
 
-def create_stateless_dataset(n_dataset: int, dt: float, D_steps: int, n_sample_per_dataset: int, dataset_file: str,
-                             n_state: int):
+def create_stateless_dataset(n_dataset: int, dt: float, n_delay_point: int, n_sample_per_dataset: int,
+                             dataset_file: str, n_state: int):
     all_samples = []
     for i in range(n_dataset * n_sample_per_dataset):
-        U = np.sin(np.sqrt(i) * np.linspace(0, 1, D_steps))
-
+        U_D = np.sin(np.sqrt(i) * np.linspace(0, 1, n_delay_point))
+        P_D = np.zeros((n_delay_point, n_state))
         Z_t = np.random.uniform(0, 1, 2)
-        # P = predict_by_integral(f, Z_t, U, D_steps, dt, n_state)
-        features = np.concatenate([[i * dt], Z_t, U])
-        # label = P
-        # all_samples.append((features, label))
+        P_D[0, :] = Z_t
+        for j in range(n_delay_point - 1):
+            P_D[j + 1] = P_D[j] + dt * system(P_D[j], j * dt, U_D[j])
+        label = integral_prediction_general(f=system, Z_t=Z_t, P_D=P_D, U_D=U_D, dt=dt, t=dt * n_delay_point)
+        features = sample_to_tensor(Z_t, U_D, dt * n_delay_point)
+        all_samples.append((features, torch.from_numpy(label)))
     with open(dataset_file, 'wb') as file:
         pickle.dump(all_samples, file)
     return all_samples
@@ -401,7 +406,7 @@ def prepare_dataset(samples, training_ratio: float, batch_size: int, device: str
 
 
 def run_test(test_points: List[Tuple[float, float]], base_path: str, delay: float, duration: float, ts: np.ndarray,
-             n_delay_point: int, dt: float):
+             n_point_delay: int, dt: float):
     for test_point in test_points:
         img_save_path = f'{base_path}/{test_point}'
         check_dir(img_save_path)
@@ -410,15 +415,16 @@ def run_test(test_points: List[Tuple[float, float]], base_path: str, delay: floa
         U_explict, Z_explict, P_explict = run(model=m, delay=delay, Z0=test_point, method='explict', plot=False,
                                               title='explict', duration=duration,
                                               img_save_path=img_save_path, dt=dt)
-        t_comparison = ts[n_delay_point:]
+        t_comparison = ts[n_point_delay:]
         plt.title('Comparison')
-        plt.plot(t_comparison, P_no[:-n_delay_point], label='approximation')
-        plt.plot(t_comparison, Z_explict[n_delay_point:], label='ground truth')
+        for t_i in range(2):
+            plt.plot(ts[n_point_delay:], P_no[:-n_point_delay, t_i], label=f'$P_{t_i + 1}(t-{delay})$')
+            plt.plot(ts[n_point_delay:], Z_explict[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$')
         plt.legend()
         plt.savefig(f'{img_save_path}/comparison.png')
         plt.clf()
         plt.title('Difference')
-        difference = P_no[:-n_delay_point] - Z_explict[n_delay_point:]
+        difference = P_no[:-n_point_delay] - Z_explict[n_point_delay:]
         plt.ylim([-1, 1])
         plt.plot(t_comparison, difference[:, 0], label='difference of prediction1')
         plt.plot(t_comparison, difference[:, 1], label='difference of prediction2')
@@ -459,5 +465,5 @@ if __name__ == '__main__':
                   n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
                   model_name=model_config.model_name)
     run_test(test_points=dataset_config.test_points, base_path=model_config.base_path, delay=dataset_config.delay,
-             duration=dataset_config.duration, ts=dataset_config.ts, n_delay_point=dataset_config.n_delay_point,
+             duration=dataset_config.duration, ts=dataset_config.ts, n_point_delay=dataset_config.n_delay_point,
              dt=dataset_config.dt)
