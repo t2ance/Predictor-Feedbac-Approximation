@@ -13,7 +13,7 @@ from tqdm import tqdm
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ImplicitDataset, PredictionDataset, ExplictDataset
 from model import PredictionFNO
-from utils import count_params
+from utils import count_params, padding_leading_zero
 from scipy.integrate import odeint
 
 
@@ -94,7 +94,7 @@ def ode_forward(Z_t, Z_t_dot, dt):
 
 def run(delay: float, Z0: Tuple, duration: float, dt: float, silence: bool = False, plot: bool = False,
         model=None, method: Literal['explict', 'numerical', 'no'] = None, title='', save_path: str = None,
-        img_save_path: str = None):
+        img_save_path: str = None, cut: bool = False):
     if not silence:
         print(f'Solving with method "{method}"')
     n_point = int(duration / dt)
@@ -105,44 +105,56 @@ def run(delay: float, Z0: Tuple, duration: float, dt: float, silence: bool = Fal
     U = np.zeros(n_point_total)
     Z = np.zeros((n_point_total, 2))
     P = np.zeros((n_point_total, 2))
-    Z[n_point_delay, :] = [0, 1]
+    Z0 = np.array(Z0)
+    Z[n_point_delay, :] = Z0
 
     if silence:
-        sequence = range(n_point_delay, n_point_total)
+        # sequence = range(n_point_delay, n_point_total)
+        sequence = range(n_point_total)
     else:
-        sequence = tqdm(list(range(n_point_delay, n_point_total)))
+        # sequence = tqdm(list(range(n_point_delay, n_point_total)))
+        sequence = tqdm(list(range(n_point_total)))
 
     for t_i in sequence:
         t_minus_D_i = t_i - n_point_delay
         t = ts[t_i]
         if method == 'explict':
             U[t_i] = control_law_explict(t, Z0, delay)
-            Z[t_i, :] = solve_z_explict(t, delay, Z0)
+            if t_i > n_point_delay:
+                Z[t_i, :] = solve_z_explict(t, delay, Z0)
         elif method == 'no':
-            Z[t_i, :] = solve_z_explict(t, delay, Z0)
-            U_input = U[t_minus_D_i:t_i]
-            P[t_i, :] = solve_z_neural_operator(model=model, U_D=U_input, Z_t=Z[t_i, :], t=t)
+            if t_i > n_point_delay:
+                Z[t_i, :] = solve_z_explict(t, delay, Z0)
+                Z_t = Z[t_i, :]
+            else:
+                Z_t = Z0
+            U_input = padding_leading_zero(U, t_minus_D_i, t_i)
+            P[t_i, :] = solve_z_neural_operator(model=model, U_D=U_input, Z_t=Z_t, t=t)
             U[t_i] = control_law(P[t_i, :])
         elif method == 'numerical':
-            Z_t = Z[t_i, :]
+            if t_i > n_point_delay:
+                Z[t_i, :] = odeint(system, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
+                Z_t = Z[t_i, :]
+            else:
+                Z_t = Z0
             # P1_t, P2_t = integral_prediction_explict(t=ts[t_i], delay=delay, Z1_t=Z1_t, Z2_t=Z2_t,
             #                                          U_D=U[t_minus_D_i:t_i], ts_D=ts[t_minus_D_i:t_i], dt=dt)
-            P1_t, P2_t = integral_prediction_general(f=system, Z_t=Z[t_i, :], P_D=P[t_minus_D_i:t_i],
-                                                     U_D=U[t_minus_D_i:t_i], dt=dt, t=t)
+            P1_t, P2_t = integral_prediction_general(
+                f=system, Z_t=Z_t, P_D=P[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], dt=dt, t=t)
             P[t_i, :] = [P1_t, P2_t]
-            U_t = control_law(P[t_i, :])
-            U[t_i] = U_t
-            if t_i + 1 < n_point_total:
-                Z[t_i + 1, :] = ode_forward(Z_t, system(Z[t_i, :], t, U[t_minus_D_i]), dt)
-                odeint(system, Z_t, [ts[t_i], ts[t_i + 1]], args=(U[t_minus_D_i],))
-
+            if t_i > n_point_delay:
+                U_t = control_law(P[t_i, :])
+                U[t_i] = U_t
+            # if t_i + 1 < n_point_total:
+            # Z[t_i + 1, :] = ode_forward(Z_t, system(Z[t_i, :], t, U[t_minus_D_i]), dt)
+            # Z[t_i + 1, :] = odeint(system, Z_t, [ts[t_i], ts[t_i + 1]], args=(U[t_minus_D_i],))[1]
         else:
             raise NotImplementedError()
-
-    P = P[n_point_delay:, :]
-    U = U[n_point_delay:]
-    Z = Z[n_point_delay:, :]
-    ts = ts[n_point_delay:]
+    if cut:
+        P = P[n_point_delay:, :]
+        U = U[n_point_delay:]
+        Z = Z[n_point_delay:, :]
+        ts = ts[n_point_delay:]
     if not silence:
         print(f'Finish solving')
     if save_path is not None:

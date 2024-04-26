@@ -1,8 +1,9 @@
 import numpy as np
 from matplotlib import pyplot as plt
+from scipy.integrate import odeint
 
 from config import DatasetConfig
-from main import run, integral_prediction_explict, control_law, system
+from main import run, integral_prediction_explict, control_law, system, ode_forward, integral_prediction_general
 
 
 def compute_Z_at_t_plus_D(U_vector, Z_at_t, delta_t):
@@ -52,20 +53,20 @@ def simulation():
 
     for i in range(n_point_delay, n_point_total):
         t_i = i
+        t = ts[t_i + 1]
         t_minus_D_i = i - n_point_delay
         Z1_t = Z[t_i, 0]
         Z2_t = Z[t_i, 1]
-        P1_t, P2_t = integral_prediction_explict(t=ts[t_i], delay=D, Z1_t=Z1_t, Z2_t=Z2_t, U_D=U[t_minus_D_i:t_i],
-                                                 ts_D=ts[t_minus_D_i:t_i], dt=dt)
-        # P1_t, P2_t = integral_prediction_general(f=system, Z_t=Z[t_i, :], P_D=P[t_minus_D_i:t_i],
-        #                                          U_D=U[t_minus_D_i:t_i], dt=dt)
+        # P1_t, P2_t = integral_prediction_explict(t=ts[t_i], delay=D, Z1_t=Z1_t, Z2_t=Z2_t, U_D=U[t_minus_D_i:t_i],
+        #                                          ts_D=ts[t_minus_D_i:t_i], dt=dt)
+        P1_t, P2_t = integral_prediction_general(f=system, Z_t=Z[t_i, :], P_D=P[t_minus_D_i:t_i],
+                                                 U_D=U[t_minus_D_i:t_i], dt=dt, t=t)
         P[t_i, :] = [P1_t, P2_t]
+        Z_t = Z[t_i, :]
         U_t = control_law(P[t_i, :])
-        Z1_t_dot, Z2_t_dot = system(Z[t_i, :], U[t_minus_D_i])
-        Z1_t_plus_1 = Z1_t + Z1_t_dot * dt
-        Z2_t_plus_1 = Z2_t + Z2_t_dot * dt
-        if t_i + 1 < n_point_total:
-            Z[t_i + 1, :] = [Z1_t_plus_1, Z2_t_plus_1]
+        Z[t_i + 1, :] = ode_forward(Z_t, system(Z[t_i, :], t, U[t_minus_D_i]), dt)
+        # Z[t_i + 1, :] = odeint(system, Z_t, [ts[t_i], ts[t_i +1]], args=(U[t_minus_D_i],))
+
         U[t_i] = U_t
 
     P = P[n_point_delay:, :]
