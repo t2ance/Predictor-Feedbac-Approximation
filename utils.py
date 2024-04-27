@@ -12,7 +12,7 @@ def count_params(model):
     return pp
 
 
-def padding_leading_zero(U, start, end):
+def pad_leading_zeros(U, start, end):
     assert start <= end
     r = end - start
     start_index = max(start, 0)

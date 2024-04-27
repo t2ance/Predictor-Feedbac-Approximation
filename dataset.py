@@ -27,20 +27,20 @@ class ImplicitDataset(Dataset):
 
 
 class ExplictDataset(Dataset):
-    def __init__(self, Z, U, P, n_delay_point, dt):
+    def __init__(self, Z, U, P, n_point_delay, dt):
         self.Z = Z
         self.U = U
         self.P = P
         self.dt = dt
-        self.n_delay_point = n_delay_point
+        self.n_point_delay = n_point_delay
 
     def __len__(self):
-        return len(self.U) - 2 * self.n_delay_point
+        return len(self.U) - 2 * self.n_point_delay
 
     def __getitem__(self, idx):
-        idx += 2 * self.n_delay_point
+        idx += 2 * self.n_point_delay
         z_features = self.Z[idx]
-        u_features = self.U[idx - self.n_delay_point:idx].view(-1)
+        u_features = self.U[idx - self.n_point_delay:idx].view(-1)
         label = self.P[idx]
         features = sample_to_tensor(z_features, u_features, idx * self.dt)
         return features, label
