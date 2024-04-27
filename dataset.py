@@ -35,10 +35,10 @@ class ExplictDataset(Dataset):
         self.n_delay_point = n_delay_point
 
     def __len__(self):
-        return len(self.U) - self.n_delay_point
+        return len(self.U) - 2 * self.n_delay_point
 
     def __getitem__(self, idx):
-        idx += self.n_delay_point
+        idx += 2 * self.n_delay_point
         z_features = self.Z[idx]
         u_features = self.U[idx - self.n_delay_point:idx].view(-1)
         label = self.P[idx]

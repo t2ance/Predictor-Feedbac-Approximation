@@ -7,61 +7,18 @@ import deepxde as dde
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from scipy.integrate import odeint
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config import DatasetConfig, ModelConfig, TrainConfig
-from dataset import ImplicitDataset, PredictionDataset, ExplictDataset, sample_to_tensor
+from dataset import ImplicitDataset, ExplictDataset, sample_to_tensor, PredictionDataset
 from model import PredictionFNO
+from system1 import control_law_explict, solve_z_explict, control_law, system, integral_prediction_general
 from utils import count_params, padding_leading_zero
-from scipy.integrate import odeint
 
 
-def system(Z_t, t, U_t_minus_D):
-    Z1_t = Z_t[0]
-    Z2_t = Z_t[1]
-    Z1_t_dot = Z2_t - Z2_t ** 2 * U_t_minus_D
-    Z2_t_dot = U_t_minus_D
-    return np.array([Z1_t_dot, Z2_t_dot])
-
-
-def control_law_explict(t, Z0, D):
-    z1_0, z2_0 = Z0
-    if t >= 0:
-        term1 = z1_0 + (2 + D) * z2_0 + (1 / 3) * z2_0 ** 3
-        term2 = z1_0 + (1 + D) * z2_0 + (1 / 3) * z2_0 ** 3
-        u_t = -np.exp(D - t) * (term1 + (D - t) * term2)
-        return u_t
-    elif t >= -D:
-        return 0
-    else:
-        raise NotImplementedError()
-
-
-def control_law(P_t):
-    p1t = P_t[0]
-    p2t = P_t[1]
-    return -p1t - 2 * p2t - 1 / 3 * p2t ** 3
-
-
-def solve_z_explict(t, D, Z0):
-    if t < 0:
-        raise NotImplementedError()
-    if t < D:
-        return Z0[0] + Z0[1] * t, Z0[1]
-    z1_0 = Z0[0]
-    z2_0 = Z0[1]
-    z2_D = Z0[1]
-    middle_term = z1_0 + D * z2_0 + (1 / 3) * z2_0 ** 3
-    term1 = np.exp(D - t) * ((1 + t - D) * middle_term + (t - D) * z2_D)
-    term2 = - (1 / 3) * np.exp(3 * (D - t)) * ((D - t) * middle_term + (1 - t + D) * z2_D) ** 3
-    Z1 = term1 + term2
-
-    Z2 = np.exp(D - t) * ((D - t) * middle_term + (1 - t + D) * z2_D)
-    return Z1, Z2
-
-
-def solve_z_neural_operator(model, U_D, Z_t, t):
+def predict_neural_operator(model, U_D, Z_t, t):
     u_tensor = torch.tensor(U_D, dtype=torch.float32).view(1, -1)
     z_tensor = torch.tensor(Z_t, dtype=torch.float32).view(1, -1)
     inputs = [torch.cat([z_tensor, u_tensor], dim=1), torch.tensor(t, dtype=torch.float32).view(1, -1)]
@@ -71,25 +28,6 @@ def solve_z_neural_operator(model, U_D, Z_t, t):
         outputs = model(inputs)
     [P1, P2] = outputs.to('cpu').detach().numpy()[0]
     return P1, P2
-
-
-def integral_prediction_explict(t, delay, Z1_t, Z2_t, U_D, ts_D, dt):
-    assert len(ts_D) == len(U_D)
-    term1 = sum(U_D) * dt
-    term2 = sum([(t - theta) * u * dt for u, theta in zip(U_D, ts_D)])
-    P1_t = Z1_t + delay * Z2_t + term2 - Z2_t ** 2 * term1 - Z2_t * term1 ** 2
-    P2_t = Z2_t + term1
-    return P1_t, P2_t
-
-
-def integral_prediction_general(f, Z_t, P_D, U_D, dt, t):
-    assert len(P_D) == len(U_D)
-    integral = sum([f(p, t, u) for p, u in zip(P_D, U_D)]) * dt
-    return integral + Z_t
-
-
-def ode_forward(Z_t, Z_t_dot, dt):
-    return Z_t + Z_t_dot * dt
 
 
 def run(delay: float, Z0: Tuple, duration: float, dt: float, silence: bool = False, plot: bool = False,
@@ -129,7 +67,7 @@ def run(delay: float, Z0: Tuple, duration: float, dt: float, silence: bool = Fal
             else:
                 Z_t = Z0
             U_input = padding_leading_zero(U, t_minus_D_i, t_i)
-            P[t_i, :] = solve_z_neural_operator(model=model, U_D=U_input, Z_t=Z_t, t=t)
+            P[t_i, :] = predict_neural_operator(model=model, U_D=U_input, Z_t=Z_t, t=t)
             U[t_i] = control_law(P[t_i, :])
         elif method == 'numerical':
             if t_i > n_point_delay:
@@ -215,14 +153,14 @@ def run(delay: float, Z0: Tuple, duration: float, dt: float, silence: bool = Fal
             plt.clf()
         else:
             plt.show()
-
-        plt.title('Comparison')
-        for t_i in range(2):
-            plt.plot(ts[n_point_delay:], P[:-n_point_delay, t_i], label=f'$P_{t_i + 1}(t-{delay})$')
-            plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$')
+        plt.title('Difference')
+        difference = P[:-n_point_delay] - Z[n_point_delay:]
+        plt.ylim([-1, 1])
+        plt.plot(ts[n_point_delay:], difference[:, 0], label='difference of prediction1')
+        plt.plot(ts[n_point_delay:], difference[:, 1], label='difference of prediction2')
         plt.legend()
         if img_save_path is not None:
-            plt.savefig(f'{img_save_path}/comparison_zoom.png')
+            plt.savefig(f'{img_save_path}/difference.png')
             plt.clf()
         else:
             plt.show()
@@ -242,25 +180,10 @@ def no_predict(model_name, inputs, device, model):
     return model(inputs)
 
 
-def run_train(n_state: int, batch_size: int, hidden_size: int, n_hidden: int, merge_size: int, lr: float, n_epoch: int,
+def run_train(n_state: int, hidden_size: int, n_hidden: int, merge_size: int, lr: float, n_epoch: int,
               weight_decay: float, training_dataloader=None, validating_dataloader=None, n_delay_point=None,
-              dataset_path: str = None, n_modes_height=8, hidden_channels=16,
-              model_name: Literal['DeepONet', 'FNO'] = 'DeepONet', device='cuda', img_save_path: str = None):
-    if training_dataloader is None:
-        with open(dataset_path, 'rb') as file:
-            dataset = pickle.load(file)
-        Z = dataset['z']
-        U = dataset['u']
-        D = dataset['d']
-        ts = dataset['ts']
-        n_delay_point = int(D / (ts[1] - ts[0]))
-        prediction_dataset = ImplicitDataset(
-            torch.tensor(Z, dtype=torch.float32),
-            torch.tensor(U, dtype=torch.float32),
-            n_delay_point, dt=None)
-        training_dataloader = DataLoader(
-            prediction_dataset, batch_size=batch_size, shuffle=True, generator=torch.Generator(device='cuda'))
-
+              n_modes_height=8, hidden_channels=16, model_name: Literal['DeepONet', 'FNO'] = 'DeepONet', device='cuda',
+              img_save_path: str = None):
     if model_name == 'DeepONet':
         layer_size_branch = [n_delay_point + n_state] + [hidden_size] * n_hidden + [merge_size]
         layer_size_trunk = [1] + [hidden_size] * n_hidden + [merge_size]
@@ -342,11 +265,53 @@ def metric(u_preds, u_trues):
     return epsilon
 
 
-def split_list(list, ratio):
-    n_total = len(list)
-    n_sample = int(n_total * ratio)
-    random.shuffle(list)
-    return list[:n_sample], list[n_sample:]
+def run_test(test_points: List[Tuple[float, float]], base_path: str, delay: float, duration: float, ts: np.ndarray,
+             n_point_delay: int, dt: float):
+    for test_point in test_points:
+        img_save_path = f'{base_path}/{test_point}'
+        check_dir(img_save_path)
+        U_no, Z_no, P_no = run(model=m, delay=delay, Z0=test_point, method='no', plot=True, title='no',
+                               duration=duration, img_save_path=img_save_path, dt=dt)
+        U_explict, Z_explict, P_explict = run(model=m, delay=delay, Z0=test_point, method='explict', plot=False,
+                                              title='explict', duration=duration,
+                                              img_save_path=img_save_path, dt=dt)
+        t_comparison = ts[n_point_delay:]
+        plt.title('Comparison')
+        for t_i in range(2):
+            plt.plot(ts[n_point_delay:], P_no[:-n_point_delay, t_i], label=f'$P_{t_i + 1}(t-{delay})$')
+            plt.plot(ts[n_point_delay:], Z_explict[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$')
+        plt.legend()
+        plt.savefig(f'{img_save_path}/comparison.png')
+        plt.clf()
+        plt.title('Difference')
+        difference = P_no[:-n_point_delay] - Z_explict[n_point_delay:]
+        plt.ylim([-1, 1])
+        plt.plot(t_comparison, difference[:, 0], label='difference of prediction1')
+        plt.plot(t_comparison, difference[:, 1], label='difference of prediction2')
+        plt.legend()
+        plt.savefig(f'{img_save_path}/difference.png')
+        plt.clf()
+
+
+def get_dataset(dataset_config: DatasetConfig, train_config: TrainConfig):
+    if not os.path.exists(dataset_config.dataset_file) or dataset_config.recreate_dataset:
+        if dataset_config.trajectory:
+            samples_ = create_trajectory_dataset(
+                dataset_config.n_dataset, dataset_config.duration, dataset_config.delay, dataset_config.n_delay_point,
+                dataset_config.n_sample_per_dataset, dataset_config.implicit, dataset_config.dataset_file,
+                dataset_config.dt
+            )
+        else:
+            samples_ = create_stateless_dataset(
+                dataset_config.n_dataset, dataset_config.dt, dataset_config.n_delay_point,
+                dataset_config.n_sample_per_dataset, dataset_config.dataset_file, dataset_config.n_state
+            )
+    else:
+        with open(dataset_config.dataset_file, 'rb') as file:
+            samples_ = pickle.load(file)
+    training_dataloader, validating_dataloader = prepare_dataset(
+        samples_, train_config.training_ratio, train_config.batch_size, train_config.device)
+    return training_dataloader, validating_dataloader
 
 
 def create_trajectory_dataset(n_dataset: int, duration: float, delay: float, n_delay_point: int,
@@ -363,9 +328,6 @@ def create_trajectory_dataset(n_dataset: int, duration: float, delay: float, n_d
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32), n_delay_point, dt)
         else:
             U, Z, P = run(method='numerical', silence=True, duration=duration, delay=delay, Z0=z, dt=dt)
-            U = U[2 * n_delay_point:]
-            Z = Z[2 * n_delay_point:]
-            P = P[2 * n_delay_point:]
             dataset = ExplictDataset(
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
                 torch.tensor(P, dtype=torch.float32), n_delay_point, dt)
@@ -376,6 +338,13 @@ def create_trajectory_dataset(n_dataset: int, duration: float, delay: float, n_d
     with open(dataset_file, 'wb') as file:
         pickle.dump(all_samples, file)
     return all_samples
+
+
+def split_list(list, ratio):
+    n_total = len(list)
+    n_sample = int(n_total * ratio)
+    random.shuffle(list)
+    return list[:n_sample], list[n_sample:]
 
 
 def create_stateless_dataset(n_dataset: int, dt: float, n_delay_point: int, n_sample_per_dataset: int,
@@ -405,63 +374,19 @@ def prepare_dataset(samples, training_ratio: float, batch_size: int, device: str
     return training_dataloader, validating_dataloader
 
 
-def run_test(test_points: List[Tuple[float, float]], base_path: str, delay: float, duration: float, ts: np.ndarray,
-             n_point_delay: int, dt: float):
-    for test_point in test_points:
-        img_save_path = f'{base_path}/{test_point}'
-        check_dir(img_save_path)
-        U_no, Z_no, P_no = run(model=m, delay=delay, Z0=test_point, method='no', plot=True, title='no',
-                               duration=duration, img_save_path=img_save_path, dt=dt)
-        U_explict, Z_explict, P_explict = run(model=m, delay=delay, Z0=test_point, method='explict', plot=False,
-                                              title='explict', duration=duration,
-                                              img_save_path=img_save_path, dt=dt)
-        t_comparison = ts[n_point_delay:]
-        plt.title('Comparison')
-        for t_i in range(2):
-            plt.plot(ts[n_point_delay:], P_no[:-n_point_delay, t_i], label=f'$P_{t_i + 1}(t-{delay})$')
-            plt.plot(ts[n_point_delay:], Z_explict[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$')
-        plt.legend()
-        plt.savefig(f'{img_save_path}/comparison.png')
-        plt.clf()
-        plt.title('Difference')
-        difference = P_no[:-n_point_delay] - Z_explict[n_point_delay:]
-        plt.ylim([-1, 1])
-        plt.plot(t_comparison, difference[:, 0], label='difference of prediction1')
-        plt.plot(t_comparison, difference[:, 1], label='difference of prediction2')
-        plt.legend()
-        plt.savefig(f'{img_save_path}/difference.png')
-        plt.clf()
-
-
 if __name__ == '__main__':
     dataset_config = DatasetConfig()
     model_config = ModelConfig()
     train_config = TrainConfig()
 
-    if not os.path.exists(dataset_config.dataset_file) or dataset_config.recreate_dataset:
-        if dataset_config.trajectory:
-            samples_ = create_trajectory_dataset(
-                dataset_config.n_dataset, dataset_config.duration, dataset_config.delay, dataset_config.n_delay_point,
-                dataset_config.n_sample_per_dataset, dataset_config.implicit, dataset_config.dataset_file,
-                dataset_config.dt
-            )
-        else:
-            samples_ = create_stateless_dataset(
-                dataset_config.n_dataset, dataset_config.dt, dataset_config.n_delay_point,
-                dataset_config.n_sample_per_dataset, dataset_config.dataset_file, dataset_config.n_state
-            )
-    else:
-        with open(dataset_config.dataset_file, 'rb') as file:
-            samples_ = pickle.load(file)
-    training_dataloader, validating_dataloader = prepare_dataset(
-        samples_, train_config.training_ratio, train_config.batch_size, train_config.device)
+    training_dataloader, validating_dataloader = get_dataset(dataset_config, train_config)
     check_dir(model_config.base_path)
     m = run_train(n_state=dataset_config.n_state, training_dataloader=training_dataloader,
                   validating_dataloader=validating_dataloader, n_delay_point=dataset_config.n_delay_point,
                   weight_decay=train_config.weight_decay, n_hidden=model_config.deeponet_n_hidden,
                   n_epoch=train_config.n_epoch, merge_size=model_config.deeponet_n_merge_size,
                   hidden_size=model_config.deeponet_n_hidden_size, lr=train_config.learning_rate,
-                  batch_size=train_config.batch_size, img_save_path=model_config.base_path,
+                  img_save_path=model_config.base_path,
                   n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
                   model_name=model_config.model_name)
     run_test(test_points=dataset_config.test_points, base_path=model_config.base_path, delay=dataset_config.delay,

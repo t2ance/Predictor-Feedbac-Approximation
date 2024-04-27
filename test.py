@@ -1,21 +1,18 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.integrate import odeint
 
 from config import DatasetConfig
-from main import run, integral_prediction_explict, control_law, system, ode_forward, integral_prediction_general
+from main import run, control_law, system, ode_forward, integral_prediction_general
 
 
 def compute_Z_at_t_plus_D(U_vector, Z_at_t, delta_t):
-    # Define the function f for the system, which is assumed to be same as before
     def f(Z, U_delayed):
         dZ1_dt = Z[1] - Z[0] ** 2 * U_delayed
         dZ2_dt = U_delayed
         return np.array([dZ1_dt, dZ2_dt])
 
-    # Initialize variables
-    Z_current = np.copy(Z_at_t)  # Start with the initial condition Z(t)
-    num_steps = len(U_vector)  # Number of steps to integrate over
+    Z_current = np.copy(Z_at_t)
+    num_steps = len(U_vector)
 
     # Time integration using the trapezoidal rule
     for i in range(num_steps - 1):

@@ -38,12 +38,12 @@ class DatasetConfig:
     test_points: Optional[List[Tuple[float, float]]] = \
         field(default_factory=lambda: [(0, 1), (1, 0), (1, 1)])
     n_state: Optional[int] = field(default=2)
-    n_sample_per_dataset: Optional[int] = field(default=500)
+    n_sample_per_dataset: Optional[int] = field(default=250)
     n_dataset: Optional[int] = field(default=20)
     recreate_dataset: Optional[bool] = field(default=True)
     dataset_file: Optional[str] = field(default='./datasets/dataset.pkl')
     trajectory: Optional[bool] = field(default=True)
-    implicit: Optional[bool] = field(default=False)
+    implicit: Optional[bool] = field(default=True)
 
     @property
     def ts(self) -> np.ndarray:
