@@ -2,7 +2,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from config import DatasetConfig
-from main import run, control_law, system, ode_forward, integral_prediction_general
+from main import run, control_law, system, integral_prediction_general
+from system1 import ode_forward
 
 
 def compute_Z_at_t_plus_D(U_vector, Z_at_t, delta_t):

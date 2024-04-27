@@ -62,7 +62,7 @@ def run(delay: float, Z0: Tuple, duration: float, dt: float, silence: bool = Fal
                 Z[t_i, :] = solve_z_explict(t, delay, Z0)
         elif method == 'no':
             if t_i > n_point_delay:
-                Z[t_i, :] = solve_z_explict(t, delay, Z0)
+                Z[t_i, :] = odeint(system, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0
@@ -197,12 +197,13 @@ def run_train(n_state: int, hidden_size: int, n_hidden: int, merge_size: int, lr
         ).to(device)
     elif model_name == 'FNO':
         model = PredictionFNO(
-            n_modes_height=n_modes_height, hidden_channels=hidden_channels, in_features=n_delay_point + n_state,
+            n_modes_height=n_modes_height, hidden_channels=hidden_channels, in_features=n_state + n_delay_point,
             out_features=n_state).to(device)
     else:
         raise NotImplementedError()
     criterion = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.99)
 
     print(f'#parameters: {count_params(model)}')
     training_loss_arr = []
