@@ -69,15 +69,6 @@ def run(dataset_config: DatasetConfig,
             U[t_i] = control_law_explict(t, Z0, delay)
             if t_i > n_point_delay:
                 Z[t_i, :] = solve_z_explict(t, delay, Z0)
-        elif method == 'no':
-            if t_i > n_point_delay:
-                Z[t_i, :] = odeint(system, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
-                Z_t = Z[t_i, :]
-            else:
-                Z_t = Z0
-            P[t_i, :] = predict_neural_operator(model=model, U_D=pad_leading_zeros(U, t_minus_D_i, t_i), Z_t=Z_t, t=t)
-            if t_i > n_point_delay:
-                U[t_i] = control_law(P[t_i, :])
         elif method == 'numerical':
             if t_i > n_point_delay:
                 Z[t_i, :] = odeint(system, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
@@ -86,6 +77,15 @@ def run(dataset_config: DatasetConfig,
                 Z_t = Z0
             P[t_i, :] = integral_prediction_general(
                 f=system, Z_t=Z_t, P_D=P[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], dt=dt, t=t)
+            if t_i > n_point_delay:
+                U[t_i] = control_law(P[t_i, :])
+        elif method == 'no':
+            if t_i > n_point_delay:
+                Z[t_i, :] = odeint(system, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
+                Z_t = Z[t_i, :]
+            else:
+                Z_t = Z0
+            P[t_i, :] = predict_neural_operator(model=model, U_D=pad_leading_zeros(U, t_minus_D_i, t_i), Z_t=Z_t, t=t)
             if t_i > n_point_delay:
                 U[t_i] = control_law(P[t_i, :])
         else:
@@ -319,13 +319,6 @@ def create_trajectory_dataset(dataset_config: DatasetConfig):
     return all_samples
 
 
-def split_list(list, ratio):
-    n_total = len(list)
-    n_sample = int(n_total * ratio)
-    random.shuffle(list)
-    return list[:n_sample], list[n_sample:]
-
-
 def create_stateless_dataset(n_dataset: int, dt: float, n_point_delay: int, n_sample_per_dataset: int,
                              dataset_file: str, n_state: int):
     all_samples = []
@@ -345,7 +338,13 @@ def create_stateless_dataset(n_dataset: int, dt: float, n_point_delay: int, n_sa
 
 
 def prepare_dataset(samples, training_ratio: float, batch_size: int, device: str):
-    train_dataset, validate_dataset = split_list(samples, training_ratio)
+    def split_dataset(dataset, ratio):
+        n_total = len(dataset)
+        n_sample = int(n_total * ratio)
+        random.shuffle(dataset)
+        return dataset[:n_sample], dataset[n_sample:]
+
+    train_dataset, validate_dataset = split_dataset(samples, training_ratio)
     training_dataloader = DataLoader(PredictionDataset(train_dataset), batch_size=batch_size, shuffle=True,
                                      generator=torch.Generator(device=device))
     validating_dataloader = DataLoader(PredictionDataset(validate_dataset), batch_size=batch_size, shuffle=True,
@@ -355,8 +354,8 @@ def prepare_dataset(samples, training_ratio: float, batch_size: int, device: str
 
 if __name__ == '__main__':
     dataset_config = DatasetConfig(recreate_dataset=True, dt=0.002, n_dataset=20, n_sample_per_dataset=500)
-    model_config = ModelConfig()
-    train_config = TrainConfig(learning_rate=3e-5)
+    model_config = ModelConfig(model_name='DeepONet')
+    train_config = TrainConfig(learning_rate=3e-5, n_epoch=50)
 
     training_dataloader, validating_dataloader = get_dataset(dataset_config, train_config)
     check_dir(model_config.base_path)
