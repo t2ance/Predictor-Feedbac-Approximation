@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from config import DatasetConfig
-from main import run, control_law, system, integral_prediction_general
+from main import run, control_law, system, predict_integral_general
 from system1 import ode_forward
 
 
@@ -57,8 +57,8 @@ def simulation():
         Z2_t = Z[t_i, 1]
         # P1_t, P2_t = integral_prediction_explict(t=ts[t_i], delay=D, Z1_t=Z1_t, Z2_t=Z2_t, U_D=U[t_minus_D_i:t_i],
         #                                          ts_D=ts[t_minus_D_i:t_i], dt=dt)
-        P1_t, P2_t = integral_prediction_general(f=system, Z_t=Z[t_i, :], P_D=P[t_minus_D_i:t_i],
-                                                 U_D=U[t_minus_D_i:t_i], dt=dt, t=t)
+        P1_t, P2_t = predict_integral_general(f=system, Z_t=Z[t_i, :], P_D=P[t_minus_D_i:t_i],
+                                              U_D=U[t_minus_D_i:t_i], dt=dt, t=t)
         P[t_i, :] = [P1_t, P2_t]
         Z_t = Z[t_i, :]
         U_t = control_law(P[t_i, :])
@@ -109,7 +109,6 @@ def simulation():
 
 if __name__ == '__main__':
     dataset_config = DatasetConfig()
-    U, Z, P = run(method='numerical', silence=True, duration=dataset_config.duration, delay=dataset_config.delay,
-                  Z0=(0.5, 0.5), dt=dataset_config.dt, plot=True)
+    U, Z, P = run(method='numerical', silence=True, Z0=(0., 1.), plot=True, dataset_config=dataset_config)
     # U, Z, _ = run(method='explict', silence=True, duration=dataset_config.duration, delay=dataset_config.delay,
     #               Z0=(0, 1), dt=dataset_config.dt, plot=True)

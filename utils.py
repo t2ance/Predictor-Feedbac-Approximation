@@ -12,20 +12,16 @@ def count_params(model):
     return pp
 
 
-def pad_leading_zeros(U, start, end):
-    assert start <= end
-    r = end - start
-    start_index = max(start, 0)
-    end_index = end
+def pad_leading_zeros(segment, length):
+    assert len(segment) <= length
 
-    segment = U[start_index:end_index]
-
-    if start_index < r:
-        if isinstance(U, np.ndarray):
-            padding = np.zeros(r - len(segment))
+    if len(segment) < length:
+        padding_length = length - len(segment)
+        if isinstance(segment, np.ndarray):
+            padding = np.zeros(padding_length)
             segment = np.concatenate((padding, segment))
-        elif isinstance(U, torch.Tensor):
-            padding = torch.zeros(r - len(segment))
+        elif isinstance(segment, torch.Tensor):
+            padding = torch.zeros(padding_length)
             segment = torch.concatenate((padding, segment))
 
     return segment

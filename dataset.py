@@ -3,6 +3,10 @@ from torch.utils.data import Dataset
 
 
 def sample_to_tensor(z_features, u_features, time_step_position):
+    if z_features is not torch.Tensor:
+        z_features = torch.tensor(z_features)
+    if u_features is not torch.Tensor:
+        u_features = torch.tensor(u_features)
     features = torch.cat((torch.tensor(time_step_position).view(-1), z_features, u_features))
     return features
 
@@ -35,10 +39,10 @@ class ExplictDataset(Dataset):
         self.n_point_delay = n_point_delay
 
     def __len__(self):
-        return len(self.U) - 2 * self.n_point_delay
+        return len(self.U) - self.n_point_delay
 
     def __getitem__(self, idx):
-        idx += 2 * self.n_point_delay
+        idx += self.n_point_delay
         z_features = self.Z[idx]
         u_features = self.U[idx - self.n_point_delay:idx].view(-1)
         label = self.P[idx]

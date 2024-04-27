@@ -14,7 +14,7 @@ from tqdm import tqdm
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ImplicitDataset, ExplictDataset, sample_to_tensor, PredictionDataset
 from model import PredictionFNO
-from system1 import control_law_explict, solve_z_explict, control_law, system, integral_prediction_general
+from system1 import control_law_explict, solve_z_explict, control_law, system, predict_integral_general
 from utils import count_params, pad_leading_zeros
 
 
@@ -26,8 +26,7 @@ def predict_neural_operator(model, U_D, Z_t, t):
         outputs = model(inputs[0])
     else:
         outputs = model(inputs)
-    [P1, P2] = outputs.to('cpu').detach().numpy()[0]
-    return P1, P2
+    return outputs.to('cpu').detach().numpy()[0]
 
 
 def run(dataset_config: DatasetConfig,
@@ -54,16 +53,9 @@ def run(dataset_config: DatasetConfig,
     P = np.zeros((n_point, 2))
     Z0 = np.array(Z0)
     Z[n_point_delay, :] = Z0
-
-    if silence:
-        # sequence = range(n_point_delay, n_point)
-        sequence = range(n_point)
-    else:
-        # sequence = tqdm(list(range(n_point_delay, n_point)))
-        sequence = tqdm(list(range(n_point)))
-
+    sequence = range(n_point) if silence else tqdm(list(range(n_point)))
     for t_i in sequence:
-        t_minus_D_i = t_i - n_point_delay
+        t_minus_D_i = max(t_i - n_point_delay, 0)
         t = ts[t_i]
         if method == 'explict':
             U[t_i] = control_law_explict(t, Z0, delay)
@@ -75,8 +67,8 @@ def run(dataset_config: DatasetConfig,
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0
-            P[t_i, :] = integral_prediction_general(
-                f=system, Z_t=Z_t, P_D=P[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], dt=dt, t=t)
+            P[t_i, :] = predict_integral_general(f=system, Z_t=Z_t, P_D=P[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i],
+                                                 dt=dt, t=t)
             if t_i > n_point_delay:
                 U[t_i] = control_law(P[t_i, :])
         elif method == 'no':
@@ -85,9 +77,15 @@ def run(dataset_config: DatasetConfig,
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0
-            P[t_i, :] = predict_neural_operator(model=model, U_D=pad_leading_zeros(U, t_minus_D_i, t_i), Z_t=Z_t, t=t)
+            P[t_i, :] = predict_neural_operator(
+                model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t, t=t)
+            # P[t_i, :] = predict_neural_operator(model=model, U_D=pad_leading_zeros(U=U, start=t_minus_D_i, end=t_i),
+            #                                     Z_t=Z_t, t=t)
             if t_i > n_point_delay:
                 U[t_i] = control_law(P[t_i, :])
+                # U[t_i] = control_law(
+                #     predict_integral_general(f=system, Z_t=Z_t, P_D=P[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i],
+                #                              dt=dt, t=t))
         else:
             raise NotImplementedError()
     if cut:
@@ -204,7 +202,7 @@ def run_train(n_state: int, hidden_size: int, n_hidden: int, merge_size: int, lr
     else:
         raise NotImplementedError()
     criterion = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.99)
 
     print(f'#parameters: {count_params(model)}')
@@ -239,7 +237,17 @@ def run_train(n_state: int, hidden_size: int, n_hidden: int, merge_size: int, lr
             validating_loss_arr.append(validating_loss_t)
             print(
                 f'Epoch [{epoch + 1}/{n_epoch}] || Training loss: {training_loss_t} || Validating loss: {validating_loss_t}')
-
+        if epoch % 10 == 0:
+            plt.figure()
+            plt.plot(training_loss_arr, label="Train Loss")
+            plt.plot(validating_loss_arr, label="Validate Loss")
+            plt.yscale("log")
+            plt.legend()
+            if img_save_path is not None:
+                plt.savefig(f'{img_save_path}/loss.png')
+                plt.clf()
+            else:
+                plt.show()
     plt.figure()
     plt.plot(training_loss_arr, label="Train Loss")
     plt.plot(validating_loss_arr, label="Validate Loss")
@@ -269,27 +277,29 @@ def metric(u_preds, u_trues):
 
 
 def run_test(dataset_config: DatasetConfig, base_path: str):
-    for test_point in dataset_config.test_points:
+    bar = tqdm(dataset_config.test_points)
+    for test_point in bar:
+        bar.set_description(f'Solving system with initial point {test_point}.')
         img_save_path = f'{base_path}/{test_point}'
         check_dir(img_save_path)
-        run(dataset_config=dataset_config, model=m, Z0=test_point, method='no', plot=True, title='no',
+        run(dataset_config=dataset_config, silence=True, model=m, Z0=test_point, method='no', plot=True, title='no',
             img_save_path=img_save_path)
 
 
 def get_dataset(dataset_config: DatasetConfig, train_config: TrainConfig):
     if not os.path.exists(dataset_config.dataset_file) or dataset_config.recreate_dataset:
         if dataset_config.trajectory:
-            samples_ = create_trajectory_dataset(dataset_config)
+            samples = create_trajectory_dataset(dataset_config)
         else:
-            samples_ = create_stateless_dataset(
+            samples = create_stateless_dataset(
                 dataset_config.n_dataset, dataset_config.dt, dataset_config.n_point_delay,
                 dataset_config.n_sample_per_dataset, dataset_config.dataset_file, dataset_config.n_state
             )
     else:
         with open(dataset_config.dataset_file, 'rb') as file:
-            samples_ = pickle.load(file)
+            samples = pickle.load(file)
     training_dataloader, validating_dataloader = prepare_dataset(
-        samples_, train_config.training_ratio, train_config.batch_size, train_config.device)
+        samples, train_config.training_ratio, train_config.batch_size, train_config.device)
     return training_dataloader, validating_dataloader
 
 
@@ -322,16 +332,27 @@ def create_trajectory_dataset(dataset_config: DatasetConfig):
 def create_stateless_dataset(n_dataset: int, dt: float, n_point_delay: int, n_sample_per_dataset: int,
                              dataset_file: str, n_state: int):
     all_samples = []
-    for i in range(n_dataset * n_sample_per_dataset):
-        U_D = np.sin(np.sqrt(i) * np.linspace(0, 1, n_point_delay))
-        P_D = np.zeros((n_point_delay, n_state))
-        Z_t = np.random.uniform(0, 1, 2)
-        P_D[0, :] = Z_t
-        for j in range(n_point_delay - 1):
-            P_D[j + 1] = P_D[j] + dt * system(P_D[j], j * dt, U_D[j])
-        label = integral_prediction_general(f=system, Z_t=Z_t, P_D=P_D, U_D=U_D, dt=dt, t=dt * n_point_delay)
-        features = sample_to_tensor(Z_t, U_D, dt * n_point_delay)
-        all_samples.append((features, torch.from_numpy(label)))
+    for i in tqdm(list(range(n_dataset))):
+        for _ in range(n_sample_per_dataset):
+            f_rand = np.random.randint(0, 3)
+            shift = np.random.uniform(-1, 1)
+            if f_rand == 0:
+                f = np.cos
+            elif f_rand == 1:
+                f = np.sin
+            else:
+                f = lambda x: np.exp(-x)
+            U_D = f(np.sqrt(i) * np.linspace(0, 1, n_point_delay)) + shift
+            P_D = np.zeros((n_point_delay, n_state))
+            Z_t = np.random.uniform(0, 1, 2)
+            P_D[0, :] = Z_t
+            for j in range(n_point_delay - 1):
+                P_D[j + 1, :] = P_D[j, :] + dt * system(P_D[j, :], j * dt, U_D[j])
+            label = predict_integral_general(f=system, Z_t=Z_t, P_D=P_D, U_D=U_D, dt=dt, t=dt * n_point_delay)
+            features = sample_to_tensor(Z_t, U_D, dt * n_point_delay)
+            all_samples.append((features, torch.from_numpy(label)))
+    #         plt.plot(np.hstack([P_D, U_D.reshape(-1, 1)]));plt.show()
+    random.shuffle(all_samples)
     with open(dataset_file, 'wb') as file:
         pickle.dump(all_samples, file)
     return all_samples
@@ -353,9 +374,10 @@ def prepare_dataset(samples, training_ratio: float, batch_size: int, device: str
 
 
 if __name__ == '__main__':
-    dataset_config = DatasetConfig(recreate_dataset=True, dt=0.002, n_dataset=20, n_sample_per_dataset=500)
-    model_config = ModelConfig(model_name='DeepONet')
-    train_config = TrainConfig(learning_rate=3e-5, n_epoch=50)
+    dataset_config = DatasetConfig(recreate_dataset=True, trajectory=True, dt=0.01, n_dataset=100, duration=8, delay=3,
+                                   n_sample_per_dataset=100)
+    model_config = ModelConfig(model_name='FNO')
+    train_config = TrainConfig(learning_rate=1e-3, n_epoch=100, batch_size=64)
 
     training_dataloader, validating_dataloader = get_dataset(dataset_config, train_config)
     check_dir(model_config.base_path)
@@ -364,7 +386,6 @@ if __name__ == '__main__':
                   weight_decay=train_config.weight_decay, n_hidden=model_config.deeponet_n_hidden,
                   n_epoch=train_config.n_epoch, merge_size=model_config.deeponet_n_merge_size,
                   hidden_size=model_config.deeponet_n_hidden_size, lr=train_config.learning_rate,
-                  img_save_path=model_config.base_path,
-                  n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
-                  model_name=model_config.model_name)
+                  img_save_path=model_config.base_path, n_modes_height=model_config.fno_n_modes_height,
+                  hidden_channels=model_config.fno_hidden_channels, model_name=model_config.model_name)
     run_test(dataset_config=dataset_config, base_path=model_config.base_path)

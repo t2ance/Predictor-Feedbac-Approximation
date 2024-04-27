@@ -28,7 +28,7 @@ def control_law(P_t):
     return -p1t - 2 * p2t - 1 / 3 * p2t ** 3
 
 
-def integral_prediction_general(f, Z_t, P_D, U_D, dt, t):
+def predict_integral_general(f, Z_t, P_D, U_D, dt, t):
     assert len(P_D) == len(U_D)
     integral = sum([f(p, t, u) for p, u in zip(P_D, U_D)]) * dt
     return integral + Z_t
@@ -55,7 +55,7 @@ def solve_z_explict(t, D, Z0):
     return Z1, Z2
 
 
-def integral_prediction_explict(t, delay, Z1_t, Z2_t, U_D, ts_D, dt):
+def predict_integral_explict(t, delay, Z1_t, Z2_t, U_D, ts_D, dt):
     assert len(ts_D) == len(U_D)
     term1 = sum(U_D) * dt
     term2 = sum([(t - theta) * u * dt for u, theta in zip(U_D, ts_D)])
