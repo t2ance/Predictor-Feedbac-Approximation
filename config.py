@@ -7,10 +7,11 @@ import numpy as np
 @dataclass
 class ModelConfig:
     deeponet_n_hidden_size: Optional[int] = field(default=512)
-    deeponet_n_merge_size: Optional[int] = field(default=256)
+    deeponet_merge_size: Optional[int] = field(default=256)
     deeponet_n_hidden: Optional[int] = field(default=5)
     fno_n_modes_height: Optional[int] = field(default=16)
     fno_hidden_channels: Optional[int] = field(default=32)
+    fno_n_layers: Optional[int] = field(default=4)
     model_name: Optional[Literal['FNO', 'DeepONet']] = field(default='FNO')
 
     # model_name = 'DeepONet'
@@ -25,6 +26,8 @@ class TrainConfig:
     batch_size: Optional[int] = field(default=64)
     learning_rate: Optional[float] = field(default=1e-4)
     weight_decay: Optional[float] = field(default=.0)
+    scheduler_step_size: Optional[int] = field(default=1)
+    scheduler_gamma: Optional[float] = field(default=1.)
     training_ratio: Optional[float] = field(default=0.8)
     n_epoch: Optional[int] = field(default=100)
     device: Optional[str] = field(default='cuda')

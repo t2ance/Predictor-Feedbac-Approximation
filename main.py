@@ -80,13 +80,8 @@ def run(dataset_config: DatasetConfig,
                 Z_t = Z0
             P[t_i, :] = predict_neural_operator(
                 model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t, t=t)
-            # P[t_i, :] = predict_neural_operator(model=model, U_D=pad_leading_zeros(U=U, start=t_minus_D_i, end=t_i),
-            #                                     Z_t=Z_t, t=t)
             if t_i > n_point_delay:
                 U[t_i] = control_law(P[t_i, :])
-                # U[t_i] = control_law(
-                #     predict_integral_general(f=system, Z_t=Z_t, P_D=P[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i],
-                #                              dt=dt, t=t))
         else:
             raise NotImplementedError()
     if cut:
@@ -170,21 +165,32 @@ def run(dataset_config: DatasetConfig,
     return U, Z, P
 
 
-def no_predict(model_name, inputs, device, model):
+def no_predict(inputs, device, model):
     inputs = inputs.to(device)
     time_step = inputs[:, :1]
     z_u = inputs[:, 1:]
 
     inputs = [z_u, time_step]
-    if model_name == 'FNO':
+    if isinstance(model, PredictionFNO):
         inputs = z_u
     return model(inputs)
 
 
-def run_train(n_state: int, hidden_size: int, n_hidden: int, merge_size: int, lr: float, n_epoch: int,
-              weight_decay: float, training_dataloader=None, validating_dataloader=None, n_point_delay=None,
-              n_modes_height=8, hidden_channels=16, model_name: Literal['DeepONet', 'FNO'] = 'DeepONet', device='cuda',
-              img_save_path: str = None):
+def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig,
+              training_dataloader=None, validating_dataloader=None, img_save_path: str = None):
+    model_name = model_config.model_name
+    n_state = dataset_config.n_state
+    device = train_config.device
+    hidden_size = model_config.deeponet_n_hidden_size
+    n_hidden = model_config.deeponet_n_hidden
+    merge_size = model_config.deeponet_merge_size
+    lr = train_config.learning_rate
+    n_epoch = train_config.n_epoch
+    weight_decay = train_config.weight_decay
+    n_point_delay = dataset_config.n_point_delay
+    n_modes_height = model_config.fno_n_modes_height
+    hidden_channels = model_config.fno_hidden_channels
+    n_layers = model_config.fno_n_layers
     if model_name == 'DeepONet':
         layer_size_branch = [n_point_delay + n_state] + [hidden_size] * n_hidden + [merge_size]
         layer_size_trunk = [1] + [hidden_size] * n_hidden + [merge_size]
@@ -199,12 +205,14 @@ def run_train(n_state: int, hidden_size: int, n_hidden: int, merge_size: int, lr
     elif model_name == 'FNO':
         model = PredictionFNO(
             n_modes_height=n_modes_height, hidden_channels=hidden_channels, in_features=n_state + n_point_delay,
-            out_features=n_state).to(device)
+            out_features=n_state, n_layers=n_layers).to(device)
     else:
         raise NotImplementedError()
     criterion = torch.nn.MSELoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
-    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.99)
+    #
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=train_config.scheduler_step_size,
+                                                gamma=train_config.scheduler_gamma)
 
     print(f'#parameters: {count_params(model)}')
     training_loss_arr = []
@@ -214,20 +222,19 @@ def run_train(n_state: int, hidden_size: int, n_hidden: int, merge_size: int, lr
         training_loss = 0.0
         for inputs, label in training_dataloader:
             label = label.to(device)
-            outputs = no_predict(model_name, inputs, device, model)
+            outputs = no_predict(inputs, device, model)
             loss = criterion(outputs, label)
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-
             training_loss += loss.item()
 
         model.eval()
         with torch.no_grad():
             validating_loss = 0.0
             for inputs, label in validating_dataloader:
-                outputs = no_predict(model_name, inputs, device, model)
+                outputs = no_predict(inputs, device, model)
                 label = label.to(device)
                 loss = criterion(outputs, label)
                 validating_loss += loss.item()
@@ -249,6 +256,8 @@ def run_train(n_state: int, hidden_size: int, n_hidden: int, merge_size: int, lr
                 plt.clf()
             else:
                 plt.show()
+        #
+        scheduler.step()
     plt.figure()
     plt.plot(training_loss_arr, label="Train Loss")
     plt.plot(validating_loss_arr, label="Validate Loss")
@@ -324,6 +333,25 @@ def create_trajectory_dataset(dataset_config: DatasetConfig):
         dataset = list(dataset)
         random.shuffle(dataset)
         all_samples += dataset[:dataset_config.n_sample_per_dataset]
+    new_samples = []
+    for feature, label in all_samples:
+        z = feature[1:3].cpu().numpy()
+        u = feature[3:].cpu().numpy()
+        p = predict_integral(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=2,
+                             n_point_delay=dataset_config.n_point_delay)
+        new_samples.append((feature, torch.tensor(p)))
+    # all_samples = new_samples
+
+    #     label = label.cpu().numpy()
+    #     plt.plot(u, label='u')
+    #     plt.scatter(dataset_config.n_point_delay, z[0], label='z0')
+    #     plt.scatter(dataset_config.n_point_delay, z[1], label='z1')
+    #     plt.scatter(dataset_config.n_point_delay, u[0], label='p0')
+    #     plt.scatter(dataset_config.n_point_delay, u[1], label='p1')
+    #     plt.legend()
+    #     plt.ylim([-2, 2])
+    #     plt.show()
+    #     plt.clf()
     random.shuffle(all_samples)
     with open(dataset_config.dataset_file, 'wb') as file:
         pickle.dump(all_samples, file)
@@ -337,28 +365,28 @@ def create_stateless_dataset(n_dataset: int, dt: float, n_point_delay: int, n_sa
     for i in tqdm(list(range(3, n_dataset))):
         for _ in range(n_sample_per_dataset):
             f_rand = np.random.randint(0, 3)
-            # shift = np.random.uniform(-1, 1)
-            shift = 0
-            # if f_rand == 0:
-            #     f = np.cos
-            # elif f_rand == 1:
-            #     f = np.sin
-            # else:
-            f = lambda x: -np.exp(-x)
+            shift = np.random.uniform(-1, 1)
+            # shift = 0
+            if f_rand == 0:
+                f = np.cos
+            elif f_rand == 1:
+                f = np.sin
+            else:
+                f = lambda x: np.exp(-x)
             U_D = f(np.sqrt(i) * np.linspace(0, 1, n_point_delay)) + shift
             Z_t = np.random.uniform(0, 1, 2)
             P_t = predict_integral(Z_t=Z_t, U_D=U_D, dt=dt, n_state=n_state, n_point_delay=n_point_delay)
             features = sample_to_tensor(Z_t, U_D, dt * n_point_delay)
             all_samples.append((features, torch.from_numpy(P_t)))
-            # plt.plot(np.hstack([P_D, U_D.reshape(-1, 1)]));plt.show()
-        plt.plot(U_D, label='u')
-        plt.scatter(n_point_delay, Z_t[0], label='z0')
-        plt.scatter(n_point_delay, Z_t[1], label='z1')
-        plt.scatter(n_point_delay, P_t[0], label='p0')
-        plt.scatter(n_point_delay, P_t[1], label='p1')
-        plt.legend()
-        plt.show()
-        plt.clf()
+        # plt.plot(U_D, label='u')
+        # plt.scatter(n_point_delay, Z_t[0], label='z0')
+        # plt.scatter(n_point_delay, Z_t[1], label='z1')
+        # plt.scatter(n_point_delay, P_t[0], label='p0')
+        # plt.scatter(n_point_delay, P_t[1], label='p1')
+        # plt.legend()
+        # plt.ylim([-2, 2])
+        # plt.show()
+        # plt.clf()
     random.shuffle(all_samples)
     with open(dataset_file, 'wb') as file:
         pickle.dump(all_samples, file)
@@ -381,18 +409,15 @@ def prepare_dataset(samples, training_ratio: float, batch_size: int, device: str
 
 
 if __name__ == '__main__':
-    dataset_config = DatasetConfig(recreate_dataset=True, trajectory=False, dt=0.01, n_dataset=20, duration=8, delay=3,
+    dataset_config = DatasetConfig(recreate_dataset=True, trajectory=True, dt=0.01, n_dataset=100, duration=8, delay=3,
                                    n_sample_per_dataset=100)
-    model_config = ModelConfig(model_name='FNO')
-    train_config = TrainConfig(learning_rate=5e-4, n_epoch=100, batch_size=64)
+    model_config = ModelConfig(model_name='FNO', fno_n_layers=6)
+    train_config = TrainConfig(learning_rate=1e-3, n_epoch=300, batch_size=64, scheduler_step_size=1,
+                               scheduler_gamma=0.98)
 
     training_dataloader, validating_dataloader = get_dataset(dataset_config, train_config)
     check_dir(model_config.base_path)
-    m = run_train(n_state=dataset_config.n_state, training_dataloader=training_dataloader,
-                  validating_dataloader=validating_dataloader, n_point_delay=dataset_config.n_point_delay,
-                  weight_decay=train_config.weight_decay, n_hidden=model_config.deeponet_n_hidden,
-                  n_epoch=train_config.n_epoch, merge_size=model_config.deeponet_n_merge_size,
-                  hidden_size=model_config.deeponet_n_hidden_size, lr=train_config.learning_rate,
-                  img_save_path=model_config.base_path, n_modes_height=model_config.fno_n_modes_height,
-                  hidden_channels=model_config.fno_hidden_channels, model_name=model_config.model_name)
+    m = run_train(dataset_config=dataset_config, model_config=model_config, train_config=train_config,
+                  training_dataloader=training_dataloader, validating_dataloader=validating_dataloader,
+                  img_save_path=model_config.base_path)
     run_test(dataset_config=dataset_config, base_path=model_config.base_path)
