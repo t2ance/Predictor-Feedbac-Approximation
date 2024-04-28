@@ -28,6 +28,15 @@ def control_law(P_t):
     return -p1t - 2 * p2t - 1 / 3 * p2t ** 3
 
 
+def predict_integral(Z_t, n_point_delay: int, n_state: int, dt: float, U_D: np.ndarray):
+    P_D = np.zeros((n_point_delay, n_state))
+    P_D[0, :] = Z_t
+    for j in range(n_point_delay - 1):
+        P_D[j + 1, :] = P_D[j, :] + dt * system(P_D[j, :], j * dt, U_D[j])
+    p = predict_integral_general(f=system, Z_t=Z_t, P_D=P_D, U_D=U_D, dt=dt, t=dt * n_point_delay)
+    return p
+
+
 def predict_integral_general(f, Z_t, P_D, U_D, dt, t):
     assert len(P_D) == len(U_D)
     integral = sum([f(p, t, u) for p, u in zip(P_D, U_D)]) * dt

@@ -14,7 +14,8 @@ from tqdm import tqdm
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ImplicitDataset, ExplictDataset, sample_to_tensor, PredictionDataset
 from model import PredictionFNO
-from system1 import control_law_explict, solve_z_explict, control_law, system, predict_integral_general
+from system1 import control_law_explict, solve_z_explict, control_law, system, predict_integral_general, \
+    predict_integral
 from utils import count_params, pad_leading_zeros
 
 
@@ -332,26 +333,32 @@ def create_trajectory_dataset(dataset_config: DatasetConfig):
 def create_stateless_dataset(n_dataset: int, dt: float, n_point_delay: int, n_sample_per_dataset: int,
                              dataset_file: str, n_state: int):
     all_samples = []
-    for i in tqdm(list(range(n_dataset))):
+    # FIXME
+    for i in tqdm(list(range(3, n_dataset))):
         for _ in range(n_sample_per_dataset):
             f_rand = np.random.randint(0, 3)
-            shift = np.random.uniform(-1, 1)
-            if f_rand == 0:
-                f = np.cos
-            elif f_rand == 1:
-                f = np.sin
-            else:
-                f = lambda x: np.exp(-x)
+            # shift = np.random.uniform(-1, 1)
+            shift = 0
+            # if f_rand == 0:
+            #     f = np.cos
+            # elif f_rand == 1:
+            #     f = np.sin
+            # else:
+            f = lambda x: -np.exp(-x)
             U_D = f(np.sqrt(i) * np.linspace(0, 1, n_point_delay)) + shift
-            P_D = np.zeros((n_point_delay, n_state))
             Z_t = np.random.uniform(0, 1, 2)
-            P_D[0, :] = Z_t
-            for j in range(n_point_delay - 1):
-                P_D[j + 1, :] = P_D[j, :] + dt * system(P_D[j, :], j * dt, U_D[j])
-            label = predict_integral_general(f=system, Z_t=Z_t, P_D=P_D, U_D=U_D, dt=dt, t=dt * n_point_delay)
+            P_t = predict_integral(Z_t=Z_t, U_D=U_D, dt=dt, n_state=n_state, n_point_delay=n_point_delay)
             features = sample_to_tensor(Z_t, U_D, dt * n_point_delay)
-            all_samples.append((features, torch.from_numpy(label)))
-    #         plt.plot(np.hstack([P_D, U_D.reshape(-1, 1)]));plt.show()
+            all_samples.append((features, torch.from_numpy(P_t)))
+            # plt.plot(np.hstack([P_D, U_D.reshape(-1, 1)]));plt.show()
+        plt.plot(U_D, label='u')
+        plt.scatter(n_point_delay, Z_t[0], label='z0')
+        plt.scatter(n_point_delay, Z_t[1], label='z1')
+        plt.scatter(n_point_delay, P_t[0], label='p0')
+        plt.scatter(n_point_delay, P_t[1], label='p1')
+        plt.legend()
+        plt.show()
+        plt.clf()
     random.shuffle(all_samples)
     with open(dataset_file, 'wb') as file:
         pickle.dump(all_samples, file)
@@ -374,10 +381,10 @@ def prepare_dataset(samples, training_ratio: float, batch_size: int, device: str
 
 
 if __name__ == '__main__':
-    dataset_config = DatasetConfig(recreate_dataset=True, trajectory=True, dt=0.01, n_dataset=100, duration=8, delay=3,
+    dataset_config = DatasetConfig(recreate_dataset=True, trajectory=False, dt=0.01, n_dataset=20, duration=8, delay=3,
                                    n_sample_per_dataset=100)
     model_config = ModelConfig(model_name='FNO')
-    train_config = TrainConfig(learning_rate=1e-3, n_epoch=100, batch_size=64)
+    train_config = TrainConfig(learning_rate=5e-4, n_epoch=100, batch_size=64)
 
     training_dataloader, validating_dataloader = get_dataset(dataset_config, train_config)
     check_dir(model_config.base_path)
