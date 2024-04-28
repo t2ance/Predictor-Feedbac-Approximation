@@ -14,8 +14,6 @@ class ModelConfig:
     fno_n_layers: Optional[int] = field(default=4)
     model_name: Optional[Literal['FNO', 'DeepONet']] = field(default='FNO')
 
-    # model_name = 'DeepONet'
-
     @property
     def base_path(self):
         return f'./result/{self.model_name}'
@@ -28,9 +26,12 @@ class TrainConfig:
     weight_decay: Optional[float] = field(default=.0)
     scheduler_step_size: Optional[int] = field(default=1)
     scheduler_gamma: Optional[float] = field(default=1.)
+    scheduler_min_lr: Optional[float] = field(default=0.)
     training_ratio: Optional[float] = field(default=0.8)
     n_epoch: Optional[int] = field(default=100)
     device: Optional[str] = field(default='cuda')
+    model_save_path: Optional[str] = field(default='./checkpoint')
+    load_model: Optional[bool] = field(default=False)
 
 
 @dataclass

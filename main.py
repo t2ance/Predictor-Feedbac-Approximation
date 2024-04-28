@@ -107,27 +107,32 @@ def run(dataset_config: DatasetConfig,
         plt.title(title)
 
         plt.subplot(511)
+        plt.ylim([-5, 5])
         plt.plot(ts, Z[:, 0], label='$Z_1(t)$')
         plt.ylabel('$Z_1(t)$')
         plt.grid(True)
 
         plt.subplot(512)
+        plt.ylim([-5, 5])
         plt.plot(ts, Z[:, 1], label='$Z_2(t)$')
         plt.ylabel('$Z_2(t)$')
         plt.grid(True)
 
         plt.subplot(513)
+        plt.ylim([-5, 5])
         plt.plot(ts, U, label='$U(t)$', color='black')
         plt.xlabel('time')
         plt.ylabel('$U(t)$')
         plt.grid(True)
 
         plt.subplot(514)
+        plt.ylim([-5, 5])
         plt.plot(ts, P[:, 0], label='$P_1(t)$')
         plt.ylabel('$P_1(t)$')
         plt.grid(True)
 
         plt.subplot(515)
+        plt.ylim([-5, 5])
         plt.plot(ts, P[:, 1], label='$P_2(t)$')
         plt.ylabel('$P_2(t)$')
         plt.grid(True)
@@ -146,6 +151,17 @@ def run(dataset_config: DatasetConfig,
         plt.legend()
         if img_save_path is not None:
             plt.savefig(f'{img_save_path}/comparison_full.png')
+            plt.clf()
+        else:
+            plt.show()
+        plt.title('Comparison')
+        plt.ylim([-5, 5])
+        for t_i in range(2):
+            plt.plot(ts[n_point_delay:], P[:-n_point_delay, t_i], label=f'$P_{t_i + 1}(t-{delay})$')
+            plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$')
+        plt.legend()
+        if img_save_path is not None:
+            plt.savefig(f'{img_save_path}/comparison_zoom.png')
             plt.clf()
         else:
             plt.show()
@@ -208,67 +224,76 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
             out_features=n_state, n_layers=n_layers).to(device)
     else:
         raise NotImplementedError()
-    criterion = torch.nn.MSELoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
-    #
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=train_config.scheduler_step_size,
-                                                gamma=train_config.scheduler_gamma)
-
     print(f'#parameters: {count_params(model)}')
-    training_loss_arr = []
-    validating_loss_arr = []
-    for epoch in list(range(n_epoch)):
-        model.train()
-        training_loss = 0.0
-        for inputs, label in training_dataloader:
-            label = label.to(device)
-            outputs = no_predict(inputs, device, model)
-            loss = criterion(outputs, label)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            training_loss += loss.item()
-
-        model.eval()
-        with torch.no_grad():
-            validating_loss = 0.0
-            for inputs, label in validating_dataloader:
-                outputs = no_predict(inputs, device, model)
-                label = label.to(device)
-                loss = criterion(outputs, label)
-                validating_loss += loss.item()
-
-            training_loss_t = training_loss / len(training_dataloader)
-            validating_loss_t = validating_loss / len(validating_dataloader)
-            training_loss_arr.append(training_loss_t)
-            validating_loss_arr.append(validating_loss_t)
-            print(
-                f'Epoch [{epoch + 1}/{n_epoch}] || Training loss: {training_loss_t} || Validating loss: {validating_loss_t}')
-        if epoch % 10 == 0:
-            plt.figure()
-            plt.plot(training_loss_arr, label="Train Loss")
-            plt.plot(validating_loss_arr, label="Validate Loss")
-            plt.yscale("log")
-            plt.legend()
-            if img_save_path is not None:
-                plt.savefig(f'{img_save_path}/loss.png')
-                plt.clf()
-            else:
-                plt.show()
-        #
-        scheduler.step()
-    plt.figure()
-    plt.plot(training_loss_arr, label="Train Loss")
-    plt.plot(validating_loss_arr, label="Validate Loss")
-    plt.yscale("log")
-    plt.legend()
-    if img_save_path is not None:
-        plt.savefig(f'{img_save_path}/loss.png')
-        plt.clf()
+    pth = f'{train_config.model_save_path}/{model_config.model_name}.pth'
+    if train_config.load_model and os.path.exists(pth):
+        model.load_state_dict(torch.load('model_state_dict.pth'))
+        print(f'Model loaded from {pth}, skip training!')
     else:
-        plt.show()
+        criterion = torch.nn.MSELoss()
+        optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=train_config.scheduler_step_size,
+                                                    gamma=train_config.scheduler_gamma)
 
+        training_loss_arr = []
+        validating_loss_arr = []
+        bar = tqdm(list(range(n_epoch)))
+        for epoch in bar:
+            model.train()
+            training_loss = 0.0
+            for inputs, label in training_dataloader:
+                label = label.to(device)
+                outputs = no_predict(inputs, device, model)
+                loss = criterion(outputs, label)
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                training_loss += loss.item()
+
+            model.eval()
+            with torch.no_grad():
+                validating_loss = 0.0
+                for inputs, label in validating_dataloader:
+                    outputs = no_predict(inputs, device, model)
+                    label = label.to(device)
+                    loss = criterion(outputs, label)
+                    validating_loss += loss.item()
+
+                training_loss_t = training_loss / len(training_dataloader)
+                validating_loss_t = validating_loss / len(validating_dataloader)
+                training_loss_arr.append(training_loss_t)
+                validating_loss_arr.append(validating_loss_t)
+                desc = f'Epoch [{epoch + 1}/{n_epoch}] || Learning rate: {scheduler.get_last_lr()} || ' \
+                       f'Training loss: {training_loss_t} || Validation loss: {validating_loss_t}'
+                bar.set_description(desc)
+            if epoch % 10 == 0:
+                plt.figure()
+                plt.plot(training_loss_arr, label="Training loss")
+                plt.plot(validating_loss_arr, label="Validation loss")
+                plt.yscale("log")
+                plt.legend()
+                if img_save_path is not None:
+                    plt.savefig(f'{img_save_path}/loss.png')
+                    plt.clf()
+                else:
+                    plt.show()
+            #
+            scheduler.step()
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = max(param_group['lr'], train_config.scheduler_min_lr)
+
+        plt.figure()
+        plt.plot(training_loss_arr, label="Training loss")
+        plt.plot(validating_loss_arr, label="Validation loss")
+        plt.yscale("log")
+        plt.legend()
+        if img_save_path is not None:
+            plt.savefig(f'{img_save_path}/loss.png')
+            plt.clf()
+        else:
+            plt.show()
+        torch.save(model.state_dict(), f'{train_config.model_save_path}/{model_config.model_name}.pth')
     print('Finished Training')
     return model
 
@@ -286,7 +311,7 @@ def metric(u_preds, u_trues):
     return epsilon
 
 
-def run_test(dataset_config: DatasetConfig, base_path: str):
+def run_test(m, dataset_config: DatasetConfig, base_path: str):
     bar = tqdm(dataset_config.test_points)
     for test_point in bar:
         bar.set_description(f'Solving system with initial point {test_point}.')
@@ -409,15 +434,16 @@ def prepare_dataset(samples, training_ratio: float, batch_size: int, device: str
 
 
 if __name__ == '__main__':
-    dataset_config = DatasetConfig(recreate_dataset=True, trajectory=True, dt=0.01, n_dataset=100, duration=8, delay=3,
-                                   n_sample_per_dataset=100)
-    model_config = ModelConfig(model_name='FNO', fno_n_layers=6)
-    train_config = TrainConfig(learning_rate=1e-3, n_epoch=300, batch_size=64, scheduler_step_size=1,
-                               scheduler_gamma=0.98)
+    dataset_config = DatasetConfig(recreate_dataset=False, trajectory=True, dt=0.01, n_dataset=1000, duration=8,
+                                   delay=3, n_sample_per_dataset=250)
+    model_config = ModelConfig(model_name='DeepONet', deeponet_n_hidden=3, fno_n_layers=6)
+    train_config = TrainConfig(learning_rate=1e-3, n_epoch=500, batch_size=512, scheduler_step_size=1,
+                               scheduler_gamma=0.98, scheduler_min_lr=1e-6, weight_decay=1e-4)
 
     training_dataloader, validating_dataloader = get_dataset(dataset_config, train_config)
     check_dir(model_config.base_path)
-    m = run_train(dataset_config=dataset_config, model_config=model_config, train_config=train_config,
-                  training_dataloader=training_dataloader, validating_dataloader=validating_dataloader,
-                  img_save_path=model_config.base_path)
-    run_test(dataset_config=dataset_config, base_path=model_config.base_path)
+    check_dir(train_config.model_save_path)
+    model = run_train(dataset_config=dataset_config, model_config=model_config, train_config=train_config,
+                      training_dataloader=training_dataloader, validating_dataloader=validating_dataloader,
+                      img_save_path=model_config.base_path)
+    run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path)
