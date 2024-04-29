@@ -39,8 +39,11 @@ class DatasetConfig:
     delay: Optional[float] = field(default=3.)
     duration: Optional[int] = field(default=8)
     dt: Optional[float] = field(default=0.005)
-    test_points: Optional[List[Tuple[float, float]]] = \
-        field(default_factory=lambda: [(0, 1), (0, 0.5), (0.5, 0), (0.5, 0.5), (1, 0), (1, 1)])
+    test_points: Optional[List[Tuple[float, float]]] = field(default_factory=lambda: [
+        (0, 1), (0, 0.3), (0.1, 0.1), (0.2, 0.2), (1, 0), (1, 1), (0.2, 0.3), (0.2, 0.7), (0.5, 0.3), (0.7, 0.2)
+    ])
+    ic_lower_bound: Optional[float] = field(default=0.)
+    ic_upper_bound: Optional[float] = field(default=1.)
     n_state: Optional[int] = field(default=2)
     n_sample_per_dataset: Optional[int] = field(default=100)
     n_dataset: Optional[int] = field(default=200)

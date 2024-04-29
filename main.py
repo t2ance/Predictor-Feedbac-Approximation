@@ -268,7 +268,6 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
                        f'Training loss: {training_loss_t} || Validation loss: {validating_loss_t}'
                 bar.set_description(desc)
             if epoch % 10 == 0:
-                plt.figure()
                 plt.plot(training_loss_arr, label="Training loss")
                 plt.plot(validating_loss_arr, label="Validation loss")
                 plt.yscale("log")
@@ -278,7 +277,6 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
                     plt.clf()
                 else:
                     plt.show()
-            #
             scheduler.step()
             for param_group in optimizer.param_groups:
                 param_group['lr'] = max(param_group['lr'], train_config.scheduler_min_lr)
@@ -321,6 +319,39 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str):
             img_save_path=img_save_path)
 
 
+def postprocess(samples):
+    # new_samples = []
+    p_sum = np.zeros(2)
+    z_sum = np.zeros(2)
+    u_sum = np.zeros(1)
+    for feature, p in samples:
+        z = feature[1:3]
+        u = feature[3:]
+        p_sum = p_sum + p.abs().cpu().numpy()
+        z_sum = z_sum + z.abs().cpu().numpy()
+        u_sum = u_sum + u.abs().mean().cpu().numpy()
+    print(f'average p: {p_sum / len(samples)}')
+    print(f'average z: {z_sum / len(samples)}')
+    print(f'average u: {u_sum / len(samples)}')
+    #     z = feature[1:3].cpu().numpy()
+    #     u = feature[3:].cpu().numpy()
+    #     p = predict_integral(Z_t=Z0, U_D=u, dt=dataset_config.dt, n_state=2,
+    #                          n_point_delay=dataset_config.n_point_delay)
+    #     new_samples.append((feature, torch.tensor(p)))
+    # all_samples = new_samples
+
+    #     label = label.cpu().numpy()
+    #     plt.plot(u, label='u')
+    #     plt.scatter(dataset_config.n_point_delay, Z0[0], label='z0')
+    #     plt.scatter(dataset_config.n_point_delay, Z0[1], label='z1')
+    #     plt.scatter(dataset_config.n_point_delay, u[0], label='p0')
+    #     plt.scatter(dataset_config.n_point_delay, u[1], label='p1')
+    #     plt.legend()
+    #     plt.ylim([-2, 2])
+    #     plt.show()
+    #     plt.clf()
+
+
 def get_dataset(dataset_config: DatasetConfig, train_config: TrainConfig):
     if not os.path.exists(dataset_config.dataset_file) or dataset_config.recreate_dataset:
         if dataset_config.trajectory:
@@ -330,6 +361,7 @@ def get_dataset(dataset_config: DatasetConfig, train_config: TrainConfig):
                 dataset_config.n_dataset, dataset_config.dt, dataset_config.n_point_delay,
                 dataset_config.n_sample_per_dataset, dataset_config.dataset_file, dataset_config.n_state
             )
+        postprocess(samples)
     else:
         with open(dataset_config.dataset_file, 'rb') as file:
             samples = pickle.load(file)
@@ -344,39 +376,23 @@ def create_trajectory_dataset(dataset_config: DatasetConfig):
         print('creating implicit datasets (Use Z(t+D) as P(t))')
     else:
         print('creating explicit datasets (Calculate P(t))')
-    for z in tqdm(list(np.random.uniform(0, 1, (dataset_config.n_dataset, 2)))):
+    for Z0 in tqdm(
+            list(np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
+                                   (dataset_config.n_dataset, 2)))):
+        # for Z0 in tqdm(list(dataset_config.test_points)):
         if dataset_config.implicit:
-            U, Z, _ = run(method='explict', silence=True, Z0=z, dataset_config=dataset_config)
+            U, Z, _ = run(method='explict', silence=True, Z0=Z0, dataset_config=dataset_config)
             dataset = ImplicitDataset(
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
                 dataset_config.n_point_delay, dataset_config.dt)
         else:
-            U, Z, P = run(method='numerical', silence=True, Z0=z, dataset_config=dataset_config)
+            U, Z, P = run(method='numerical', silence=True, Z0=Z0, dataset_config=dataset_config)
             dataset = ExplictDataset(
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
                 torch.tensor(P, dtype=torch.float32), dataset_config.n_point_delay, dataset_config.dt)
         dataset = list(dataset)
         random.shuffle(dataset)
         all_samples += dataset[:dataset_config.n_sample_per_dataset]
-    new_samples = []
-    for feature, label in all_samples:
-        z = feature[1:3].cpu().numpy()
-        u = feature[3:].cpu().numpy()
-        p = predict_integral(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=2,
-                             n_point_delay=dataset_config.n_point_delay)
-        new_samples.append((feature, torch.tensor(p)))
-    # all_samples = new_samples
-
-    #     label = label.cpu().numpy()
-    #     plt.plot(u, label='u')
-    #     plt.scatter(dataset_config.n_point_delay, z[0], label='z0')
-    #     plt.scatter(dataset_config.n_point_delay, z[1], label='z1')
-    #     plt.scatter(dataset_config.n_point_delay, u[0], label='p0')
-    #     plt.scatter(dataset_config.n_point_delay, u[1], label='p1')
-    #     plt.legend()
-    #     plt.ylim([-2, 2])
-    #     plt.show()
-    #     plt.clf()
     random.shuffle(all_samples)
     with open(dataset_config.dataset_file, 'wb') as file:
         pickle.dump(all_samples, file)
@@ -387,19 +403,19 @@ def create_stateless_dataset(n_dataset: int, dt: float, n_point_delay: int, n_sa
                              dataset_file: str, n_state: int):
     all_samples = []
     # FIXME
-    for i in tqdm(list(range(3, n_dataset))):
+    for i in tqdm(list(range(n_dataset))):
         for _ in range(n_sample_per_dataset):
             f_rand = np.random.randint(0, 3)
-            shift = np.random.uniform(-1, 1)
-            # shift = 0
+            # shift = np.random.uniform(-1, 1)
+            scale = 0.3
             if f_rand == 0:
                 f = np.cos
             elif f_rand == 1:
                 f = np.sin
             else:
                 f = lambda x: np.exp(-x)
-            U_D = f(np.sqrt(i) * np.linspace(0, 1, n_point_delay)) + shift
-            Z_t = np.random.uniform(0, 1, 2)
+            U_D = scale * (f(np.sqrt(i) * np.linspace(0, 1, n_point_delay)))
+            Z_t = np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound, 2)
             P_t = predict_integral(Z_t=Z_t, U_D=U_D, dt=dt, n_state=n_state, n_point_delay=n_point_delay)
             features = sample_to_tensor(Z_t, U_D, dt * n_point_delay)
             all_samples.append((features, torch.from_numpy(P_t)))
@@ -434,11 +450,32 @@ def prepare_dataset(samples, training_ratio: float, batch_size: int, device: str
 
 
 if __name__ == '__main__':
-    dataset_config = DatasetConfig(recreate_dataset=False, trajectory=True, dt=0.01, n_dataset=1000, duration=8,
-                                   delay=3, n_sample_per_dataset=250)
-    model_config = ModelConfig(model_name='DeepONet', deeponet_n_hidden=3, fno_n_layers=6)
-    train_config = TrainConfig(learning_rate=1e-3, n_epoch=500, batch_size=512, scheduler_step_size=1,
-                               scheduler_gamma=0.98, scheduler_min_lr=1e-6, weight_decay=1e-4)
+    dataset_config = DatasetConfig(
+        recreate_dataset=False,
+        trajectory=True,
+        dt=0.001,
+        n_dataset=25,
+        duration=8,
+        delay=3,
+        n_sample_per_dataset=400,
+        ic_lower_bound=0,
+        ic_upper_bound=1,
+    )
+    model_config = ModelConfig(
+        model_name='FNO',
+        deeponet_n_hidden=3,
+        # fno_n_layers=10,
+        # fno_n_modes_height=8,
+        # fno_hidden_channels=16
+    )
+    train_config = TrainConfig(
+        learning_rate=1e-3,
+        n_epoch=300,
+        batch_size=64,
+        scheduler_step_size=1,
+        scheduler_gamma=0.98,
+        scheduler_min_lr=1e-5
+    )
 
     training_dataloader, validating_dataloader = get_dataset(dataset_config, train_config)
     check_dir(model_config.base_path)
