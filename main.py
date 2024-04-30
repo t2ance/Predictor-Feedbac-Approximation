@@ -1,7 +1,7 @@
 import os
 import pickle
 import random
-from typing import Literal, Tuple
+from typing import Literal, Tuple, List
 
 import deepxde as dde
 import matplotlib.pyplot as plt
@@ -193,7 +193,7 @@ def no_predict(inputs, device, model):
 
 
 def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig,
-              training_dataloader=None, validating_dataloader=None, img_save_path: str = None):
+              training_dataloader=None, validating_dataloader=None, testing_dataloader=None, img_save_path: str = None):
     model_name = model_config.model_name
     n_state = dataset_config.n_state
     device = train_config.device
@@ -227,7 +227,7 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
     print(f'#parameters: {count_params(model)}')
     pth = f'{train_config.model_save_path}/{model_config.model_name}.pth'
     if train_config.load_model and os.path.exists(pth):
-        model.load_state_dict(torch.load('model_state_dict.pth'))
+        model.load_state_dict(torch.load(f'{train_config.model_save_path}/{model_name}.pth'))
         print(f'Model loaded from {pth}, skip training!')
     else:
         criterion = torch.nn.MSELoss()
@@ -237,6 +237,7 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
 
         training_loss_arr = []
         validating_loss_arr = []
+        testing_loss_arr = []
         bar = tqdm(list(range(n_epoch)))
         for epoch in bar:
             model.train()
@@ -260,16 +261,27 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
                     loss = criterion(outputs, label)
                     validating_loss += loss.item()
 
-                training_loss_t = training_loss / len(training_dataloader)
-                validating_loss_t = validating_loss / len(validating_dataloader)
-                training_loss_arr.append(training_loss_t)
-                validating_loss_arr.append(validating_loss_t)
-                desc = f'Epoch [{epoch + 1}/{n_epoch}] || Learning rate: {scheduler.get_last_lr()} || ' \
-                       f'Training loss: {training_loss_t} || Validation loss: {validating_loss_t}'
-                bar.set_description(desc)
-            if epoch % 10 == 0:
+                testing_loss = 0.0
+                for inputs, label in testing_dataloader:
+                    outputs = no_predict(inputs, device, model)
+                    label = label.to(device)
+                    loss = criterion(outputs, label)
+                    testing_loss += loss.item()
+
+            training_loss_t = training_loss / len(training_dataloader)
+            validating_loss_t = validating_loss / len(validating_dataloader)
+            testing_loss_t = testing_loss / len(testing_dataloader)
+            training_loss_arr.append(training_loss_t)
+            validating_loss_arr.append(validating_loss_t)
+            testing_loss_arr.append(testing_loss_t)
+            desc = f'Epoch [{epoch + 1}/{n_epoch}] || Learning rate: {scheduler.get_last_lr()} || ' \
+                   f'Training loss: {training_loss_t} || Validation loss: {validating_loss_t} || ' \
+                   f'Test loss: {testing_loss_t}'
+            bar.set_description(desc)
+            if epoch % train_config.log_step == 0 or epoch == n_epoch - 1:
                 plt.plot(training_loss_arr, label="Training loss")
                 plt.plot(validating_loss_arr, label="Validation loss")
+                plt.plot(testing_loss_arr, label="Test loss")
                 plt.yscale("log")
                 plt.legend()
                 if img_save_path is not None:
@@ -277,21 +289,10 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
                     plt.clf()
                 else:
                     plt.show()
+                torch.save(model.state_dict(), f'{train_config.model_save_path}/{model_config.model_name}.pth')
             scheduler.step()
             for param_group in optimizer.param_groups:
                 param_group['lr'] = max(param_group['lr'], train_config.scheduler_min_lr)
-
-        plt.figure()
-        plt.plot(training_loss_arr, label="Training loss")
-        plt.plot(validating_loss_arr, label="Validation loss")
-        plt.yscale("log")
-        plt.legend()
-        if img_save_path is not None:
-            plt.savefig(f'{img_save_path}/loss.png')
-            plt.clf()
-        else:
-            plt.show()
-        torch.save(model.state_dict(), f'{train_config.model_save_path}/{model_config.model_name}.pth')
     print('Finished Training')
     return model
 
@@ -352,34 +353,67 @@ def postprocess(samples):
     #     plt.clf()
 
 
-def get_dataset(dataset_config: DatasetConfig, train_config: TrainConfig):
-    if not os.path.exists(dataset_config.dataset_file) or dataset_config.recreate_dataset:
+def get_dataset(dataset_config: DatasetConfig, train_config: TrainConfig, n_dataset: int, file_path: str,
+                recreate: bool):
+    if not os.path.exists(file_path) or recreate:
+        print('Creating dataset')
         if dataset_config.trajectory:
-            samples = create_trajectory_dataset(dataset_config)
+            samples = create_trajectory_dataset(dataset_config, n_dataset=n_dataset)
         else:
-            samples = create_stateless_dataset(
-                dataset_config.n_dataset, dataset_config.dt, dataset_config.n_point_delay,
-                dataset_config.n_sample_per_dataset, dataset_config.dataset_file, dataset_config.n_state
-            )
+            samples = create_stateless_dataset(dataset_config, n_dataset=n_dataset)
+        print('Data of dataset')
         postprocess(samples)
     else:
-        with open(dataset_config.dataset_file, 'rb') as file:
+        print('Loading dataset')
+        with open(file_path, 'rb') as file:
             samples = pickle.load(file)
-    training_dataloader, validating_dataloader = prepare_dataset(
-        samples, train_config.training_ratio, train_config.batch_size, train_config.device)
-    return training_dataloader, validating_dataloader
+    return DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=True,
+                      generator=torch.Generator(device=train_config.device))
 
 
-def create_trajectory_dataset(dataset_config: DatasetConfig):
+def get_datasets(dataset_config: DatasetConfig, train_config: TrainConfig):
+    if not os.path.exists(dataset_config.training_dataset_file) or dataset_config.recreate_training_dataset:
+        print('Creating training dataset')
+        if dataset_config.trajectory:
+            training_samples = create_trajectory_dataset(dataset_config, n_dataset=dataset_config.n_dataset)
+        else:
+            training_samples = create_stateless_dataset(dataset_config, n_dataset=dataset_config.n_dataset)
+        print('Data of training dataset')
+        postprocess(training_samples)
+    else:
+        print('Loading training dataset')
+        with open(dataset_config.training_dataset_file, 'rb') as file:
+            training_samples = pickle.load(file)
+    if not os.path.exists(dataset_config.testing_dataset_file) or dataset_config.recreate_training_dataset:
+        print('Creating testing dataset')
+        testing_samples = create_trajectory_dataset(dataset_config, test_points=dataset_config.test_points)
+    else:
+        print('Loading testing dataset')
+        with open(dataset_config.testing_dataset_file, 'rb') as file:
+            testing_samples = pickle.load(file)
+    training_dataloader, validating_dataloader = prepare_datasets(
+        training_samples, train_config.training_ratio, train_config.batch_size, train_config.device)
+    testing_dataloader = DataLoader(PredictionDataset(testing_samples), batch_size=train_config.batch_size,
+                                    shuffle=True, generator=torch.Generator(device=train_config.device))
+    print(f'#Training sample: {int(len(training_samples) * train_config.training_ratio)}')
+    print(f'#Validating sample: {int(len(training_samples) * (1 - train_config.training_ratio))}')
+    print(f'#Training sample: {len(testing_samples)}')
+    return training_dataloader, validating_dataloader, testing_dataloader
+
+
+def create_trajectory_dataset(dataset_config: DatasetConfig, n_dataset: int = None, test_points: List = None):
     all_samples = []
     if dataset_config.implicit:
         print('creating implicit datasets (Use Z(t+D) as P(t))')
     else:
         print('creating explicit datasets (Calculate P(t))')
-    for Z0 in tqdm(
-            list(np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
-                                   (dataset_config.n_dataset, 2)))):
-        # for Z0 in tqdm(list(dataset_config.test_points)):
+    if test_points is None:
+        bar = tqdm(list(
+            np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
+                              (n_dataset, 2))))
+    else:
+        bar = tqdm(test_points)
+    for Z0 in bar:
         if dataset_config.implicit:
             U, Z, _ = run(method='explict', silence=True, Z0=Z0, dataset_config=dataset_config)
             dataset = ImplicitDataset(
@@ -392,15 +426,23 @@ def create_trajectory_dataset(dataset_config: DatasetConfig):
                 torch.tensor(P, dtype=torch.float32), dataset_config.n_point_delay, dataset_config.dt)
         dataset = list(dataset)
         random.shuffle(dataset)
-        all_samples += dataset[:dataset_config.n_sample_per_dataset]
+        if dataset_config.n_sample_per_dataset >= 0:
+            all_samples += dataset[:dataset_config.n_sample_per_dataset]
+        else:
+            all_samples += dataset
     random.shuffle(all_samples)
-    with open(dataset_config.dataset_file, 'wb') as file:
+    path = dataset_config.training_dataset_file if test_points is None else dataset_config.testing_dataset_file
+    with open(path, 'wb') as file:
         pickle.dump(all_samples, file)
     return all_samples
 
 
-def create_stateless_dataset(n_dataset: int, dt: float, n_point_delay: int, n_sample_per_dataset: int,
-                             dataset_file: str, n_state: int):
+def create_stateless_dataset(dataset_config: DatasetConfig, n_dataset: int):
+    dt: float = dataset_config.dt
+    n_point_delay: int = dataset_config.n_point_delay
+    n_sample_per_dataset: int = dataset_config.n_sample_per_dataset
+    dataset_file: str = dataset_config.training_dataset_file
+    n_state: int = dataset_config.n_state
     all_samples = []
     # FIXME
     for i in tqdm(list(range(n_dataset))):
@@ -434,7 +476,7 @@ def create_stateless_dataset(n_dataset: int, dt: float, n_point_delay: int, n_sa
     return all_samples
 
 
-def prepare_dataset(samples, training_ratio: float, batch_size: int, device: str):
+def prepare_datasets(samples, training_ratio: float, batch_size: int, device: str):
     def split_dataset(dataset, ratio):
         n_total = len(dataset)
         n_sample = int(n_total * ratio)
@@ -451,36 +493,39 @@ def prepare_dataset(samples, training_ratio: float, batch_size: int, device: str
 
 if __name__ == '__main__':
     dataset_config = DatasetConfig(
-        recreate_dataset=False,
+        recreate_training_dataset=True,
+        recreate_testing_dataset=True,
         trajectory=True,
-        dt=0.001,
-        n_dataset=25,
+        dt=0.01,
+        n_dataset=100,
         duration=8,
         delay=3,
-        n_sample_per_dataset=400,
+        n_sample_per_dataset=250,
         ic_lower_bound=0,
-        ic_upper_bound=1,
+        ic_upper_bound=1
     )
     model_config = ModelConfig(
         model_name='FNO',
-        deeponet_n_hidden=3,
-        # fno_n_layers=10,
+        # deeponet_n_hidden=6,
+        fno_n_layers=6,
         # fno_n_modes_height=8,
         # fno_hidden_channels=16
     )
     train_config = TrainConfig(
         learning_rate=1e-3,
-        n_epoch=300,
+        n_epoch=200,
         batch_size=64,
         scheduler_step_size=1,
         scheduler_gamma=0.98,
-        scheduler_min_lr=1e-5
+        scheduler_min_lr=1e-5,
+        weight_decay=3e-2,
+        load_model=False
     )
 
-    training_dataloader, validating_dataloader = get_dataset(dataset_config, train_config)
+    training_dataloader, validating_dataloader, testing_dataloader = get_datasets(dataset_config, train_config)
     check_dir(model_config.base_path)
     check_dir(train_config.model_save_path)
     model = run_train(dataset_config=dataset_config, model_config=model_config, train_config=train_config,
                       training_dataloader=training_dataloader, validating_dataloader=validating_dataloader,
-                      img_save_path=model_config.base_path)
+                      testing_dataloader=testing_dataloader, img_save_path=model_config.base_path)
     run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path)
