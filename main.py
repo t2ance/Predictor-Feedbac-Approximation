@@ -1,6 +1,7 @@
 import os
 import pickle
 import random
+import time
 from typing import Literal, Tuple, List
 
 import deepxde as dde
@@ -181,8 +182,7 @@ def run(dataset_config: DatasetConfig,
     return U, Z, P
 
 
-def no_predict(inputs, device, model):
-    inputs = inputs.to(device)
+def no_predict(inputs, model):
     time_step = inputs[:, :1]
     z_u = inputs[:, 1:]
 
@@ -243,28 +243,24 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
             model.train()
             training_loss = 0.0
             for inputs, label in training_dataloader:
-                label = label.to(device)
-                outputs = no_predict(inputs, device, model)
+                outputs = no_predict(inputs, model)
                 loss = criterion(outputs, label)
 
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
                 training_loss += loss.item()
-
             model.eval()
             with torch.no_grad():
                 validating_loss = 0.0
                 for inputs, label in validating_dataloader:
-                    outputs = no_predict(inputs, device, model)
-                    label = label.to(device)
+                    outputs = no_predict(inputs, model)
                     loss = criterion(outputs, label)
                     validating_loss += loss.item()
 
                 testing_loss = 0.0
                 for inputs, label in testing_dataloader:
-                    outputs = no_predict(inputs, device, model)
-                    label = label.to(device)
+                    outputs = no_predict(inputs, model)
                     loss = criterion(outputs, label)
                     testing_loss += loss.item()
 
@@ -448,15 +444,13 @@ def create_stateless_dataset(dataset_config: DatasetConfig, n_dataset: int):
     for i in tqdm(list(range(n_dataset))):
         for _ in range(n_sample_per_dataset):
             f_rand = np.random.randint(0, 3)
-            # shift = np.random.uniform(-1, 1)
-            scale = 0.3
             if f_rand == 0:
                 f = np.cos
             elif f_rand == 1:
                 f = np.sin
             else:
                 f = lambda x: np.exp(-x)
-            U_D = scale * (f(np.sqrt(i) * np.linspace(0, 1, n_point_delay)))
+            U_D = f(np.sqrt(i) * np.linspace(0, 1, n_point_delay))
             Z_t = np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound, 2)
             P_t = predict_integral(Z_t=Z_t, U_D=U_D, dt=dt, n_state=n_state, n_point_delay=n_point_delay)
             features = sample_to_tensor(Z_t, U_D, dt * n_point_delay)
@@ -493,32 +487,32 @@ def prepare_datasets(samples, training_ratio: float, batch_size: int, device: st
 
 if __name__ == '__main__':
     dataset_config = DatasetConfig(
-        recreate_training_dataset=False,
-        recreate_testing_dataset=False,
+        recreate_training_dataset=True,
+        recreate_testing_dataset=True,
         trajectory=True,
-        dt=0.01,
-        n_dataset=100,
+        dt=0.1,
+        n_dataset=500,
         duration=8,
         delay=3,
-        n_sample_per_dataset=250,
-        ic_lower_bound=0,
+        n_sample_per_dataset=100,
+        ic_lower_bound=-1,
         ic_upper_bound=1
     )
     model_config = ModelConfig(
-        model_name='DeepONet',
+        model_name='FNO',
         # deeponet_n_hidden_size=256,
         # deeponet_merge_size=128,
-        deeponet_n_hidden=6,
-        # fno_n_layers=6,
-        # fno_n_modes_height=8,
-        # fno_hidden_channels=16
+        # deeponet_n_hidden=6,
+        # fno_n_layers=10,
+        # fno_n_modes_height=64,
+        # fno_hidden_channels=128
     )
     train_config = TrainConfig(
-        learning_rate=3e-5,
+        learning_rate=1e-3,
         n_epoch=200,
-        batch_size=64,
+        batch_size=128,
         scheduler_step_size=1,
-        scheduler_gamma=0.98,
+        scheduler_gamma=0.96,
         scheduler_min_lr=1e-6,
         weight_decay=1e-2,
         load_model=False
