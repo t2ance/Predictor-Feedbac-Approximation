@@ -35,8 +35,8 @@ def compute_Z_at_t_plus_D(U_vector, Z_at_t, delta_t):
 
 if __name__ == '__main__':
     dataset_config = DatasetConfig()
-    # U, Z, P = run(method='numerical', silence=True, Z0=(0., 1.), plot=True, dataset_config=dataset_config)
+    U, Z, P = run(method='numerical', silence=True, Z0=(0., 1.), plot=True, dataset_config=dataset_config)
     # U, Z, P = run(method='numerical', silence=True, Z0=(3., 3.), plot=True, dataset_config=dataset_config)
-    U, Z, P = run(method='numerical', silence=True, Z0=(-3., -3.), plot=True, dataset_config=dataset_config)
+    # U, Z, P = run(method='numerical', silence=True, Z0=(-3., -3.), plot=True, dataset_config=dataset_config)
     # U, Z, _ = run(method='explict', silence=True, duration=dataset_config.duration, delay=dataset_config.delay,
     #               Z0=(0, 1), dt=dataset_config.dt, plot=True)
