@@ -493,8 +493,8 @@ def prepare_datasets(samples, training_ratio: float, batch_size: int, device: st
 
 if __name__ == '__main__':
     dataset_config = DatasetConfig(
-        recreate_training_dataset=True,
-        recreate_testing_dataset=True,
+        recreate_training_dataset=False,
+        recreate_testing_dataset=False,
         trajectory=True,
         dt=0.01,
         n_dataset=100,
@@ -505,20 +505,22 @@ if __name__ == '__main__':
         ic_upper_bound=1
     )
     model_config = ModelConfig(
-        model_name='FNO',
-        # deeponet_n_hidden=6,
-        fno_n_layers=6,
+        model_name='DeepONet',
+        # deeponet_n_hidden_size=256,
+        # deeponet_merge_size=128,
+        deeponet_n_hidden=6,
+        # fno_n_layers=6,
         # fno_n_modes_height=8,
         # fno_hidden_channels=16
     )
     train_config = TrainConfig(
-        learning_rate=1e-3,
+        learning_rate=3e-5,
         n_epoch=200,
         batch_size=64,
         scheduler_step_size=1,
         scheduler_gamma=0.98,
-        scheduler_min_lr=1e-5,
-        weight_decay=3e-2,
+        scheduler_min_lr=1e-6,
+        weight_decay=1e-2,
         load_model=False
     )
 
