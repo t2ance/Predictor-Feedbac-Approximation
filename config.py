@@ -1,3 +1,4 @@
+import itertools
 from dataclasses import dataclass, field
 from typing import Optional, Tuple, List, Literal
 
@@ -21,6 +22,7 @@ class ModelConfig:
 
 @dataclass
 class TrainConfig:
+    debug: Optional[bool] = field(default=False)
     batch_size: Optional[int] = field(default=64)
     learning_rate: Optional[float] = field(default=1e-4)
     weight_decay: Optional[float] = field(default=.0)
@@ -40,11 +42,11 @@ class DatasetConfig:
     delay: Optional[float] = field(default=3.)
     duration: Optional[int] = field(default=8)
     dt: Optional[float] = field(default=0.005)
-    test_points: Optional[List[Tuple[float, float]]] = field(default_factory=lambda: [
-        (0, 1), (0, 0.3), (0.1, 0.1), (0.2, 0.2), (1, 0), (1, 1), (0.2, 0.3), (0.2, 0.7), (0.5, 0.3), (0.7, 0.2)
-    ])
+    test_points: Optional[List[Tuple[float, float]]] = field(
+        default_factory=lambda: [(x, y) for x, y in itertools.product([0, 0.1, 0.2, 0.3, 0.4, 0.5], [0, 0.1, 0.2, 0.3, 0.4, 0.5])])
     ic_lower_bound: Optional[float] = field(default=0.)
     ic_upper_bound: Optional[float] = field(default=1.)
+    u_scaling: Optional[float] = field(default=1.)
     n_state: Optional[int] = field(default=2)
     n_sample_per_dataset: Optional[int] = field(default=100)
     n_dataset: Optional[int] = field(default=200)
@@ -55,6 +57,7 @@ class DatasetConfig:
     testing_dataset_file: Optional[str] = field(default='./datasets/test.pkl')
     trajectory: Optional[bool] = field(default=True)
     implicit: Optional[bool] = field(default=False)
+    noise_sigma_numerical: Optional[float] = field(default=0.)
 
     @property
     def ts(self) -> np.ndarray:
@@ -71,6 +74,11 @@ class DatasetConfig:
     @property
     def n_point_duration(self) -> int:
         return int(round(self.duration / self.dt))
+
+    def noise(self):
+        if self.noise_sigma_numerical == 0:
+            return 0
+        return np.random.randn() * self.noise_sigma_numerical
 
 
 if __name__ == '__main__':
