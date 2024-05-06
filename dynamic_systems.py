@@ -1,4 +1,13 @@
+from typing import Literal
+
 import numpy as np
+import torch
+from numpy import ndarray
+from scipy.integrate import odeint
+
+from config import DatasetConfig
+from model import PredictionFNO
+from utils import pad_leading_zeros
 
 
 class DynamicSystem:
@@ -6,10 +15,77 @@ class DynamicSystem:
     The dynamic system with constant C
     '''
 
-    def __init__(self, delay, Z0, c):
-        self.delay = delay
-        self.Z0 = Z0
-        self.c = c
+    def __init__(self, Z0: ndarray, dataset_config: DatasetConfig,
+                 method: Literal['explict', 'numerical', 'no', 'numerical_no']):
+        self.method = method
+        self.delay = dataset_config.delay
+        self.n_point_delay = dataset_config.n_point_delay
+        self.Z0 = np.array(Z0)
+        self.c = dataset_config.system_c
+        self.ts = dataset_config.ts
+        self.sequence = iter(range(dataset_config.n_point))
+        self.n_point = dataset_config.n_point
+        self.dataset_config = dataset_config
+        self.dt = dataset_config.dt
+        self.init()
+
+    def init(self):
+        self.U = np.zeros(self.n_point)
+        self.Z = np.zeros((self.n_point, 2))
+        self.P = np.zeros((self.n_point, 2))
+        self.P_compare = np.zeros((self.n_point, 2))
+        self.Z[self.n_point_delay, :] = self.Z0
+
+    def step_in(self, model=None):
+        t_i = next(self.sequence)
+        t_minus_D_i = max(t_i - self.n_point_delay, 0)
+        t = self.ts[t_i]
+        if self.method == 'explict':
+            self.U[t_i] = self.U_explict(t)
+            if t_i > self.n_point_delay:
+                self.Z[t_i, :] = self.Z_explicit(t)
+        elif self.method == 'numerical':
+            if t_i > self.n_point_delay:
+                self.Z[t_i, :] = odeint(self.dynamic, self.Z[t_i - 1, :], [self.ts[t_i - 1], self.ts[t_i]],
+                                        args=(self.U[t_minus_D_i - 1],))[1]
+                Z_t = self.Z[t_i, :]
+            else:
+                Z_t = self.Z0
+            self.P[t_i, :] = predict_integral_general(f=self.dynamic, Z_t=Z_t, P_D=self.P[t_minus_D_i:t_i],
+                                                      U_D=self.U[t_minus_D_i:t_i], dt=self.dt,
+                                                      t=t) + self.dataset_config.noise()
+            if t_i > self.n_point_delay:
+                self.U[t_i] = self.kappa(self.P[t_i, :])
+        elif self.method == 'no':
+            if t_i > self.n_point_delay:
+                self.Z[t_i, :] = \
+                    odeint(self.dynamic, self.Z[t_i - 1, :], [self.ts[t_i - 1], self.ts[t_i]],
+                           args=(self.U[t_minus_D_i - 1],))[1]
+                Z_t = self.Z[t_i, :]
+            else:
+                Z_t = self.Z0
+            self.P[t_i, :] = predict_neural_operator(model=model, U_D=pad_leading_zeros(segment=self.U[t_minus_D_i:t_i],
+                                                                                        length=self.n_point_delay),
+                                                     Z_t=Z_t, t=t)
+            if t_i > self.n_point_delay:
+                self.U[t_i] = self.kappa(self.P[t_i, :])
+        elif self.method == 'numerical_no':
+            if t_i > self.n_point_delay:
+                self.Z[t_i, :] = odeint(self.dynamic, self.Z[t_i - 1, :], [self.ts[t_i - 1], self.ts[t_i]],
+                                        args=(self.U[t_minus_D_i - 1],))[1]
+                Z_t = self.Z[t_i, :]
+            else:
+                Z_t = self.Z0
+            self.P[t_i, :] = predict_integral_general(f=self.dynamic, Z_t=Z_t, P_D=self.P[t_minus_D_i:t_i],
+                                                      U_D=self.U[t_minus_D_i:t_i], dt=self.dt,
+                                                      t=t) + self.dataset_config.noise()
+            self.P_compare[t_i, :] = predict_neural_operator(
+                model=model, U_D=pad_leading_zeros(segment=self.U[t_minus_D_i:t_i], length=self.n_point_delay), Z_t=Z_t,
+                t=t)
+            if t_i > self.n_point_delay:
+                self.U[t_i] = self.kappa(self.P[t_i, :])
+        else:
+            raise NotImplementedError()
 
     def dynamic(self, Z_t, t, U_delay):
         Z1_t = Z_t[0]
@@ -23,7 +99,7 @@ class DynamicSystem:
         Z2 = Z_t[1]
         return -Z1 - 2 * Z2 - self.c / 3 * Z2 ** 3
 
-    def U(self, t):
+    def U_explict(self, t):
         assert self.c == 1
         z1_0, z2_0 = self.Z0
         if t >= 0:
@@ -36,7 +112,7 @@ class DynamicSystem:
         else:
             raise NotImplementedError()
 
-    def Z(self, t):
+    def Z_explicit(self, t):
         assert self.c == 1
         if t < 0:
             raise NotImplementedError()
@@ -53,6 +129,17 @@ class DynamicSystem:
 
         Z2 = np.exp(self.delay - t) * ((self.delay - t) * middle_term + (1 - t + self.delay) * z2_D)
         return Z1, Z2
+
+
+def predict_neural_operator(model, U_D, Z_t, t):
+    u_tensor = torch.tensor(U_D, dtype=torch.float32).view(1, -1)
+    z_tensor = torch.tensor(Z_t, dtype=torch.float32).view(1, -1)
+    inputs = [torch.cat([z_tensor, u_tensor], dim=1), torch.tensor(t, dtype=torch.float32).view(1, -1)]
+    if isinstance(model, PredictionFNO):
+        outputs = model(inputs[0])
+    else:
+        outputs = model(inputs)
+    return outputs.to('cpu').detach().numpy()[0]
 
 
 def predict_integral(Z_t, n_point_delay: int, n_state: int, dt: float, U_D: np.ndarray, system):

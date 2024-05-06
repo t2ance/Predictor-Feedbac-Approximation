@@ -4,8 +4,6 @@ from typing import Optional, Tuple, List, Literal
 
 import numpy as np
 
-import dynamic_systems
-
 
 @dataclass
 class ModelConfig:
