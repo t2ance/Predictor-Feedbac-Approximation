@@ -5,49 +5,53 @@ class DynamicSystem:
     '''
     The dynamic system with constant C
     '''
-    def __init__(self, D, Z0, c):
-        self.D = D
+
+    def __init__(self, delay, Z0, c):
+        self.delay = delay
         self.Z0 = Z0
         self.c = c
 
-    def dynamic(self, Z_t, t, U_t_minus_D):
+    def dynamic(self, Z_t, t, U_delay):
         Z1_t = Z_t[0]
         Z2_t = Z_t[1]
-        Z1_t_dot = Z2_t - Z2_t ** 2 * U_t_minus_D
-        Z2_t_dot = U_t_minus_D
+        Z1_t_dot = Z2_t - self.c * Z2_t ** 2 * U_delay
+        Z2_t_dot = U_delay
         return np.array([Z1_t_dot, Z2_t_dot])
 
-    def control_law_explict(self, t):
+    def kappa(self, Z_t):
+        Z1 = Z_t[0]
+        Z2 = Z_t[1]
+        return -Z1 - 2 * Z2 - self.c / 3 * Z2 ** 3
+
+    def U(self, t):
+        assert self.c == 1
         z1_0, z2_0 = self.Z0
         if t >= 0:
-            term1 = z1_0 + (2 + self.D) * z2_0 + (1 / 3) * z2_0 ** 3
-            term2 = z1_0 + (1 + self.D) * z2_0 + (1 / 3) * z2_0 ** 3
-            u_t = -np.exp(self.D - t) * (term1 + (self.D - t) * term2)
+            term1 = z1_0 + (2 + self.delay) * z2_0 + (1 / 3) * z2_0 ** 3
+            term2 = z1_0 + (1 + self.delay) * z2_0 + (1 / 3) * z2_0 ** 3
+            u_t = -np.exp(self.delay - t) * (term1 + (self.delay - t) * term2)
             return u_t
-        elif t >= -self.D:
+        elif t >= -self.delay:
             return 0
         else:
             raise NotImplementedError()
 
-    def kappa(self, P_t):
-        p1t = P_t[0]
-        p2t = P_t[1]
-        return -p1t - 2 * p2t - 1 / 3 * p2t ** 3
-
-    def z_explict(self, t):
+    def Z(self, t):
+        assert self.c == 1
         if t < 0:
             raise NotImplementedError()
-        if t < self.D:
+        if t < self.delay:
             return self.Z0[0] + self.Z0[1] * t, self.Z0[1]
         z1_0 = self.Z0[0]
         z2_0 = self.Z0[1]
         z2_D = self.Z0[1]
-        middle_term = z1_0 + self.D * z2_0 + (1 / 3) * z2_0 ** 3
-        term1 = np.exp(self.D - t) * ((1 + t - self.D) * middle_term + (t - self.D) * z2_D)
-        term2 = - (1 / 3) * np.exp(3 * (self.D - t)) * ((self.D - t) * middle_term + (1 - t + self.D) * z2_D) ** 3
+        middle_term = z1_0 + self.delay * z2_0 + (1 / 3) * z2_0 ** 3
+        term1 = np.exp(self.delay - t) * ((1 + t - self.delay) * middle_term + (t - self.delay) * z2_D)
+        term2 = - (1 / 3) * np.exp(3 * (self.delay - t)) * (
+                (self.delay - t) * middle_term + (1 - t + self.delay) * z2_D) ** 3
         Z1 = term1 + term2
 
-        Z2 = np.exp(self.D - t) * ((self.D - t) * middle_term + (1 - t + self.D) * z2_D)
+        Z2 = np.exp(self.delay - t) * ((self.delay - t) * middle_term + (1 - t + self.delay) * z2_D)
         return Z1, Z2
 
 

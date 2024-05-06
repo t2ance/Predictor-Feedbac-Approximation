@@ -95,9 +95,9 @@ def run(dataset_config: DatasetConfig,
         t_minus_D_i = max(t_i - n_point_delay, 0)
         t = ts[t_i]
         if method == 'explict':
-            U[t_i] = dynamic_system.control_law_explict(t)
+            U[t_i] = dynamic_system.U(t)
             if t_i > n_point_delay:
-                Z[t_i, :] = dynamic_system.z_explict(t)
+                Z[t_i, :] = dynamic_system.Z(t)
         elif method == 'numerical':
             if t_i > n_point_delay:
                 Z[t_i, :] = \
@@ -421,7 +421,7 @@ def get_dataset(dataset_config: DatasetConfig, train_config: TrainConfig, n_data
         print('Loading dataset')
         with open(file_path, 'rb') as file:
             samples = pickle.load(file)
-    samples = postprocess(samples)
+    # samples = postprocess(samples)
     return DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=True,
                       generator=torch.Generator(device=train_config.device))
 
@@ -437,7 +437,7 @@ def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_co
         print('Loading training dataset')
         with open(dataset_config.training_dataset_file, 'rb') as file:
             training_samples = pickle.load(file)
-    training_samples = postprocess(training_samples)
+    # training_samples = postprocess(training_samples)
 
     training_dataloader, validating_dataloader = prepare_datasets(
         training_samples, train_config.training_ratio, train_config.batch_size, train_config.device)
@@ -564,11 +564,11 @@ def prepare_datasets(samples, training_ratio: float, batch_size: int, device: st
 
 if __name__ == '__main__':
     dataset_config = DatasetConfig(
-        recreate_training_dataset=False,
-        recreate_testing_dataset=False,
+        recreate_training_dataset=True,
+        recreate_testing_dataset=True,
         trajectory=True,
         dt=0.1,
-        n_dataset=250,
+        n_dataset=10,
         duration=8,
         delay=3,
         n_sample_per_dataset=100,
