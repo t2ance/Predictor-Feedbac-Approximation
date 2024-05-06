@@ -4,6 +4,8 @@ from typing import Optional, Tuple, List, Literal
 
 import numpy as np
 
+import dynamic_systems
+
 
 @dataclass
 class ModelConfig:
@@ -43,7 +45,10 @@ class DatasetConfig:
     duration: Optional[int] = field(default=8)
     dt: Optional[float] = field(default=0.005)
     test_points: Optional[List[Tuple[float, float]]] = field(
-        default_factory=lambda: [(x, y) for x, y in itertools.product([0, 0.1, 0.2, 0.3, 0.4, 0.5], [0, 0.1, 0.2, 0.3, 0.4, 0.5])])
+        default_factory=lambda: [(x, y) for x, y in itertools.product(
+            [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+            [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+        )])
     ic_lower_bound: Optional[float] = field(default=0.)
     ic_upper_bound: Optional[float] = field(default=1.)
     u_scaling: Optional[float] = field(default=1.)
@@ -58,6 +63,7 @@ class DatasetConfig:
     trajectory: Optional[bool] = field(default=True)
     implicit: Optional[bool] = field(default=False)
     noise_sigma_numerical: Optional[float] = field(default=0.)
+    system_c: Optional[float] = field(default=1.)
 
     @property
     def ts(self) -> np.ndarray:

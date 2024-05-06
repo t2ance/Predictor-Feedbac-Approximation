@@ -16,8 +16,7 @@ from tqdm import tqdm
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ImplicitDataset, ExplictDataset, sample_to_tensor, PredictionDataset
 from model import PredictionFNO
-from system1 import control_law_explict, solve_z_explict, control_law, system, predict_integral_general, \
-    predict_integral
+from dynamic_systems import DynamicSystem, predict_integral_general, predict_integral
 from utils import count_params, pad_leading_zeros
 
 
@@ -90,46 +89,52 @@ def run(dataset_config: DatasetConfig,
     P_compare = np.zeros((n_point, 2))
     Z0 = np.array(Z0)
     Z[n_point_delay, :] = Z0
+    dynamic_system = DynamicSystem(delay, Z0, dataset_config.system_c)
     sequence = range(n_point) if silence else tqdm(list(range(n_point)))
     for t_i in sequence:
         t_minus_D_i = max(t_i - n_point_delay, 0)
         t = ts[t_i]
         if method == 'explict':
-            U[t_i] = control_law_explict(t, Z0, delay)
+            U[t_i] = dynamic_system.control_law_explict(t)
             if t_i > n_point_delay:
-                Z[t_i, :] = solve_z_explict(t, delay, Z0)
+                Z[t_i, :] = dynamic_system.z_explict(t)
         elif method == 'numerical':
             if t_i > n_point_delay:
-                Z[t_i, :] = odeint(system, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
+                Z[t_i, :] = \
+                odeint(dynamic_system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0
-            P[t_i, :] = predict_integral_general(f=system, Z_t=Z_t, P_D=P[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i],
+            P[t_i, :] = predict_integral_general(f=dynamic_system.dynamic, Z_t=Z_t, P_D=P[t_minus_D_i:t_i],
+                                                 U_D=U[t_minus_D_i:t_i],
                                                  dt=dt, t=t) + dataset_config.noise()
             if t_i > n_point_delay:
-                U[t_i] = control_law(P[t_i, :])
+                U[t_i] = dynamic_system.kappa(P[t_i, :])
         elif method == 'no':
             if t_i > n_point_delay:
-                Z[t_i, :] = odeint(system, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
+                Z[t_i, :] = \
+                    odeint(dynamic_system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0
             P[t_i, :] = predict_neural_operator(
                 model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t, t=t)
             if t_i > n_point_delay:
-                U[t_i] = control_law(P[t_i, :])
+                U[t_i] = dynamic_system.kappa(P[t_i, :])
         elif method == 'numerical_no':
             if t_i > n_point_delay:
-                Z[t_i, :] = odeint(system, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
+                Z[t_i, :] = \
+                    odeint(dynamic_system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0
-            P[t_i, :] = predict_integral_general(f=system, Z_t=Z_t, P_D=P[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i],
+            P[t_i, :] = predict_integral_general(f=dynamic_system.dynamic, Z_t=Z_t, P_D=P[t_minus_D_i:t_i],
+                                                 U_D=U[t_minus_D_i:t_i],
                                                  dt=dt, t=t) + dataset_config.noise()
             P_compare[t_i, :] = predict_neural_operator(
                 model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t, t=t)
             if t_i > n_point_delay:
-                U[t_i] = control_law(P[t_i, :])
+                U[t_i] = dynamic_system.kappa(P[t_i, :])
         else:
             raise NotImplementedError()
     if cut:
@@ -330,8 +335,7 @@ def metric(u_preds, u_trues):
     N = u_trues.shape[0]
     u_preds = np.atleast_2d(u_preds)
     u_trues = np.atleast_2d(u_trues)
-    epsilon = np.sum(np.linalg.norm(u_preds - u_trues, axis=1) / np.linalg.norm(u_trues, axis=1)) / N
-    return epsilon
+    return np.sum(np.linalg.norm(u_preds - u_trues, axis=1) / np.linalg.norm(u_trues, axis=1)) / N
 
 
 def run_test(m, dataset_config: DatasetConfig, base_path: str, debug: bool):
@@ -350,27 +354,39 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str, debug: bool):
 
 
 def postprocess(samples):
+    print('[DEBUG] postprocessing')
     new_samples = []
-    # p_sum = np.zeros(2)
-    # z_sum = np.zeros(2)
-    # u_sum = np.zeros(1)
     random.shuffle(samples)
+    epsilon_sum = 0
     for sample in samples:
         #     z = feature[1:3]
         #     u = feature[3:]
-        #     p_sum = p_sum + p.abs().cpu().numpy()
-        #     z_sum = z_sum + z.abs().cpu().numpy()
-        #     u_sum = u_sum + u.abs().mean().cpu().numpy()
         # print(f'average p: {p_sum / len(samples)}')
         # print(f'average z: {z_sum / len(samples)}')
         # print(f'average u: {u_sum / len(samples)}')
 
         feature = sample[0].cpu().numpy()
+        t = feature[:1]
         z = feature[1:3]
         u = feature[3:]
-        p = predict_integral(Z_t=z + 1, U_D=u, dt=dataset_config.dt, n_state=2,
+        p = sample[1].cpu().numpy()
+        epsilon_z = 0.1
+        # epsilon_z = np.random.uniform(0, 1., len(z))
+        z += epsilon_z
+        # epsilon_u = np.random.uniform(0, .01, len(u))
+        # u += epsilon_u
+        # epsilon_z = 0.1
+        # u0 = u[0]
+        # z1 = z[0]
+        # z2 = z[1]
+        # u_compare = -z1 - 2 * z2 - 1 / 3 * z2 ** 3
+        # loss += (u0 - u_compare) ** 2
+        # epsilon_sum += epsilon_z
+        p = predict_integral(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=2,
                              n_point_delay=dataset_config.n_point_delay)
-        new_samples.append((feature, torch.tensor(p)))
+        new_samples.append((torch.from_numpy(np.concatenate([t, z, u])), torch.tensor(p)))
+    # print(epsilon_sum / len(samples))
+    # print(loss)
     #     t_z_u = sample[0].cpu().numpy()
     #     t = t_z_u[0]
     #     z = t_z_u[1:3]
@@ -401,11 +417,11 @@ def get_dataset(dataset_config: DatasetConfig, train_config: TrainConfig, n_data
         else:
             samples = create_stateless_dataset(dataset_config, n_dataset=n_dataset)
         print('Data of dataset')
-        samples = postprocess(samples)
     else:
         print('Loading dataset')
         with open(file_path, 'rb') as file:
             samples = pickle.load(file)
+    samples = postprocess(samples)
     return DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=True,
                       generator=torch.Generator(device=train_config.device))
 
@@ -417,12 +433,11 @@ def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_co
             training_samples = create_trajectory_dataset(dataset_config, n_dataset=dataset_config.n_dataset)
         else:
             training_samples = create_stateless_dataset(dataset_config, n_dataset=dataset_config.n_dataset)
-        print('Data of training dataset')
-        training_samples = postprocess(training_samples)
     else:
         print('Loading training dataset')
         with open(dataset_config.training_dataset_file, 'rb') as file:
             training_samples = pickle.load(file)
+    training_samples = postprocess(training_samples)
 
     training_dataloader, validating_dataloader = prepare_datasets(
         training_samples, train_config.training_ratio, train_config.batch_size, train_config.device)
@@ -549,12 +564,12 @@ def prepare_datasets(samples, training_ratio: float, batch_size: int, device: st
 
 if __name__ == '__main__':
     dataset_config = DatasetConfig(
-        recreate_training_dataset=True,
-        recreate_testing_dataset=True,
+        recreate_training_dataset=False,
+        recreate_testing_dataset=False,
         trajectory=True,
         dt=0.1,
         n_dataset=250,
-        duration=4,
+        duration=8,
         delay=3,
         n_sample_per_dataset=100,
         ic_lower_bound=0,
