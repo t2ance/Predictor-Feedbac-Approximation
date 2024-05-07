@@ -11,9 +11,9 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config import DatasetConfig, ModelConfig, TrainConfig
-from dataset import ImplicitDataset, ExplictDataset, sample_to_tensor, PredictionDataset
+from dataset import ImplicitDataset, ExplictDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import DynamicSystem, predict_integral
-from model import PredictionFNO
+from model import FNOProjection, FNOSum
 from utils import count_params
 
 
@@ -22,7 +22,7 @@ def plot_comparison(ts, P, P_compare, Z, delay, n_point_delay, save_path):
     for t_i in range(2):
         if P_compare is not None:
             plt.plot(ts[n_point_delay:], P_compare[:-n_point_delay, t_i], label=f'$PNO_{t_i + 1}(t-{delay})$')
-        plt.plot(ts[n_point_delay:], P[:-n_point_delay, t_i], label=f'$P_{t_i + 1}(t-{delay})$')
+        plt.plot(ts[n_point_delay:], P[:-n_point_delay, t_i], label=f'$\hat P_{t_i + 1}(t-{delay})$')
         plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$')
     plt.legend()
     if save_path is not None:
@@ -145,7 +145,7 @@ def no_predict(inputs, model):
     z_u = inputs[:, 1:]
 
     inputs = [z_u, time_step]
-    if isinstance(model, PredictionFNO):
+    if isinstance(model, FNOProjection):
         inputs = z_u
     return model(inputs)
 
@@ -177,7 +177,11 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
             num_outputs=n_state
         ).to(device)
     elif model_name == 'FNO':
-        model = PredictionFNO(
+        model = FNOProjection(
+            n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
+            n_point_delay=n_point_delay, n_layers=n_layers, dt=dataset_config.dt).to(device)
+    elif model_name == 'FNOSum':
+        model = FNOSum(
             n_modes_height=n_modes_height, hidden_channels=hidden_channels, in_features=n_state + n_point_delay,
             out_features=n_state, n_layers=n_layers).to(device)
     else:
@@ -192,7 +196,6 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
         optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=train_config.scheduler_step_size,
                                                     gamma=train_config.scheduler_gamma)
-
         training_loss_arr = []
         validating_loss_arr = []
         testing_loss_arr = []
@@ -458,18 +461,7 @@ def create_stateless_dataset(dataset_config: DatasetConfig, n_dataset: int):
                                    dynamic=DynamicSystem.dynamic_static)
             features = sample_to_tensor(Z_t, U_D, dt * n_point_delay)
             all_samples.append((features, torch.from_numpy(P_t)))
-            # plt.plot(U_D, label='u')
-            # plt.scatter(n_point_delay, Z_t[0], label='z0')
-            # plt.scatter(n_point_delay, Z_t[1], label='z1')
-            # plt.scatter(n_point_delay, P_t[0], label='p0')
-            # plt.scatter(n_point_delay, P_t[1], label='p1')
-            # plt.legend()
-            # plt.ylim([-2, 2])
-            # plt.show()
-            # plt.clf()
-            # print('_')
-            # print(Z_t)
-            # print(P_t)
+
     random.shuffle(all_samples)
     with open(dataset_file, 'wb') as file:
         pickle.dump(all_samples, file)
@@ -497,7 +489,7 @@ if __name__ == '__main__':
         recreate_testing_dataset=True,
         trajectory=False,
         dt=0.1,
-        n_dataset=100,
+        n_dataset=10,
         duration=8,
         delay=1,
         n_sample_per_dataset=100,
@@ -508,6 +500,7 @@ if __name__ == '__main__':
     )
     model_config = ModelConfig(
         model_name='FNO',
+        fno_n_layers=6,
         # deeponet_n_hidden_size=256,
         # deeponet_merge_size=128,
         # deeponet_n_hidden=6,
@@ -518,7 +511,7 @@ if __name__ == '__main__':
     train_config = TrainConfig(
         learning_rate=1e-3,
         n_epoch=200,
-        batch_size=64,
+        batch_size=32,
         scheduler_step_size=1,
         scheduler_gamma=0.96,
         scheduler_min_lr=3e-6,

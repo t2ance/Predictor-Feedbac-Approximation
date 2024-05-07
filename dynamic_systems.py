@@ -6,7 +6,7 @@ from numpy import ndarray
 from scipy.integrate import odeint
 
 from config import DatasetConfig
-from model import PredictionFNO
+from model import FNOProjection
 from utils import pad_leading_zeros
 
 
@@ -143,7 +143,7 @@ def predict_neural_operator(model, U_D, Z_t, t):
     u_tensor = torch.tensor(U_D, dtype=torch.float32).view(1, -1)
     z_tensor = torch.tensor(Z_t, dtype=torch.float32).view(1, -1)
     inputs = [torch.cat([z_tensor, u_tensor], dim=1), torch.tensor(t, dtype=torch.float32).view(1, -1)]
-    if isinstance(model, PredictionFNO):
+    if isinstance(model, FNOProjection):
         outputs = model(inputs[0])
     else:
         outputs = model(inputs)
