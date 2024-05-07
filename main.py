@@ -444,13 +444,18 @@ def create_stateless_dataset(dataset_config: DatasetConfig, n_dataset: int):
             #     grid = np.arange(1, 100).reshape(-1, 1)
             #     series = (np.sin(grid * x) + np.cos(grid * x)) / (grid ** 2)
             #     return series.sum(axis=0)
-            f = lambda x: np.random.uniform(-0.1, 0.1) * x + np.random.uniform(-0.5, 0.5)
+            f = lambda x: (np.random.uniform(-3, 3, 10).reshape(-1, 1) * np.array(
+                [x ** 9, x ** 8, x ** 7, x ** 6, x ** 5, x ** 4, x ** 3, x ** 2, x, np.ones_like(x)])).sum(
+                axis=0)
             # f = lambda x: sum([np.cos(i) + np.sin(i) for i in range(100)])
             # U_D = f(np.sqrt(i) * np.linspace(0, dataset_config.delay, n_point_delay)) * dataset_config.u_scaling
-            U_D = f(np.random.uniform(1, 2) * np.linspace(0, dataset_config.delay, n_point_delay)) * np.random.uniform(
-                0, 5)
             Z_t = np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound, 2)
-            P_t = predict_integral(Z_t=Z_t, U_D=U_D, dt=dt, n_state=n_state, n_point_delay=n_point_delay)
+            U_D = f(np.linspace(0, dataset_config.delay, n_point_delay))
+
+            U_D = U_D + DynamicSystem.kappa_static(Z_t) - U_D[0]
+
+            P_t = predict_integral(Z_t=Z_t, U_D=U_D, dt=dt, n_state=n_state, n_point_delay=n_point_delay,
+                                   dynamic=DynamicSystem.dynamic_static)
             features = sample_to_tensor(Z_t, U_D, dt * n_point_delay)
             all_samples.append((features, torch.from_numpy(P_t)))
             # plt.plot(U_D, label='u')
@@ -488,13 +493,13 @@ def prepare_datasets(samples, training_ratio: float, batch_size: int, device: st
 
 if __name__ == '__main__':
     dataset_config = DatasetConfig(
-        recreate_training_dataset=False,
-        recreate_testing_dataset=False,
-        trajectory=True,
+        recreate_training_dataset=True,
+        recreate_testing_dataset=True,
+        trajectory=False,
         dt=0.1,
-        n_dataset=200,
+        n_dataset=100,
         duration=8,
-        delay=3,
+        delay=1,
         n_sample_per_dataset=100,
         ic_lower_bound=-1,
         ic_upper_bound=1,
@@ -506,9 +511,9 @@ if __name__ == '__main__':
         # deeponet_n_hidden_size=256,
         # deeponet_merge_size=128,
         # deeponet_n_hidden=6,
-        fno_n_layers=10,
-        fno_n_modes_height=64,
-        fno_hidden_channels=128
+        # fno_n_layers=20,
+        # fno_n_modes_height=16,
+        # fno_hidden_channels=64
     )
     train_config = TrainConfig(
         learning_rate=1e-3,
@@ -517,13 +522,13 @@ if __name__ == '__main__':
         scheduler_step_size=1,
         scheduler_gamma=0.96,
         scheduler_min_lr=3e-6,
-        weight_decay=1e-4,
+        weight_decay=1e-3,
         load_model=False,
         debug=False
     )
-    dataset_config.system_c = 1.
+    # dataset_config.system_c = 1
     training_dataloader, validating_dataloader = get_training_and_validation_datasets(dataset_config, train_config)
-    dataset_config.system_c = 1.
+    # dataset_config.system_c = 3
     testing_dataloader = get_test_datasets(dataset_config, train_config)
 
     check_dir(model_config.base_path)

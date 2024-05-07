@@ -16,7 +16,7 @@ class DynamicSystem:
     '''
 
     def __init__(self, Z0: ndarray, dataset_config: DatasetConfig,
-                 method: Literal['explict', 'numerical', 'no', 'numerical_no']):
+                 method: Literal['explict', 'numerical', 'no', 'numerical_no'] = None):
         self.method = method
         self.delay = dataset_config.delay
         self.n_point_delay = dataset_config.n_point_delay
@@ -87,17 +87,25 @@ class DynamicSystem:
         else:
             raise NotImplementedError()
 
-    def dynamic(self, Z_t, t, U_delay):
+    @staticmethod
+    def dynamic_static(Z_t, t, U_delay, c=1.):
         Z1_t = Z_t[0]
         Z2_t = Z_t[1]
-        Z1_t_dot = Z2_t - self.c * Z2_t ** 2 * U_delay
+        Z1_t_dot = Z2_t - c * Z2_t ** 2 * U_delay
         Z2_t_dot = U_delay
         return np.array([Z1_t_dot, Z2_t_dot])
 
-    def kappa(self, Z_t):
+    def dynamic(self, Z_t, t, U_delay):
+        return DynamicSystem.dynamic_static(Z_t, t, U_delay, self.c)
+
+    @staticmethod
+    def kappa_static(Z_t, c=1.):
         Z1 = Z_t[0]
         Z2 = Z_t[1]
-        return -Z1 - 2 * Z2 - self.c / 3 * Z2 ** 3
+        return -Z1 - 2 * Z2 - c / 3 * Z2 ** 3
+
+    def kappa(self, Z_t):
+        return DynamicSystem.kappa_static(Z_t, self.c)
 
     def U_explict(self, t):
         assert self.c == 1
@@ -142,12 +150,12 @@ def predict_neural_operator(model, U_D, Z_t, t):
     return outputs.to('cpu').detach().numpy()[0]
 
 
-def predict_integral(Z_t, n_point_delay: int, n_state: int, dt: float, U_D: np.ndarray, system):
+def predict_integral(Z_t, n_point_delay: int, n_state: int, dt: float, U_D: np.ndarray, dynamic):
     P_D = np.zeros((n_point_delay, n_state))
     P_D[0, :] = Z_t
     for j in range(n_point_delay - 1):
-        P_D[j + 1, :] = P_D[j, :] + dt * system(P_D[j, :], j * dt, U_D[j])
-    p = predict_integral_general(f=system, Z_t=Z_t, P_D=P_D, U_D=U_D, dt=dt, t=dt * n_point_delay)
+        P_D[j + 1, :] = P_D[j, :] + dt * dynamic(P_D[j, :], j * dt, U_D[j])
+    p = predict_integral_general(f=dynamic, Z_t=Z_t, P_D=P_D, U_D=U_D, dt=dt, t=dt * n_point_delay)
     return p
 
 
