@@ -35,12 +35,12 @@ def plot_comparison(ts, P, P_compare, Z, delay, n_point_delay, save_path):
 def plot_difference(ts, P, P_compare, Z, n_point_delay, save_path):
     plt.ylim([-1, 1])
     difference = P[:-n_point_delay] - Z[n_point_delay:]
-    plt.plot(ts[n_point_delay:], difference[:, 0], label='difference of prediction1')
-    plt.plot(ts[n_point_delay:], difference[:, 1], label='difference of prediction2')
+    plt.plot(ts[n_point_delay:], difference[:, 0], label='$\delta P_1$')
+    plt.plot(ts[n_point_delay:], difference[:, 1], label='$\delta P_2$')
     if P_compare is not None:
         difference_no = P_compare[:-n_point_delay] - Z[n_point_delay:]
-        plt.plot(ts[n_point_delay:], difference_no[:, 0], label='difference of no prediction1')
-        plt.plot(ts[n_point_delay:], difference_no[:, 1], label='difference of no prediction2')
+        plt.plot(ts[n_point_delay:], difference_no[:, 0], label='$\delta PNO_1$')
+        plt.plot(ts[n_point_delay:], difference_no[:, 1], label='$\delta PNO_2$')
 
     plt.legend()
     if save_path is not None:
@@ -447,8 +447,8 @@ def create_stateless_dataset(dataset_config: DatasetConfig, n_dataset: int):
             #     grid = np.arange(1, 100).reshape(-1, 1)
             #     series = (np.sin(grid * x) + np.cos(grid * x)) / (grid ** 2)
             #     return series.sum(axis=0)
-            f = lambda x: (np.random.uniform(-3, 3, 10).reshape(-1, 1) * np.array(
-                [x ** 9, x ** 8, x ** 7, x ** 6, x ** 5, x ** 4, x ** 3, x ** 2, x, np.ones_like(x)])).sum(
+            f = lambda x: (np.random.uniform(-1, 1, 3).reshape(-1, 1) * np.array(
+                [x ** 2, x, np.ones_like(x)])).sum(
                 axis=0)
             # f = lambda x: sum([np.cos(i) + np.sin(i) for i in range(100)])
             # U_D = f(np.sqrt(i) * np.linspace(0, dataset_config.delay, n_point_delay)) * dataset_config.u_scaling
@@ -489,33 +489,32 @@ if __name__ == '__main__':
         recreate_testing_dataset=True,
         trajectory=False,
         dt=0.1,
-        n_dataset=10,
+        n_dataset=100,
         duration=8,
-        delay=1,
+        delay=2.,
         n_sample_per_dataset=100,
         ic_lower_bound=-1,
         ic_upper_bound=1,
-        u_scaling=1.,
         system_c=1.
     )
     model_config = ModelConfig(
         model_name='FNO',
-        fno_n_layers=6,
+        fno_n_layers=1,
         # deeponet_n_hidden_size=256,
         # deeponet_merge_size=128,
         # deeponet_n_hidden=6,
         # fno_n_layers=20,
-        # fno_n_modes_height=16,
-        # fno_hidden_channels=64
+        fno_n_modes_height=4,
+        fno_hidden_channels=16
     )
     train_config = TrainConfig(
-        learning_rate=1e-3,
+        learning_rate=1e-4,
         n_epoch=200,
-        batch_size=32,
+        batch_size=128,
         scheduler_step_size=1,
-        scheduler_gamma=0.96,
+        scheduler_gamma=1,
         scheduler_min_lr=3e-6,
-        weight_decay=1e-3,
+        weight_decay=1e-5,
         load_model=False,
         debug=False
     )

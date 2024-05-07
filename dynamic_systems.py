@@ -2,6 +2,7 @@ from typing import Literal
 
 import numpy as np
 import torch
+from deepxde.nn.pytorch import DeepONet
 from numpy import ndarray
 from scipy.integrate import odeint
 
@@ -143,10 +144,10 @@ def predict_neural_operator(model, U_D, Z_t, t):
     u_tensor = torch.tensor(U_D, dtype=torch.float32).view(1, -1)
     z_tensor = torch.tensor(Z_t, dtype=torch.float32).view(1, -1)
     inputs = [torch.cat([z_tensor, u_tensor], dim=1), torch.tensor(t, dtype=torch.float32).view(1, -1)]
-    if isinstance(model, FNOProjection):
-        outputs = model(inputs[0])
-    else:
+    if isinstance(model, DeepONet):
         outputs = model(inputs)
+    else:
+        outputs = model(inputs[0])
     return outputs.to('cpu').detach().numpy()[0]
 
 

@@ -49,7 +49,6 @@ class DatasetConfig:
         )])
     ic_lower_bound: Optional[float] = field(default=0.)
     ic_upper_bound: Optional[float] = field(default=1.)
-    u_scaling: Optional[float] = field(default=1.)
     n_state: Optional[int] = field(default=2)
     n_sample_per_dataset: Optional[int] = field(default=100)
     n_dataset: Optional[int] = field(default=200)
