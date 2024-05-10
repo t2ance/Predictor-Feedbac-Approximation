@@ -23,6 +23,7 @@ class DynamicSystem:
         self.n_point_delay = dataset_config.n_point_delay
         self.Z0 = np.array(Z0)
         self.c = dataset_config.system_c
+        self.n = dataset_config.system_n
         self.ts = dataset_config.ts
         self.sequence = iter(range(dataset_config.n_point))
         self.n_point = dataset_config.n_point
@@ -37,7 +38,7 @@ class DynamicSystem:
         self.P_compare = np.zeros((self.n_point, 2))
         self.Z[self.n_point_delay, :] = self.Z0
 
-    def step_in(self, model=None):
+    def step(self, model=None):
         t_i = next(self.sequence)
         t_minus_D_i = max(t_i - self.n_point_delay, 0)
         t = self.ts[t_i]
@@ -89,27 +90,28 @@ class DynamicSystem:
             raise NotImplementedError()
 
     @staticmethod
-    def dynamic_static(Z_t, t, U_delay, c=1.):
+    def dynamic_static(Z_t, t, U_delay, c=1., n=2.):
         Z1_t = Z_t[0]
         Z2_t = Z_t[1]
-        Z1_t_dot = Z2_t - c * Z2_t ** 2 * U_delay
+        Z1_t_dot = Z2_t - c * Z2_t ** n * U_delay
         Z2_t_dot = U_delay
         return np.array([Z1_t_dot, Z2_t_dot])
 
     def dynamic(self, Z_t, t, U_delay):
-        return DynamicSystem.dynamic_static(Z_t, t, U_delay, self.c)
+        return DynamicSystem.dynamic_static(Z_t, t, U_delay, self.c, self.n)
 
     @staticmethod
-    def kappa_static(Z_t, c=1.):
+    def kappa_static(Z_t, c=1., n=2.):
         Z1 = Z_t[0]
         Z2 = Z_t[1]
-        return -Z1 - 2 * Z2 - c / 3 * Z2 ** 3
+        return -Z1 - 2 * Z2 - c / (n + 1) * Z2 ** (n + 1)
 
     def kappa(self, Z_t):
-        return DynamicSystem.kappa_static(Z_t, self.c)
+        return DynamicSystem.kappa_static(Z_t, self.c, self.n)
 
     def U_explict(self, t):
         assert self.c == 1
+        assert self.n == 2
         z1_0, z2_0 = self.Z0
         if t >= 0:
             term1 = z1_0 + (2 + self.delay) * z2_0 + (1 / 3) * z2_0 ** 3
@@ -123,6 +125,7 @@ class DynamicSystem:
 
     def Z_explicit(self, t):
         assert self.c == 1
+        assert self.n == 2
         if t < 0:
             raise NotImplementedError()
         if t < self.delay:

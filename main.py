@@ -60,7 +60,7 @@ def run(dataset_config: DatasetConfig,
         img_save_path: str = None):
     system = DynamicSystem(Z0=np.array(list(Z0)), dataset_config=dataset_config, method=method)
     for _ in range(dataset_config.n_point):
-        system.step_in(model)
+        system.step(model)
 
     U = system.U
     Z = system.Z
@@ -284,24 +284,18 @@ def postprocess(samples):
     print('[DEBUG] postprocessing')
     new_samples = []
     random.shuffle(samples)
-    epsilon_sum = 0
     for sample in samples:
-        #     z = feature[1:3]
-        #     u = feature[3:]
-        # print(f'average p: {p_sum / len(samples)}')
-        # print(f'average z: {z_sum / len(samples)}')
-        # print(f'average u: {u_sum / len(samples)}')
-
         feature = sample[0].cpu().numpy()
         t = feature[:1]
         z = feature[1:3]
         u = feature[3:]
         p = sample[1].cpu().numpy()
-        epsilon_z = 0.1
+        # epsilon_z = 0.5
+        epsilon_u = 0.5
         # epsilon_z = np.random.uniform(0, 1., len(z))
-        z += epsilon_z
+        # z += epsilon_z
         # epsilon_u = np.random.uniform(0, .01, len(u))
-        # u += epsilon_u
+        u += epsilon_u
         # epsilon_z = 0.1
         # u0 = u[0]
         # z1 = z[0]
@@ -310,47 +304,33 @@ def postprocess(samples):
         # loss += (u0 - u_compare) ** 2
         # epsilon_sum += epsilon_z
         p = predict_integral(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=2,
-                             n_point_delay=dataset_config.n_point_delay)
+                             n_point_delay=dataset_config.n_point_delay, dynamic=DynamicSystem.dynamic_static)
         new_samples.append((torch.from_numpy(np.concatenate([t, z, u])), torch.tensor(p)))
-    # print(epsilon_sum / len(samples))
-    # print(loss)
-    #     t_z_u = sample[0].cpu().numpy()
-    #     t = t_z_u[0]
-    #     z = t_z_u[1:3]
-    #     u = t_z_u[3:]
-    #     p = sample[1].cpu().numpy()
-    #     ts = np.linspace(t - dataset_config.delay, t, dataset_config.n_point_delay)
-    #     plt.plot(ts, u, label='u')
-    #     plt.scatter(ts[-1], z[0], label='Zt_0')
-    #     plt.scatter(ts[-1], z[1], label='Zt_1')
-    #     plt.scatter(ts[-1], p[0], label='Pt_0')
-    #     plt.scatter(ts[-1], p[1], label='Pt_1')
-    #     plt.legend()
-    #     plt.show()
-    #     plt.clf()
-    # time.sleep(0.5)
     print(f'[WARNING] {len(new_samples)} samples replaced by numerical solutions')
     all_samples = new_samples
     return all_samples
     # return samples
 
 
-def get_dataset(dataset_config: DatasetConfig, train_config: TrainConfig, n_dataset: int, file_path: str,
-                recreate: bool):
-    if not os.path.exists(file_path) or recreate:
-        print('Creating dataset')
-        if dataset_config.trajectory:
-            samples = create_trajectory_dataset(dataset_config, n_dataset=n_dataset)
-        else:
-            samples = create_stateless_dataset(dataset_config, n_dataset=n_dataset)
-        print('Data of dataset')
-    else:
-        print('Loading dataset')
-        with open(file_path, 'rb') as file:
-            samples = pickle.load(file)
-    # samples = postprocess(samples)
-    return DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=True,
-                      generator=torch.Generator(device=train_config.device))
+def plot_sample(feature, label, dataset_config: DatasetConfig):
+    if isinstance(feature, torch.Tensor):
+        feature = feature.cpu().numpy()
+    if isinstance(label, torch.Tensor):
+        label = label.cpu().numpy()
+    print(f'[Feature Shape]: {feature.shape}')
+    print(f'[Label Shape]: {feature.shape}')
+    t = feature[:1]
+    z = feature[1:3]
+    u = feature[3:]
+    p = label
+    ts = np.linspace(t - dataset_config.delay, t, dataset_config.n_point_delay)
+    plt.plot(ts, u, label='U')
+    plt.scatter(ts[-1], z[0], label='$Z_t(0)$')
+    plt.scatter(ts[-1], z[1], label='$Z_t(1)$')
+    plt.scatter(ts[-1], p[0], label='$P_t(0)$')
+    plt.scatter(ts[-1], p[1], label='$P_t(1)$')
+    plt.legend()
+    plt.show()
 
 
 def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_config: TrainConfig):
@@ -364,8 +344,11 @@ def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_co
         print('Loading training dataset')
         with open(dataset_config.training_dataset_file, 'rb') as file:
             training_samples = pickle.load(file)
-    # training_samples = postprocess(training_samples)
-
+    if dataset_config.trajectory and dataset_config.postprocess:
+        training_samples = postprocess(training_samples)
+    if dataset_config.plot_sample:
+        for feature, label in training_samples[:5]:
+            plot_sample(feature, label, dataset_config)
     training_dataloader, validating_dataloader = prepare_datasets(
         training_samples, train_config.training_ratio, train_config.batch_size, train_config.device)
 
@@ -433,27 +416,45 @@ def create_stateless_dataset(dataset_config: DatasetConfig, n_dataset: int):
     dataset_file: str = dataset_config.training_dataset_file
     n_state: int = dataset_config.n_state
     all_samples = []
-    # FIXME
-    for _ in tqdm(list(range(10, n_dataset + 10))):
-        for _ in range(n_sample_per_dataset):
-            # f_rand = np.random.randint(0, 3)
-            # if f_rand == 0:
-            #     f = np.cos
-            # elif f_rand == 1:
-            #     f = np.sin
-            # else:
-            # def f(x):
-            #     x = x.reshape(1, -1)
-            #     grid = np.arange(1, 100).reshape(-1, 1)
-            #     series = (np.sin(grid * x) + np.cos(grid * x)) / (grid ** 2)
-            #     return series.sum(axis=0)
-            f = lambda x: (np.random.uniform(-1, 1, 3).reshape(-1, 1) * np.array(
-                [x ** 2, x, np.ones_like(x)])).sum(
-                axis=0)
-            # f = lambda x: sum([np.cos(i) + np.sin(i) for i in range(100)])
-            # U_D = f(np.sqrt(i) * np.linspace(0, dataset_config.delay, n_point_delay)) * dataset_config.u_scaling
+    for i in tqdm(list(range(1, n_dataset + 1))):
+        for j in range(n_sample_per_dataset):
+            if dataset_config.random_u_type == 'line':
+                f = lambda x: (np.random.uniform(-1, 1, 2).reshape(-1, 1) * np.array(
+                    [x, np.ones_like(x)])).sum(
+                    axis=0)
+            elif dataset_config.random_u_type == 'poly':
+                f = lambda x: (np.random.uniform(-1, 1, 3).reshape(-1, 1) * np.array(
+                    [x ** 2, x, np.ones_like(x)])).sum(
+                    axis=0)
+            elif dataset_config.random_u_type == 'sin':
+                f = lambda x: np.sin(np.sqrt(i) * x)
+            elif dataset_config.random_u_type == 'exp':
+                f = lambda x: np.exp(-i * x)
+            elif dataset_config.random_u_type == 'spline':
+                def f(x, segment_length=0.2):
+                    min_x = np.min(x - segment_length)
+                    max_x = np.max(x + segment_length)
+                    start = segment_length * np.floor(min_x / segment_length)
+                    end = segment_length * np.ceil(max_x / segment_length)
+
+                    key_points = np.arange(start, end + segment_length, segment_length)
+                    random_values = np.random.uniform(-1, 1, size=key_points.shape)
+
+                    y = np.zeros_like(x)
+                    for i, xi in enumerate(x):
+                        index = np.searchsorted(key_points, xi, side='right') - 1
+                        x1, x2 = key_points[index], key_points[index + 1]
+                        y1, y2 = random_values[index], random_values[index + 1]
+
+                        t = (xi - x1) / (x2 - x1)
+                        y[i] = y1 * (1 - t) + y2 * t
+
+                    return y
+            else:
+                raise NotImplementedError()
             Z_t = np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound, 2)
-            U_D = f(np.linspace(0, dataset_config.delay, n_point_delay))
+            # U_D = f(np.linspace(0, dataset_config.delay, n_point_delay))
+            U_D = f(np.linspace(0, 1, n_point_delay))
 
             U_D = U_D + DynamicSystem.kappa_static(Z_t) - U_D[0]
 
@@ -487,40 +488,42 @@ if __name__ == '__main__':
     dataset_config = DatasetConfig(
         recreate_training_dataset=True,
         recreate_testing_dataset=True,
-        trajectory=False,
+        trajectory=True,
+        random_u_type='spline',
         dt=0.1,
         n_dataset=100,
         duration=8,
-        delay=2.,
+        delay=3.,
         n_sample_per_dataset=100,
         ic_lower_bound=-1,
         ic_upper_bound=1,
-        system_c=1.
+        system_c=1.,
+        system_n=1.,
+        postprocess=False,
+        plot_sample=False
     )
     model_config = ModelConfig(
         model_name='FNO',
-        fno_n_layers=1,
+        fno_n_layers=6,
         # deeponet_n_hidden_size=256,
         # deeponet_merge_size=128,
         # deeponet_n_hidden=6,
         # fno_n_layers=20,
-        fno_n_modes_height=4,
-        fno_hidden_channels=16
+        # fno_n_modes_height=4,
+        # fno_hidden_channels=16
     )
     train_config = TrainConfig(
-        learning_rate=1e-4,
+        learning_rate=1e-3,
         n_epoch=200,
         batch_size=128,
         scheduler_step_size=1,
-        scheduler_gamma=1,
+        scheduler_gamma=0.96,
         scheduler_min_lr=3e-6,
-        weight_decay=1e-5,
+        weight_decay=1e-3,
         load_model=False,
         debug=False
     )
-    # dataset_config.system_c = 1
     training_dataloader, validating_dataloader = get_training_and_validation_datasets(dataset_config, train_config)
-    # dataset_config.system_c = 3
     testing_dataloader = get_test_datasets(dataset_config, train_config)
 
     check_dir(model_config.base_path)
