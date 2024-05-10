@@ -97,14 +97,14 @@ class DynamicSystem:
         Z2_t_dot = U_delay
         return np.array([Z1_t_dot, Z2_t_dot])
 
-    def dynamic(self, Z_t, t, U_delay):
-        return DynamicSystem.dynamic_static(Z_t, t, U_delay, self.c, self.n)
-
     @staticmethod
     def kappa_static(Z_t, c=1., n=2.):
         Z1 = Z_t[0]
         Z2 = Z_t[1]
         return -Z1 - 2 * Z2 - c / (n + 1) * Z2 ** (n + 1)
+
+    def dynamic(self, Z_t, t, U_delay):
+        return DynamicSystem.dynamic_static(Z_t, t, U_delay, self.c, self.n)
 
     def kappa(self, Z_t):
         return DynamicSystem.kappa_static(Z_t, self.c, self.n)

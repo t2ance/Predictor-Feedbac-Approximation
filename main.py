@@ -429,9 +429,10 @@ def create_stateless_dataset(dataset_config: DatasetConfig, n_dataset: int):
             elif dataset_config.random_u_type == 'sin':
                 f = lambda x: np.sin(np.sqrt(i) * x)
             elif dataset_config.random_u_type == 'exp':
-                f = lambda x: np.exp(-i * x)
+                f = lambda x: np.exp(-np.sqrt(i) * x)
             elif dataset_config.random_u_type == 'spline':
-                def f(x, segment_length=0.2):
+                def f(x):
+                    segment_length = np.random.uniform(0, 1)
                     min_x = np.min(x - segment_length)
                     max_x = np.max(x + segment_length)
                     start = segment_length * np.floor(min_x / segment_length)
@@ -453,11 +454,8 @@ def create_stateless_dataset(dataset_config: DatasetConfig, n_dataset: int):
             else:
                 raise NotImplementedError()
             Z_t = np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound, 2)
-            # U_D = f(np.linspace(0, dataset_config.delay, n_point_delay))
             U_D = f(np.linspace(0, 1, n_point_delay))
-
-            U_D = U_D + DynamicSystem.kappa_static(Z_t) - U_D[0]
-
+            # U_D = U_D + DynamicSystem.kappa_static(Z_t) - U_D[0]
             P_t = predict_integral(Z_t=Z_t, U_D=U_D, dt=dt, n_state=n_state, n_point_delay=n_point_delay,
                                    dynamic=DynamicSystem.dynamic_static)
             features = sample_to_tensor(Z_t, U_D, dt * n_point_delay)
@@ -484,21 +482,77 @@ def prepare_datasets(samples, training_ratio: float, batch_size: int, device: st
     return training_dataloader, validating_dataloader
 
 
+def setup_plt():
+    def set_size(width, fraction=1, subplots=(1, 1), height_add=0):
+        """Set figure dimensions to avoid scaling in LaTeX.
+
+        Parameters
+        ----------
+        width: float or string
+                Document width in points, or string of predined document type
+        fraction: float, optional
+                Fraction of the width which you wish the figure to occupy
+        subplots: array-like, optional
+                The number of rows and columns of subplots.
+        Returns
+        -------
+        fig_dim: tuple
+                Dimensions of figure in inches
+        """
+        if width == 'thesis':
+            width_pt = 426.79135
+        elif width == 'beamer':
+            width_pt = 307.28987
+        else:
+            width_pt = width
+
+        # Width of figure (in pts)
+        fig_width_pt = width_pt * fraction
+        # Convert from pt to inches
+        inches_per_pt = 1 / 72.27
+
+        # Golden ratio to set aesthetic figure height
+        # https://disq.us/p/2940ij3
+        golden_ratio = (5 ** .5 - 1) / 2
+
+        # Figure width in inches
+        fig_width_in = fig_width_pt * inches_per_pt
+        # Figure height in inches
+        fig_height_in = height_add + fig_width_in * golden_ratio * (subplots[0] / subplots[1])
+
+        return fig_width_in, fig_height_in
+
+    tex_fonts = {
+        # Use LaTeX to write all text
+        "text.usetex": True,
+        "font.family": "times",
+        # Use 10pt font in plots, to match 10pt font in document
+        "axes.labelsize": 12,
+        "font.size": 12,
+        # Make the legend/label fonts a little smaller
+        "legend.fontsize": 8,
+        "xtick.labelsize": 10,
+        "ytick.labelsize": 10
+    }
+    fig_width, fig_height = set_size(width='thesis', fraction=1)
+    plt.rcParams.update(tex_fonts)
+
+
 if __name__ == '__main__':
     dataset_config = DatasetConfig(
         recreate_training_dataset=True,
-        recreate_testing_dataset=True,
-        trajectory=True,
+        recreate_testing_dataset=False,
+        trajectory=False,
         random_u_type='spline',
         dt=0.1,
-        n_dataset=100,
+        n_dataset=10000,
         duration=8,
         delay=3.,
-        n_sample_per_dataset=100,
+        n_sample_per_dataset=1,
         ic_lower_bound=-1,
         ic_upper_bound=1,
         system_c=1.,
-        system_n=1.,
+        system_n=2.,
         postprocess=False,
         plot_sample=False
     )
@@ -509,8 +563,8 @@ if __name__ == '__main__':
         # deeponet_merge_size=128,
         # deeponet_n_hidden=6,
         # fno_n_layers=20,
-        # fno_n_modes_height=4,
-        # fno_hidden_channels=16
+        fno_n_modes_height=32,
+        fno_hidden_channels=64
     )
     train_config = TrainConfig(
         learning_rate=1e-3,

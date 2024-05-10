@@ -44,8 +44,8 @@ class DatasetConfig:
     dt: Optional[float] = field(default=0.005)
     test_points: Optional[List[Tuple[float, float]]] = field(
         default_factory=lambda: [(x, y) for x, y in itertools.product(
-            [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
-            [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+            np.linspace(-1, 1, 11),
+            np.linspace(-1, 1, 11)
         )])
     ic_lower_bound: Optional[float] = field(default=0.)
     ic_upper_bound: Optional[float] = field(default=1.)
