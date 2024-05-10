@@ -63,8 +63,8 @@ class DatasetConfig:
     system_c: Optional[float] = field(default=1.)
     system_n: Optional[float] = field(default=2.)
     postprocess: Optional[bool] = field(default=False)
-    plot_sample: Optional[bool] = field(default=False)
-    random_u_type: Optional[Literal['line', 'sin', 'exp', 'spline', 'poly']] = field(default='poly')
+    n_plot_sample: Optional[int] = field(default=0)
+    random_u_type: Optional[Literal['line', 'sin', 'exp', 'spline', 'poly', 'sinexp']] = field(default='poly')
 
     @property
     def ts(self) -> np.ndarray:
