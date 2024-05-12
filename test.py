@@ -7,10 +7,10 @@ from main import create_trajectory_dataset, create_stateless_dataset
 
 
 def draw_distribution():
-    testing_random_samples = create_stateless_dataset(dataset_config, save=False, filter=True)
+    testing_random_samples = create_stateless_dataset(dataset_config, filter=True)
 
     print(len(testing_random_samples))
-    testing_trajectory_samples = create_trajectory_dataset(dataset_config, save=False)
+    testing_trajectory_samples = create_trajectory_dataset(dataset_config)
     u_trajectory_list = []
     u_random_list = []
     z0_trajectory_list = []
@@ -94,7 +94,7 @@ def draw_distribution():
 
 
 def draw_difference():
-    samples = create_trajectory_dataset(dataset_config, save=False)
+    samples = create_trajectory_dataset(dataset_config)
     loss = 0
     for feature, p in samples:
         feature = feature.cpu().numpy()

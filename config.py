@@ -26,19 +26,25 @@ class TrainConfig:
     batch_size: Optional[int] = field(default=64)
     learning_rate: Optional[float] = field(default=1e-4)
     weight_decay: Optional[float] = field(default=.0)
-    scheduler_step_size: Optional[int] = field(default=1)
-    scheduler_gamma: Optional[float] = field(default=1.)
-    scheduler_min_lr: Optional[float] = field(default=0.)
+
     training_ratio: Optional[float] = field(default=0.8)
-    log_step: Optional[float] = field(default=10)
+    log_step: Optional[int] = field(default=10)
     n_epoch: Optional[int] = field(default=100)
     device: Optional[str] = field(default='cuda')
     model_save_path: Optional[str] = field(default='./checkpoint')
     load_model: Optional[bool] = field(default=False)
 
+    scheduler_step_size: Optional[int] = field(default=1)
+    scheduler_gamma: Optional[float] = field(default=1.)
+    scheduler_min_lr: Optional[float] = field(default=0.)
+    scheduler_ratio_warmup: Optional[float] = field(default=0.1)
+    lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential']] = field(default='linear_with_warmup')
+
 
 @dataclass
 class DatasetConfig:
+    append_training_dataset: Optional[bool] = field(default=False)
+    append_testing_dataset: Optional[bool] = field(default=False)
     delay: Optional[float] = field(default=3.)
     duration: Optional[int] = field(default=8)
     dt: Optional[float] = field(default=0.005)

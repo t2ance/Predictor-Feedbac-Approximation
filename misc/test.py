@@ -23,7 +23,7 @@ def fit(x_data, y_data):
 if __name__ == '__main__':
     dataset_config = DatasetConfig(n_sample_per_dataset=5, dt=0.01, duration=4, recreate_training_dataset=True,
                                    recreate_testing_dataset=True)
-    samples = create_trajectory_dataset(dataset_config, save=False)
+    samples = create_trajectory_dataset(dataset_config)
     for sample in samples:
         t_z_u = sample[0].cpu().numpy()
         t = t_z_u[0]
