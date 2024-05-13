@@ -59,7 +59,7 @@ class PredictionDataset(Dataset):
 
     def __getitem__(self, idx):
         sample = self.all_samples[idx]
-        return torch.tensor(sample[0], dtype=torch.float32), torch.tensor(sample[1], dtype=torch.float32)
+        return sample[0].to(dtype=torch.float32), sample[1].to(dtype=torch.float32)
 
 
 if __name__ == '__main__':

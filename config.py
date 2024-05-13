@@ -32,7 +32,7 @@ class TrainConfig:
     training_ratio: Optional[float] = field(default=0.8)
     log_step: Optional[int] = field(default=10)
     n_epoch: Optional[int] = field(default=100)
-    device: Optional[str] = field(default='cuda')
+    device: Optional[str] = field(default='cuda:0')
     model_save_path: Optional[str] = field(default='./checkpoint')
     load_model: Optional[bool] = field(default=False)
 
@@ -52,8 +52,8 @@ class DatasetConfig:
     dt: Optional[float] = field(default=0.005)
     test_points: Optional[List[Tuple[float, float]]] = field(
         default_factory=lambda: [(x, y) for x, y in itertools.product(
-            np.linspace(-1, 1, 11),
-            np.linspace(-1, 1, 11)
+            np.linspace(-1, 1, 6),
+            np.linspace(-1, 1, 6)
         )])
     ic_lower_bound: Optional[float] = field(default=0.)
     ic_upper_bound: Optional[float] = field(default=1.)

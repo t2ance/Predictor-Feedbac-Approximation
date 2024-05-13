@@ -39,6 +39,7 @@ class DynamicSystem:
         self.Z[self.n_point_delay, :] = self.Z0
 
     def step(self, model=None):
+        device = next(model.parameters()).device
         t_i = next(self.sequence)
         t_minus_D_i = max(t_i - self.n_point_delay, 0)
         t = self.ts[t_i]
@@ -68,7 +69,7 @@ class DynamicSystem:
                 Z_t = self.Z0
             self.P[t_i, :] = predict_neural_operator(model=model, U_D=pad_leading_zeros(segment=self.U[t_minus_D_i:t_i],
                                                                                         length=self.n_point_delay),
-                                                     Z_t=Z_t, t=t)
+                                                     Z_t=Z_t, t=t, device=device)
             if t_i > self.n_point_delay:
                 self.U[t_i] = self.kappa(self.P[t_i, :])
         elif self.method == 'numerical_no':
@@ -83,7 +84,7 @@ class DynamicSystem:
                                                       t=t) + self.dataset_config.noise()
             self.P_compare[t_i, :] = predict_neural_operator(
                 model=model, U_D=pad_leading_zeros(segment=self.U[t_minus_D_i:t_i], length=self.n_point_delay), Z_t=Z_t,
-                t=t)
+                t=t, device=device)
             if t_i > self.n_point_delay:
                 self.U[t_i] = self.kappa(self.P[t_i, :])
         else:
@@ -143,9 +144,9 @@ class DynamicSystem:
         return Z1, Z2
 
 
-def predict_neural_operator(model, U_D, Z_t, t):
-    u_tensor = torch.tensor(U_D, dtype=torch.float32).view(1, -1)
-    z_tensor = torch.tensor(Z_t, dtype=torch.float32).view(1, -1)
+def predict_neural_operator(model, U_D, Z_t, t, device):
+    u_tensor = torch.tensor(U_D, dtype=torch.float32, device=device).view(1, -1)
+    z_tensor = torch.tensor(Z_t, dtype=torch.float32, device=device).view(1, -1)
     inputs = [torch.cat([z_tensor, u_tensor], dim=1), torch.tensor(t, dtype=torch.float32).view(1, -1)]
     if isinstance(model, DeepONet):
         outputs = model(inputs)

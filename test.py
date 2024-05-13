@@ -1,12 +1,12 @@
-import numpy as np
+import pickle
+
 from matplotlib import pyplot as plt
 
-from config import DatasetConfig
 from dynamic_systems import predict_integral, DynamicSystem
 from main import create_trajectory_dataset, create_stateless_dataset
 
 
-def draw_distribution():
+def draw_distribution(dataset_config):
     testing_random_samples = create_stateless_dataset(dataset_config, filter=True)
 
     print(len(testing_random_samples))
@@ -93,7 +93,7 @@ def draw_distribution():
     plt.show()
 
 
-def draw_difference():
+def draw_difference(dataset_config):
     samples = create_trajectory_dataset(dataset_config)
     loss = 0
     for feature, p in samples:
@@ -116,22 +116,27 @@ def draw_difference():
 
 
 if __name__ == '__main__':
-    dataset_config = DatasetConfig(
-        recreate_training_dataset=True,
-        recreate_testing_dataset=True,
-        trajectory=False,
-        random_u_type='spline',
-        # random_u_type='poly',
-        # random_u_type='sinexp',
-        dt=0.1,
-        n_dataset=200,
-        duration=8,
-        delay=3.,
-        n_sample_per_dataset=1,
-        ic_lower_bound=0,
-        ic_upper_bound=1,
-        postprocess=False,
-        n_plot_sample=False
-    )
-    draw_difference()
+    # dataset_config = DatasetConfig(
+    #     recreate_training_dataset=True,
+    #     recreate_testing_dataset=True,
+    #     trajectory=False,
+    #     random_u_type='spline',
+    #     # random_u_type='poly',
+    #     # random_u_type='sinexp',
+    #     dt=0.1,
+    #     n_dataset=200,
+    #     duration=8,
+    #     delay=3.,
+    #     n_sample_per_dataset=1,
+    #     ic_lower_bound=0,
+    #     ic_upper_bound=1,
+    #     postprocess=False,
+    #     n_plot_sample=False
+    # )
+    # draw_difference()
+    # with open('./datasets/train.pkl', 'wb') as file:
+    #     pickle.dump([], file)
+    with open('./datasets/train.pkl', 'rb') as file:
+        training_samples_loaded = pickle.load(file)
+    print(len(training_samples_loaded))
     ...

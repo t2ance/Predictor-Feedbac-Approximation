@@ -16,25 +16,29 @@ from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ImplicitDataset, ExplictDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import DynamicSystem, predict_integral
 from model import FNOProjection, FNOSum
-from utils import count_params, get_time_str
+from utils import count_params, get_time_str, set_size, setup_plt
 
 
 def plot_comparison(ts, P, P_compare, Z, delay, n_point_delay, save_path):
+    fig = plt.figure(figsize=set_size())
     plt.title('Comparison')
     for t_i in range(2):
         if P_compare is not None:
             plt.plot(ts[n_point_delay:], P_compare[:-n_point_delay, t_i], label=f'$PNO_{t_i + 1}(t-{delay})$')
         plt.plot(ts[n_point_delay:], P[:-n_point_delay, t_i], label=f'$\hat P_{t_i + 1}(t-{delay})$')
         plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$')
+    plt.xlabel('t')
     plt.legend()
     if save_path is not None:
         plt.savefig(save_path)
-        plt.clf()
+        fig.clear()
+        plt.close(fig)
     else:
         plt.show()
 
 
 def plot_difference(ts, P, P_compare, Z, n_point_delay, save_path):
+    fig = plt.figure(figsize=set_size())
     plt.ylim([-1, 1])
     difference = P[:-n_point_delay] - Z[n_point_delay:]
     plt.plot(ts[n_point_delay:], difference[:, 0], label='$\delta P_1$')
@@ -43,11 +47,12 @@ def plot_difference(ts, P, P_compare, Z, n_point_delay, save_path):
         difference_no = P_compare[:-n_point_delay] - Z[n_point_delay:]
         plt.plot(ts[n_point_delay:], difference_no[:, 0], label='$\delta PNO_1$')
         plt.plot(ts[n_point_delay:], difference_no[:, 1], label='$\delta PNO_2$')
-
+    plt.xlabel('t')
     plt.legend()
     if save_path is not None:
         plt.savefig(save_path)
-        plt.clf()
+        fig.clear()
+        plt.close(fig)
     else:
         plt.show()
 
@@ -79,7 +84,7 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, model=None,
             pickle.dump(result, file)
 
     if img_save_path is not None:
-        plt.figure(figsize=(10, 8))
+        fig = plt.figure(figsize=set_size())
         plt.title(title)
 
         plt.subplot(511)
@@ -114,7 +119,8 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, model=None,
         plt.grid(True)
         plt.tight_layout()
         plt.savefig(f'{img_save_path}/system.png')
-        plt.clf()
+        fig.clear()
+        plt.close(fig)
 
         if method != 'numerical_no':
             P_compare = None
@@ -197,10 +203,44 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
         metric_rd_list = []
         metric_mse_list = []
         bar = tqdm(list(range(n_epoch)))
+        do_validation = validating_dataloader is not None
+        do_testing = testing_dataloader is not None
+
+        def draw():
+            fig = plt.figure(figsize=set_size())
+            x_metric = list(range(0, train_config.log_step * len(metric_rd_list), train_config.log_step))
+            plt.plot(x_metric, metric_rd_list, label="Relative Difference")
+            plt.plot(x_metric, metric_mse_list, label="Difference")
+            plt.xlabel('epoch')
+            plt.legend()
+            if img_save_path is not None:
+                plt.savefig(f'{img_save_path}/metric.png')
+                fig.clear()
+                plt.close(fig)
+            else:
+                plt.show()
+
+            fig = plt.figure(figsize=set_size())
+            plt.plot(training_loss_arr, label="Training loss")
+            if do_validation:
+                plt.plot(validating_loss_arr, label="Validation loss")
+            if do_testing:
+                plt.plot(testing_loss_arr, label="Test loss")
+            plt.yscale("log")
+            plt.xlabel('epoch')
+            plt.legend()
+            if img_save_path is not None:
+                plt.savefig(f'{img_save_path}/loss.png')
+                fig.clear()
+                plt.close(fig)
+            else:
+                plt.show()
+
         for epoch in bar:
             model.train()
             training_loss = 0.0
             for inputs, label in training_dataloader:
+                inputs, label = inputs.to(device), label.to(device)
                 outputs = no_predict(inputs, model)
                 loss = criterion(outputs, label)
 
@@ -210,65 +250,61 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
                 training_loss += loss.item()
             model.eval()
             with torch.no_grad():
-                if validating_dataloader is not None:
+                if do_validation:
                     validating_loss = 0.0
                     for inputs, label in validating_dataloader:
+                        inputs, label = inputs.to(device), label.to(device)
                         outputs = no_predict(inputs, model)
                         loss = criterion(outputs, label)
                         validating_loss += loss.item()
 
-                if testing_dataloader is not None:
+                if do_testing:
                     testing_loss = 0.0
                     for inputs, label in testing_dataloader:
+                        inputs, label = inputs.to(device), label.to(device)
                         outputs = no_predict(inputs, model)
                         loss = criterion(outputs, label)
                         testing_loss += loss.item()
 
             training_loss_t = training_loss / len(training_dataloader)
             training_loss_arr.append(training_loss_t)
-            if validating_dataloader is not None:
+            if do_validation:
                 validating_loss_t = validating_loss / len(validating_dataloader)
                 validating_loss_arr.append(validating_loss_t)
-            if testing_dataloader is not None:
+            if do_testing:
                 testing_loss_t = testing_loss / len(testing_dataloader)
                 testing_loss_arr.append(testing_loss_t)
-            desc = f'Epoch [{epoch + 1}/{n_epoch}] || Lr: {scheduler.get_last_lr()} || Training loss: {training_loss_t:.6f}'
-            if validating_dataloader is not None:
+            lr = scheduler.get_last_lr()[-1]
+            desc = f'Epoch [{epoch + 1}/{n_epoch}] || Lr: {lr} || Training loss: {training_loss_t:.6f}'
+            wandb.log({
+                'training loss': training_loss_t,
+                'lr': lr
+            }, step=epoch)
+            if do_validation:
                 desc += f' || Validation loss: {validating_loss_t:.6f}'
-            if testing_dataloader is not None:
+                wandb.log({
+                    'validation loss': validating_loss_t
+                }, step=epoch)
+            if do_testing:
                 desc += f' || Test loss: {testing_loss_t:.6f}'
+                wandb.log({
+                    'test loss': testing_loss_t
+                }, step=epoch)
             bar.set_description(desc)
+
             if (train_config.log_step > 0 and epoch % train_config.log_step == 0) or epoch == n_epoch - 1:
                 metric_rd, metric_mse = run_test(model, dataset_config, silence=True)
                 metric_rd_list.append(metric_rd)
                 metric_mse_list.append(metric_mse)
-                x_metric = list(range(0, train_config.log_step * len(metric_rd_list), train_config.log_step))
-                plt.plot(x_metric, metric_rd_list, label="Relative Difference")
-                plt.plot(x_metric, metric_mse_list, label="Difference")
-                plt.xlabel('epoch')
-                plt.legend()
-                if img_save_path is not None:
-                    plt.savefig(f'{img_save_path}/metric.png')
-                    plt.clf()
-                else:
-                    plt.show()
-
-                plt.plot(training_loss_arr, label="Training loss")
-                plt.plot(validating_loss_arr, label="Validation loss")
-                if testing_dataloader is not None:
-                    plt.plot(testing_loss_arr, label="Test loss")
-                plt.yscale("log")
-                plt.xlabel('epoch')
-                plt.legend()
-                if img_save_path is not None:
-                    plt.savefig(f'{img_save_path}/loss.png')
-                    plt.clf()
-                else:
-                    plt.show()
-                torch.save(model.state_dict(), f'{train_config.model_save_path}/{model_config.model_name}.pth')
+                wandb.log({
+                    'metric relative difference': metric_rd,
+                    'metric difference': metric_mse
+                }, step=epoch)
             scheduler.step()
             for param_group in optimizer.param_groups:
                 param_group['lr'] = max(param_group['lr'], train_config.scheduler_min_lr)
+        draw()
+        torch.save(model.state_dict(), f'{train_config.model_save_path}/{model_config.model_name}.pth')
     print('Finished Training')
     return model
 
@@ -322,31 +358,26 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: boo
     metric_rd = np.nanmean(metric_rd_list).item()
     metric_mse = np.nanmean(metric_mse_list).item()
     if plot or base_path is not None:
-        plt.hist(metric_rd_list, bins=20, label=f'mean relative difference {metric_rd :.3f}')
-        plt.legend()
-        plt.title('relative difference')
-        plt.xlabel('relative difference')
-        plt.ylim([0, 100])
-        plt.xlim([0, 10])
-        plt.ylabel('frequency')
-        if plot:
-            plt.show()
-        else:
-            plt.savefig(f'{base_path}/metric_rd.png')
-            plt.clf()
+        def plot_result(data, label, title, xlabel, path):
+            fig = plt.figure(figsize=set_size())
+            plt.hist(data, bins=20, label=label)
+            plt.legend()
+            plt.title(title)
+            plt.xlabel(xlabel)
+            plt.ylim([0, 100])
+            plt.xlim([0, 10])
+            plt.ylabel('frequency')
+            if plot:
+                plt.show()
+            else:
+                plt.savefig(path)
+                fig.clear()
+                plt.close(fig)
 
-        plt.hist(metric_mse_list, bins=20, label=f'mean difference {metric_mse :.3f}')
-        plt.legend()
-        plt.title('difference')
-        plt.xlabel('difference')
-        plt.ylim([0, 100])
-        plt.xlim([0, 10])
-        plt.ylabel('frequency')
-        if plot:
-            plt.show()
-        else:
-            plt.savefig(f'{base_path}/metric_mse.png')
-            plt.clf()
+        plot_result(data=metric_rd_list, label=f'mean relative difference {metric_rd :.3f}',
+                    title='relative difference', xlabel='relative difference', path=f'{base_path}/metric_rd.png')
+        plot_result(data=metric_rd_list, label=f'mean difference {metric_mse :.3f}',
+                    title='difference', xlabel='difference', path=f'{base_path}/metric_mse.png')
     return metric_rd, metric_mse
 
 
@@ -366,7 +397,6 @@ def postprocess(samples, dataset_config: DatasetConfig):
     print(f'[WARNING] {len(new_samples)} samples replaced by numerical solutions')
     all_samples = new_samples
     return all_samples
-    # return samples
 
 
 def plot_sample(feature, label, dataset_config: DatasetConfig):
@@ -410,17 +440,19 @@ def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_co
         print(f'Created {len(training_samples)} samples')
         if dataset_config.append_training_dataset:
             training_samples_loaded = load()
-            tsf, tsl = training_samples[0]
-            tslf, tsdl = training_samples_loaded[0]
-            assert len(tsf) == len(tslf), f'The shapes of sample should be consistent, but {len(tsf)} ≠ {len(tslf)}'
+            if len(training_samples_loaded) > 0:
+                tsf, tsl = training_samples[0]
+                tslf, tsdl = training_samples_loaded[0]
+                assert len(tsf) == len(tslf), f'The shapes of sample should be consistent, but {len(tsf)} ≠ {len(tslf)}'
             training_samples += training_samples_loaded
             print(f'Samples merged! {len(training_samples)} in total')
     else:
         training_samples = load()
     path = dataset_config.training_dataset_file
-    with open(path, 'wb') as file:
-        pickle.dump(training_samples, file)
-        print(f'{len(training_samples)} samples saved')
+    if dataset_config.recreate_training_dataset:
+        with open(path, 'wb') as file:
+            pickle.dump(training_samples, file)
+            print(f'{len(training_samples)} samples saved')
 
     if dataset_config.trajectory and dataset_config.postprocess:
         training_samples = postprocess(training_samples, dataset_config)
@@ -445,7 +477,9 @@ def get_test_datasets(dataset_config, train_config):
         with open(dataset_config.testing_dataset_file, 'rb') as file:
             testing_samples = pickle.load(file)
     testing_dataloader = DataLoader(PredictionDataset(testing_samples), batch_size=train_config.batch_size,
-                                    shuffle=True, generator=torch.Generator(device=train_config.device))
+                                    shuffle=False,
+                                    # generator=torch.Generator(device=train_config.device)
+                                    )
     print(f'#Testing sample: {len(testing_samples)}')
     return testing_dataloader
 
@@ -557,70 +591,16 @@ def prepare_datasets(samples, training_ratio: float, batch_size: int, device: st
         return dataset[:n_sample], dataset[n_sample:]
 
     train_dataset, validate_dataset = split_dataset(samples, training_ratio)
-    training_dataloader = DataLoader(PredictionDataset(train_dataset), batch_size=batch_size, shuffle=True,
-                                     generator=torch.Generator(device=device))
+    training_dataloader = DataLoader(PredictionDataset(train_dataset), batch_size=batch_size, shuffle=False,
+                                     # generator=torch.Generator(device=device)
+                                     )
     if len(validate_dataset) == 0:
         validating_dataloader = None
     else:
-        validating_dataloader = DataLoader(PredictionDataset(validate_dataset), batch_size=batch_size, shuffle=True,
-                                           generator=torch.Generator(device=device))
+        validating_dataloader = DataLoader(PredictionDataset(validate_dataset), batch_size=batch_size, shuffle=False,
+                                           # generator=torch.Generator(device=device)
+                                           )
     return training_dataloader, validating_dataloader
-
-
-def setup_plt():
-    def set_size(width, fraction=1, subplots=(1, 1), height_add=0):
-        """Set figure dimensions to avoid scaling in LaTeX.
-
-        Parameters
-        ----------
-        width: float or string
-                Document width in points, or string of predined document type
-        fraction: float, optional
-                Fraction of the width which you wish the figure to occupy
-        subplots: array-like, optional
-                The number of rows and columns of subplots.
-        Returns
-        -------
-        fig_dim: tuple
-                Dimensions of figure in inches
-        """
-        if width == 'thesis':
-            width_pt = 426.79135
-        elif width == 'beamer':
-            width_pt = 307.28987
-        else:
-            width_pt = width
-
-        # Width of figure (in pts)
-        fig_width_pt = width_pt * fraction
-        # Convert from pt to inches
-        inches_per_pt = 1 / 72.27
-
-        # Golden ratio to set aesthetic figure height
-        # https://disq.us/p/2940ij3
-        golden_ratio = (5 ** .5 - 1) / 2
-
-        # Figure width in inches
-        fig_width_in = fig_width_pt * inches_per_pt
-        # Figure height in inches
-        fig_height_in = height_add + fig_width_in * golden_ratio * (subplots[0] / subplots[1])
-
-        return fig_width_in, fig_height_in
-
-    tex_fonts = {
-        # Use LaTeX to write all text
-        "text.usetex": True,
-        "font.family": "times",
-        # Use 10pt font in plots, to match 10pt font in document
-        "axes.labelsize": 12,
-        "font.size": 12,
-        # Make the legend/label fonts a little smaller
-        "legend.fontsize": 8,
-        "xtick.labelsize": 10,
-        "ytick.labelsize": 10
-    }
-    plt.rcParams.update(tex_fonts)
-    fig_width, fig_height = set_size(width='thesis', fraction=1)
 
 
 def get_lr_scheduler(optimizer: torch.optim.Optimizer, train_config: TrainConfig):
@@ -661,7 +641,7 @@ def run_all(dataset_config: DatasetConfig, model_config: ModelConfig, train_conf
 def main(sweep: bool = False):
     # setup_plt()
     dataset_config = DatasetConfig(
-        recreate_training_dataset=True,
+        recreate_training_dataset=False,
         recreate_testing_dataset=False,
         trajectory=False,
         dt=0.125,
@@ -681,39 +661,37 @@ def main(sweep: bool = False):
     )
     train_config = TrainConfig(
         learning_rate=2e-3,
-        n_epoch=500,
+        n_epoch=200,
         batch_size=64,
         weight_decay=1e-3,
         log_step=25,
         training_ratio=1.
     )
+    wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     if sweep:
         sweep_config = {
             'name': get_time_str(),
             'method': 'bayes',
             'metric': {
                 'name': 'metric',
-                'goal': 'maximize',
-                'parameters': {
-                    'learning_rate': {
-                        'distribution': 'log_uniform_values',
-                        'min': 1e-6,
-                        'max': 2e-3
-                    },
-                    'batch_size': {
-                        'distribution': 'q_log_uniform_values',
-                        'q': 2,
-                        'min': 32,
-                        'max': 128,
-                    },
-                    'weight_decay': {
-                        'distribution': 'log_uniform_values',
-                        'min': 1e-6,
-                        'max': 1e-2
-                    },
-                    'n_epoch': {
-                        'values': list(range(100, 500, 50))
-                    }
+                'goal': 'maximize'
+            },
+            'parameters': {
+                'learning_rate': {
+                    'distribution': 'log_uniform_values',
+                    'min': 1e-6,
+                    'max': 2e-3
+                },
+                'batch_size': {
+                    'values': [32, 64, 128]
+                },
+                'weight_decay': {
+                    'distribution': 'log_uniform_values',
+                    'min': 1e-6,
+                    'max': 1e-2
+                },
+                'n_epoch': {
+                    'values': list(range(100, 500, 50))
                 }
             }
         }
@@ -730,8 +708,12 @@ def main(sweep: bool = False):
 
         wandb.agent(sweep_id, sweep_main)
     else:
+        wandb.init(
+            project="no",
+            name=get_time_str()
+        )
         run_all(dataset_config, model_config, train_config)
 
 
 if __name__ == '__main__':
-    main()
+    main(sweep=True)
