@@ -7,6 +7,7 @@ import deepxde as dde
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import wandb
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -15,7 +16,7 @@ from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ImplicitDataset, ExplictDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import DynamicSystem, predict_integral
 from model import FNOProjection, FNOSum
-from utils import count_params
+from utils import count_params, get_time_str
 
 
 def plot_comparison(ts, P, P_compare, Z, delay, n_point_delay, save_path):
@@ -145,7 +146,7 @@ def no_predict(inputs, model):
 
 
 def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig,
-              training_dataloader=None, validating_dataloader=None, testing_dataloader=None, img_save_path: str = None):
+              training_dataloader, validating_dataloader=None, testing_dataloader=None, img_save_path: str = None):
     model_name = model_config.model_name
     n_state = dataset_config.n_state
     device = train_config.device
@@ -209,11 +210,12 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
                 training_loss += loss.item()
             model.eval()
             with torch.no_grad():
-                validating_loss = 0.0
-                for inputs, label in validating_dataloader:
-                    outputs = no_predict(inputs, model)
-                    loss = criterion(outputs, label)
-                    validating_loss += loss.item()
+                if validating_dataloader is not None:
+                    validating_loss = 0.0
+                    for inputs, label in validating_dataloader:
+                        outputs = no_predict(inputs, model)
+                        loss = criterion(outputs, label)
+                        validating_loss += loss.item()
 
                 if testing_dataloader is not None:
                     testing_loss = 0.0
@@ -224,19 +226,20 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
 
             training_loss_t = training_loss / len(training_dataloader)
             training_loss_arr.append(training_loss_t)
-            validating_loss_t = validating_loss / len(validating_dataloader)
-            validating_loss_arr.append(validating_loss_t)
+            if validating_dataloader is not None:
+                validating_loss_t = validating_loss / len(validating_dataloader)
+                validating_loss_arr.append(validating_loss_t)
             if testing_dataloader is not None:
                 testing_loss_t = testing_loss / len(testing_dataloader)
                 testing_loss_arr.append(testing_loss_t)
-            desc = f'Epoch [{epoch + 1}/{n_epoch}] || Learning rate: {scheduler.get_last_lr()} || ' \
-                   f'Training loss: {training_loss_t:.6f} || Validation loss: {validating_loss_t:.6f}'
+            desc = f'Epoch [{epoch + 1}/{n_epoch}] || Lr: {scheduler.get_last_lr()} || Training loss: {training_loss_t:.6f}'
+            if validating_dataloader is not None:
+                desc += f' || Validation loss: {validating_loss_t:.6f}'
             if testing_dataloader is not None:
                 desc += f' || Test loss: {testing_loss_t:.6f}'
             bar.set_description(desc)
-            if epoch % train_config.log_step == 0 or epoch == n_epoch - 1:
+            if (train_config.log_step > 0 and epoch % train_config.log_step == 0) or epoch == n_epoch - 1:
                 metric_rd, metric_mse = run_test(model, dataset_config, silence=True)
-                metric_rd, metric_mse = np.nanmean(metric_rd), np.nanmean(metric_mse)
                 metric_rd_list.append(metric_rd)
                 metric_mse_list.append(metric_mse)
                 x_metric = list(range(0, train_config.log_step * len(metric_rd_list), train_config.log_step))
@@ -305,6 +308,7 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: boo
         else:
             U, Z, P = run(dataset_config=dataset_config, model=m, Z0=test_point, method='no', title='no',
                           img_save_path=img_save_path)
+        plt.close()
         delay = dataset_config.n_point_delay
         metric_relative_diff, metric_mse = metric(P[delay:-delay], Z[2 * delay:])
 
@@ -315,9 +319,10 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: boo
 
         if base_path is not None:
             np.savetxt(f'{img_save_path}/metric.txt', np.array([metric_relative_diff, metric_mse]))
+    metric_rd = np.nanmean(metric_rd_list).item()
+    metric_mse = np.nanmean(metric_mse_list).item()
     if plot or base_path is not None:
-        plt.hist(metric_rd_list, bins=20,
-                 label=f'{len(metric_rd_list)} samples {np.nanmean(metric_rd_list).item():.3f}')
+        plt.hist(metric_rd_list, bins=20, label=f'mean relative difference {metric_rd :.3f}')
         plt.legend()
         plt.title('relative difference')
         plt.xlabel('relative difference')
@@ -330,8 +335,7 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: boo
             plt.savefig(f'{base_path}/metric_rd.png')
             plt.clf()
 
-        plt.hist(metric_mse_list, bins=20,
-                 label=f'{len(metric_mse_list)} samples {np.nanmean(metric_mse_list).item():.3f}')
+        plt.hist(metric_mse_list, bins=20, label=f'mean difference {metric_mse :.3f}')
         plt.legend()
         plt.title('difference')
         plt.xlabel('difference')
@@ -343,10 +347,10 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: boo
         else:
             plt.savefig(f'{base_path}/metric_mse.png')
             plt.clf()
-    return metric_rd_list, metric_mse_list
+    return metric_rd, metric_mse
 
 
-def postprocess(samples):
+def postprocess(samples, dataset_config: DatasetConfig):
     print('[DEBUG] postprocessing')
     new_samples = []
     random.shuffle(samples)
@@ -419,7 +423,7 @@ def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_co
         print(f'{len(training_samples)} samples saved')
 
     if dataset_config.trajectory and dataset_config.postprocess:
-        training_samples = postprocess(training_samples)
+        training_samples = postprocess(training_samples, dataset_config)
     for feature, label in training_samples[:dataset_config.n_plot_sample]:
         plot_sample(feature, label, dataset_config)
 
@@ -431,6 +435,8 @@ def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_co
 
 
 def get_test_datasets(dataset_config, train_config):
+    if not train_config.do_test:
+        return None
     if not os.path.exists(dataset_config.testing_dataset_file) or dataset_config.recreate_testing_dataset:
         print('Creating testing dataset')
         testing_samples = create_trajectory_dataset(dataset_config, test_points=dataset_config.test_points)
@@ -553,8 +559,11 @@ def prepare_datasets(samples, training_ratio: float, batch_size: int, device: st
     train_dataset, validate_dataset = split_dataset(samples, training_ratio)
     training_dataloader = DataLoader(PredictionDataset(train_dataset), batch_size=batch_size, shuffle=True,
                                      generator=torch.Generator(device=device))
-    validating_dataloader = DataLoader(PredictionDataset(validate_dataset), batch_size=batch_size, shuffle=True,
-                                       generator=torch.Generator(device=device))
+    if len(validate_dataset) == 0:
+        validating_dataloader = None
+    else:
+        validating_dataloader = DataLoader(PredictionDataset(validate_dataset), batch_size=batch_size, shuffle=True,
+                                           generator=torch.Generator(device=device))
     return training_dataloader, validating_dataloader
 
 
@@ -614,10 +623,7 @@ def setup_plt():
     fig_width, fig_height = set_size(width='thesis', fraction=1)
 
 
-def get_lr_scheduler(
-        optimizer: torch.optim.Optimizer,
-        train_config: TrainConfig,
-):
+def get_lr_scheduler(optimizer: torch.optim.Optimizer, train_config: TrainConfig):
     """ Create a schedule with a learning rate that decreases linearly after
     linearly increasing during a warmup period.
     """
@@ -638,45 +644,7 @@ def get_lr_scheduler(
         raise NotImplementedError()
 
 
-if __name__ == '__main__':
-    # setup_plt()
-    dataset_config = DatasetConfig(
-        recreate_training_dataset=False,
-        recreate_testing_dataset=False,
-        trajectory=False,
-        random_u_type='spline',
-        dt=0.125,
-        n_dataset=2500,
-        duration=8,
-        delay=3.,
-        n_sample_per_dataset=1,
-        ic_lower_bound=-2,
-        ic_upper_bound=2,
-        n_plot_sample=0,
-        postprocess=False,
-        append_training_dataset=True
-    )
-    model_config = ModelConfig(
-        model_name='FNO',
-        # fno_n_layers=6,
-        # deeponet_n_hidden_size=256,
-        # deeponet_merge_size=128,
-        # deeponet_n_hidden=6,
-        fno_n_layers=2,
-        fno_n_modes_height=4,
-        fno_hidden_channels=8,
-        # fno_n_modes_height=32,
-        # fno_hidden_channels=64
-    )
-    train_config = TrainConfig(
-        learning_rate=1e-2,
-        n_epoch=250,
-        batch_size=64,
-        scheduler_step_size=1,
-        scheduler_gamma=0.99,
-        weight_decay=1e-3,
-        load_model=False
-    )
+def run_all(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
     training_dataloader, validating_dataloader = get_training_and_validation_datasets(dataset_config, train_config)
     testing_dataloader = get_test_datasets(dataset_config, train_config)
 
@@ -685,4 +653,85 @@ if __name__ == '__main__':
     model = run_train(dataset_config=dataset_config, model_config=model_config, train_config=train_config,
                       training_dataloader=training_dataloader, validating_dataloader=validating_dataloader,
                       testing_dataloader=testing_dataloader, img_save_path=model_config.base_path)
-    run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, debug=train_config.debug)
+    metric_rd, metric_mse = run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
+                                     debug=train_config.debug)
+    return metric_rd, metric_mse
+
+
+def main(sweep: bool = False):
+    # setup_plt()
+    dataset_config = DatasetConfig(
+        recreate_training_dataset=True,
+        recreate_testing_dataset=False,
+        trajectory=False,
+        dt=0.125,
+        n_dataset=2500,
+        duration=8,
+        delay=3.,
+        n_sample_per_dataset=1,
+        ic_lower_bound=-2,
+        ic_upper_bound=2,
+        append_training_dataset=True
+    )
+    model_config = ModelConfig(
+        model_name='FNO',
+        fno_n_layers=2,
+        fno_n_modes_height=4,
+        fno_hidden_channels=8,
+    )
+    train_config = TrainConfig(
+        learning_rate=2e-3,
+        n_epoch=500,
+        batch_size=64,
+        weight_decay=1e-3,
+        log_step=25,
+        training_ratio=1.
+    )
+    if sweep:
+        sweep_config = {
+            'name': get_time_str(),
+            'method': 'bayes',
+            'metric': {
+                'name': 'metric',
+                'goal': 'maximize',
+                'parameters': {
+                    'learning_rate': {
+                        'distribution': 'log_uniform_values',
+                        'min': 1e-6,
+                        'max': 2e-3
+                    },
+                    'batch_size': {
+                        'distribution': 'q_log_uniform_values',
+                        'q': 2,
+                        'min': 32,
+                        'max': 128,
+                    },
+                    'weight_decay': {
+                        'distribution': 'log_uniform_values',
+                        'min': 1e-6,
+                        'max': 1e-2
+                    },
+                    'n_epoch': {
+                        'values': list(range(100, 500, 50))
+                    }
+                }
+            }
+        }
+        sweep_id = wandb.sweep(sweep_config, project='no-sweep')
+
+        def sweep_main(config=None):
+            with wandb.init(config=config):
+                config = wandb.config
+                train_config.learning_rate = config.learning_rate
+                metric_rd, metric_mse = run_all(dataset_config, model_config, train_config)
+                wandb.log({
+                    "metric": metric_mse
+                })
+
+        wandb.agent(sweep_id, sweep_main)
+    else:
+        run_all(dataset_config, model_config, train_config)
+
+
+if __name__ == '__main__':
+    main()

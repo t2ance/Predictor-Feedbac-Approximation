@@ -183,4 +183,5 @@ def predict_integral_explict(t, delay, Z1_t, Z2_t, U_D, ts_D, dt):
 
 
 if __name__ == '__main__':
-    ...
+    u = DynamicSystem(Z0=np.array([0, 1]), dataset_config=DatasetConfig()).U_explict(0)
+    print(u)

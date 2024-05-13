@@ -1,5 +1,13 @@
+import time
+import datetime
+
 import numpy as np
 import torch
+
+
+def get_time_str():
+    return time.strftime("%Y-%m-%d %H:%M:%S",
+                         datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-7))).timetuple())
 
 
 def count_params(model):

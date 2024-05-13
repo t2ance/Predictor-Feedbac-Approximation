@@ -23,6 +23,8 @@ class ModelConfig:
 @dataclass
 class TrainConfig:
     debug: Optional[bool] = field(default=False)
+    do_test: Optional[bool] = field(default=False)
+
     batch_size: Optional[int] = field(default=64)
     learning_rate: Optional[float] = field(default=1e-4)
     weight_decay: Optional[float] = field(default=.0)
@@ -70,7 +72,7 @@ class DatasetConfig:
     system_n: Optional[float] = field(default=2.)
     postprocess: Optional[bool] = field(default=False)
     n_plot_sample: Optional[int] = field(default=0)
-    random_u_type: Optional[Literal['line', 'sin', 'exp', 'spline', 'poly', 'sinexp']] = field(default='poly')
+    random_u_type: Optional[Literal['line', 'sin', 'exp', 'spline', 'poly', 'sinexp']] = field(default='spline')
 
     @property
     def ts(self) -> np.ndarray:
