@@ -20,6 +20,13 @@ class DynamicSystem:
         Z2_t_dot = U_delay
         return np.array([Z1_t_dot, Z2_t_dot])
 
+    def dynamic_tensor_batched(self, Z_t, t, U_delay):
+        Z1_t = Z_t[0]
+        Z2_t = Z_t[1]
+        Z1_t_dot = Z2_t - self.c * Z2_t ** self.n * U_delay
+        Z2_t_dot = U_delay
+        return torch.tensor([Z1_t_dot, Z2_t_dot])
+
     def kappa(self, Z_t):
         Z1 = Z_t[0]
         Z2 = Z_t[1]

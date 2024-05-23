@@ -10,45 +10,59 @@ from dynamic_systems import predict_integral_general
 class PIFNO(torch.nn.Module):
     def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, dt: float, n_state: int,
                  dynamic: Callable, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.fno = FNO1d(n_modes_height=n_modes_height, n_layers=n_layers, hidden_channels=hidden_channels,
                          in_channels=1 + n_state, out_channels=n_state)
         self.dt = dt
         self.dynamic = dynamic
+        self.mse_loss = torch.nn.MSELoss()
 
-        super().__init__(*args, **kwargs)
-
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor, labels: torch.Tensor = None):
         U = x[:, 2:]
         Z = x[:, :2]
         P = self.fno(torch.einsum('bi,bj->bij', torch.cat([Z, torch.ones_like(Z)[:, 0:1]], dim=1), U))
-        return P[-1]
+        outputs = P[:, :, -1]
+        if labels is None:
+            return outputs
+        loss_mse = self.mse_loss(outputs, labels)
 
-    def loss(self, inputs, outputs, label):
-        U = inputs[:, 2:]
-        Z = inputs[:, :2]
-        loss_mse = torch.nn.MSELoss()(outputs, label)
-        p = predict_integral_general(f=self.dynamic, Z_t=Z, P_D=outputs, U_D=U, dt=self.dt, t=None)
-        loss_ie = torch.nn.MSELoss()(p, label)
+        def dynamic_tensor_batched(Z_t, U_delay):
+            Z1_t = Z_t[:, :, 0]
+            Z2_t = Z_t[:, :, 1]
+            Z1_t_dot = Z2_t - Z2_t ** 2 * U_delay
+            Z2_t_dot = U_delay
+            return torch.stack([Z1_t_dot, Z2_t_dot], dim=1)
 
-        return loss_mse + loss_ie
+        def compute_loss(P, U, Z, labels, dt):
+            P_transposed = P.permute(0, 2, 1)
+            dynamic_tensors = dynamic_tensor_batched(P_transposed, U)
+            integrals = dynamic_tensors.sum(dim=-1) * dt
+            loss_ie = ((integrals + Z - labels).norm(dim=1) ** 2).sum()
+            return loss_ie / len(P)
+
+        loss_ie = compute_loss(P, U, Z, labels, self.dt)
+        return outputs, loss_mse + loss_ie
 
 
 class FNOProjection(torch.nn.Module):
     def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, n_state: int, n_point_delay: int,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.mse_loss = torch.nn.MSELoss()
         self.fno = FNO1d(n_modes_height=n_modes_height, n_layers=n_layers, hidden_channels=hidden_channels,
                          in_channels=1, out_channels=1)
         in_features = n_state + n_point_delay
         out_features = n_state
         self.projection = torch.nn.Linear(in_features=in_features, out_features=out_features)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor, label: torch.Tensor = None):
         x = x.unsqueeze(-2)
         x = self.fno(x)
         x = self.projection(x)
         x = x.squeeze(-2)
-        return x
+        if label is None:
+            return x
+        return x, self.mse_loss(x, label)
 
 
 class FNOTwoStage(torch.nn.Module):
@@ -66,7 +80,7 @@ class FNOTwoStage(torch.nn.Module):
 
         self.dt = dt
 
-    def forward(self, z_u: torch.Tensor):
+    def forward(self, z_u: torch.Tensor, label: torch.Tensor = None):
         U = z_u[:, 2:]
         Z = z_u[:, :2]
         # out = self.fno(Z_U.unsqueeze(-2)).squeeze(1)
@@ -94,8 +108,10 @@ class FNOTwoStage(torch.nn.Module):
         p_ = self.integral_net_p(P)
         u_ = self.integral_net_u(U.unsqueeze(1))
         p_u = self.integral_net_p_u(p_ + u_)
-
-        return p_u.sum(axis=-1) * self.dt + Z
+        x = p_u.sum(axis=-1) * self.dt + Z
+        if label is None:
+            return x
+        return x, self.mse_loss(x, label)
 
 
 class FNOTwoStage2(torch.nn.Module):

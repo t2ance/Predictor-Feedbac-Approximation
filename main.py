@@ -67,8 +67,6 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, model=None,
         img_save_path: str = None):
     system = dataset_config.system
     n_point_delay = dataset_config.n_point_delay
-    c = dataset_config.system_c
-    n = dataset_config.system_n
     ts = dataset_config.ts
     Z0 = np.array(Z0)
     dt = dataset_config.dt
@@ -202,14 +200,14 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, model=None,
     return U, Z, P
 
 
-def no_predict(inputs, model):
-    time_step = inputs[:, :1]
+def no_predict_and_loss(inputs, labels, model):
     z_u = inputs[:, 1:]
 
-    inputs = [z_u, time_step]
     if not isinstance(model, dde.nn.DeepONet):
-        inputs = z_u
-    return model(inputs)
+        return model(z_u, labels)
+    else:
+        outputs = model([z_u, inputs[:, :1]])
+        return outputs, torch.nn.MSELoss()(outputs, labels)
 
 
 def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig,
@@ -248,9 +246,8 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
             n_state=dataset_config.n_state).to(device)
     elif model_name == 'PIFNO':
         model = PIFNO(
-            n_modes_height=n_modes_height, hidden_channels=hidden_channels, in_features=n_state + n_point_delay,
-            out_features=n_state, n_layers=n_layers, dt=dataset_config.dt, n_state=dataset_config.n_state,
-            dynamic=DynamicSystem).to(device)
+            n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_layers=n_layers, dt=dataset_config.dt,
+            n_state=dataset_config.n_state, dynamic=dataset_config.system.dynamic_tensor_batched).to(device)
     else:
         raise NotImplementedError()
     print(f'#parameters: {count_params(model)}')
@@ -259,10 +256,6 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
         model.load_state_dict(torch.load(f'{train_config.model_save_path}/{model_name}.pth'))
         print(f'Model loaded from {pth}, skip training!')
     else:
-        if hasattr(model, 'loss'):
-            criterion = model.loss
-        else:
-            criterion = torch.nn.MSELoss()
         optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
 
         scheduler = get_lr_scheduler(optimizer, train_config)
@@ -308,11 +301,9 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
         for epoch in bar:
             model.train()
             training_loss = 0.0
-            for inputs, label in training_dataloader:
-                inputs, label = inputs.to(device), label.to(device)
-                outputs = no_predict(inputs, model)
-                loss = criterion(outputs, label)
-
+            for inputs, labels in training_dataloader:
+                inputs, labels = inputs.to(device), labels.to(device)
+                outputs, loss = no_predict_and_loss(inputs, labels, model)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -321,18 +312,16 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
             with torch.no_grad():
                 if do_validation:
                     validating_loss = 0.0
-                    for inputs, label in validating_dataloader:
-                        inputs, label = inputs.to(device), label.to(device)
-                        outputs = no_predict(inputs, model)
-                        loss = criterion(outputs, label)
+                    for inputs, labels in validating_dataloader:
+                        inputs, labels = inputs.to(device), labels.to(device)
+                        outputs, loss = no_predict_and_loss(inputs, labels, model)
                         validating_loss += loss.item()
 
                 if do_testing:
                     testing_loss = 0.0
-                    for inputs, label in testing_dataloader:
-                        inputs, label = inputs.to(device), label.to(device)
-                        outputs = no_predict(inputs, model)
-                        loss = criterion(outputs, label)
+                    for inputs, labels in testing_dataloader:
+                        inputs, labels = inputs.to(device), labels.to(device)
+                        outputs, loss = no_predict_and_loss(inputs, labels, model)
                         testing_loss += loss.item()
 
             training_loss_t = training_loss / len(training_dataloader)
@@ -727,7 +716,8 @@ def main(sweep: bool = False):
     )
     model_config = ModelConfig(
         # model_name='FNO',
-        model_name='FNOTwoStage',
+        # model_name='FNOTwoStage',
+        model_name='PIFNO',
         fno_n_layers=2,
         fno_n_modes_height=4,
         fno_hidden_channels=16
