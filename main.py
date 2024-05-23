@@ -1,6 +1,7 @@
 import os
 import pickle
 import random
+from dataclasses import asdict
 from typing import Literal, Tuple, List
 
 import deepxde as dde
@@ -8,26 +9,29 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import wandb
+from scipy.integrate import odeint
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ImplicitDataset, ExplictDataset, PredictionDataset, sample_to_tensor
-from dynamic_systems import DynamicSystem, predict_integral
-from model import FNOProjection, FNOSum
-from utils import count_params, get_time_str, set_size, setup_plt
+from dynamic_systems import DynamicSystem, predict_integral, predict_integral_general, predict_neural_operator
+from model import FNOProjection, FNOTwoStage, PIFNO
+from utils import count_params, get_time_str, set_size, setup_plt, pad_leading_zeros
 
 
-def plot_comparison(ts, P, P_compare, Z, delay, n_point_delay, save_path):
+def plot_comparison(ts, P_hat, P, Z, delay, n_point_delay, save_path, ylim=None):
     fig = plt.figure(figsize=set_size())
     plt.title('Comparison')
     for t_i in range(2):
-        if P_compare is not None:
-            plt.plot(ts[n_point_delay:], P_compare[:-n_point_delay, t_i], label=f'$PNO_{t_i + 1}(t-{delay})$')
-        plt.plot(ts[n_point_delay:], P[:-n_point_delay, t_i], label=f'$\hat P_{t_i + 1}(t-{delay})$')
+        if P is not None:
+            plt.plot(ts[n_point_delay:], P[:-n_point_delay, t_i], label=f'$P_{t_i + 1}(t-{delay})$')
+        plt.plot(ts[n_point_delay:], P_hat[:-n_point_delay, t_i], label=f'$\hat P_{t_i + 1}(t-{delay})$')
         plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$')
     plt.xlabel('t')
+    if ylim is not None:
+        plt.ylim(ylim)
     plt.legend()
     if save_path is not None:
         plt.savefig(save_path)
@@ -37,17 +41,18 @@ def plot_comparison(ts, P, P_compare, Z, delay, n_point_delay, save_path):
         plt.show()
 
 
-def plot_difference(ts, P, P_compare, Z, n_point_delay, save_path):
+def plot_difference(ts, P_hat, P, Z, n_point_delay, save_path, ylim=None):
     fig = plt.figure(figsize=set_size())
-    plt.ylim([-1, 1])
-    difference = P[:-n_point_delay] - Z[n_point_delay:]
-    plt.plot(ts[n_point_delay:], difference[:, 0], label='$\delta P_1$')
-    plt.plot(ts[n_point_delay:], difference[:, 1], label='$\delta P_2$')
-    if P_compare is not None:
-        difference_no = P_compare[:-n_point_delay] - Z[n_point_delay:]
+    difference = P_hat[:-n_point_delay] - Z[n_point_delay:]
+    plt.plot(ts[n_point_delay:], difference[:, 0], label='$\hat P_1 - Z_1$')
+    plt.plot(ts[n_point_delay:], difference[:, 1], label='$\hat P_2 - Z_2$')
+    if P is not None:
+        difference_no = P[:-n_point_delay] - Z[n_point_delay:]
         plt.plot(ts[n_point_delay:], difference_no[:, 0], label='$\delta PNO_1$')
         plt.plot(ts[n_point_delay:], difference_no[:, 1], label='$\delta PNO_2$')
     plt.xlabel('t')
+    if ylim is not None:
+        plt.ylim(ylim)
     plt.legend()
     if save_path is not None:
         plt.savefig(save_path)
@@ -60,14 +65,72 @@ def plot_difference(ts, P, P_compare, Z, n_point_delay, save_path):
 def run(dataset_config: DatasetConfig, Z0: Tuple, model=None,
         method: Literal['explict', 'numerical', 'no', 'numerical_no'] = None, title='', save_path: str = None,
         img_save_path: str = None):
-    system = DynamicSystem(Z0=np.array(list(Z0)), dataset_config=dataset_config, method=method)
-    for _ in range(dataset_config.n_point):
-        system.step(model)
+    system = dataset_config.system
+    n_point_delay = dataset_config.n_point_delay
+    c = dataset_config.system_c
+    n = dataset_config.system_n
+    ts = dataset_config.ts
+    Z0 = np.array(Z0)
+    dt = dataset_config.dt
+    n_point = dataset_config.n_point
+    U = np.zeros(n_point)
+    Z = np.zeros((n_point, 2))
+    P = np.zeros((n_point, 2))
+    P_compare = np.zeros((n_point, 2))
+    Z[n_point_delay, :] = Z0
+    for t_i in range(dataset_config.n_point):
+        t_minus_D_i = max(t_i - n_point_delay, 0)
+        t = ts[t_i]
+        if method == 'explict':
+            U[t_i] = system.U_explict(t, Z0)
+            if t_i > n_point_delay:
+                Z[t_i, :] = system.Z_explicit(t, Z0)
+        elif method == 'numerical':
+            if t_i > n_point_delay:
+                Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]],
+                                   args=(U[t_minus_D_i - 1],))[1]
+                Z_t = Z[t_i, :]
+            else:
+                Z_t = Z0
+            P[t_i, :] = predict_integral_general(f=system.dynamic, Z_t=Z_t, P_D=P[t_minus_D_i:t_i],
+                                                 U_D=U[t_minus_D_i:t_i], dt=dt,
+                                                 t=t) + dataset_config.noise()
+            if t_i > n_point_delay:
+                U[t_i] = system.kappa(P[t_i, :])
+        elif method == 'no':
+            if t_i > n_point_delay:
+                Z[t_i, :] = \
+                    odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]],
+                           args=(U[t_minus_D_i - 1],))[1]
+                Z_t = Z[t_i, :]
+            else:
+                Z_t = Z0
+            P[t_i, :] = predict_neural_operator(model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i],
+                                                                                   length=n_point_delay),
+                                                Z_t=Z_t, t=t)
+            P_compare[t_i, :] = predict_integral_general(f=system.dynamic, Z_t=Z_t, P_D=P[t_minus_D_i:t_i],
+                                                         U_D=U[t_minus_D_i:t_i], dt=dt,
+                                                         t=t) + dataset_config.noise()
+            if t_i > n_point_delay:
+                U[t_i] = system.kappa(P[t_i, :])
+        elif method == 'numerical_no':
+            if t_i > n_point_delay:
+                Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]],
+                                   args=(U[t_minus_D_i - 1],))[1]
+                Z_t = Z[t_i, :]
+            else:
+                Z_t = Z0
+            P[t_i, :] = predict_integral_general(f=system.dynamic, Z_t=Z_t, P_D=P[t_minus_D_i:t_i],
+                                                 U_D=U[t_minus_D_i:t_i], dt=dt,
+                                                 t=t) + dataset_config.noise()
+            P_compare[t_i, :] = predict_neural_operator(
+                model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t,
+                t=t)
+            if t_i > n_point_delay:
+                U[t_i] = system.kappa(P[t_i, :])
+        else:
+            raise NotImplementedError()
 
-    U = system.U
-    Z = system.Z
-    P = system.P
-    P_compare = system.P_compare
     ts = dataset_config.ts
     delay = dataset_config.delay
     n_point_delay = dataset_config.n_point_delay
@@ -126,15 +189,13 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, model=None,
             P_compare = None
         plot_comparison(ts, P, P_compare, Z, delay, n_point_delay,
                         f'{img_save_path}/comparison_full.png' if img_save_path is not None else None)
-        plt.ylim([-5, 5])
         plot_comparison(ts, P, P_compare, Z, delay, n_point_delay,
-                        f'{img_save_path}/comparison_zoom.png' if img_save_path is not None else None)
+                        f'{img_save_path}/comparison_zoom.png' if img_save_path is not None else None, [-5, 5])
 
         plot_difference(ts, P, P_compare, Z, n_point_delay,
                         f'{img_save_path}/difference_full.png' if img_save_path is not None else None)
-        plt.ylim([-1, 1])
         plot_difference(ts, P, P_compare, Z, n_point_delay,
-                        f'{img_save_path}/difference_zoom.png' if img_save_path is not None else None)
+                        f'{img_save_path}/difference_zoom.png' if img_save_path is not None else None, [-1, 1])
 
     if method == 'explict':
         return U, Z, None
@@ -146,7 +207,7 @@ def no_predict(inputs, model):
     z_u = inputs[:, 1:]
 
     inputs = [z_u, time_step]
-    if isinstance(model, FNOProjection):
+    if not isinstance(model, dde.nn.DeepONet):
         inputs = z_u
     return model(inputs)
 
@@ -180,11 +241,16 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
     elif model_name == 'FNO':
         model = FNOProjection(
             n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
-            n_point_delay=n_point_delay, n_layers=n_layers, dt=dataset_config.dt).to(device)
-    elif model_name == 'FNOSum':
-        model = FNOSum(
+            n_point_delay=n_point_delay, n_layers=n_layers).to(device)
+    elif model_name == 'FNOTwoStage':
+        model = FNOTwoStage(
+            n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_layers=n_layers, dt=dataset_config.dt,
+            n_state=dataset_config.n_state).to(device)
+    elif model_name == 'PIFNO':
+        model = PIFNO(
             n_modes_height=n_modes_height, hidden_channels=hidden_channels, in_features=n_state + n_point_delay,
-            out_features=n_state, n_layers=n_layers).to(device)
+            out_features=n_state, n_layers=n_layers, dt=dataset_config.dt, n_state=dataset_config.n_state,
+            dynamic=DynamicSystem).to(device)
     else:
         raise NotImplementedError()
     print(f'#parameters: {count_params(model)}')
@@ -193,24 +259,27 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
         model.load_state_dict(torch.load(f'{train_config.model_save_path}/{model_name}.pth'))
         print(f'Model loaded from {pth}, skip training!')
     else:
-        criterion = torch.nn.MSELoss()
+        if hasattr(model, 'loss'):
+            criterion = model.loss
+        else:
+            criterion = torch.nn.MSELoss()
         optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
 
         scheduler = get_lr_scheduler(optimizer, train_config)
         training_loss_arr = []
         validating_loss_arr = []
         testing_loss_arr = []
-        metric_rd_list = []
-        metric_mse_list = []
+        rl2_list = []
+        l2_list = []
         bar = tqdm(list(range(n_epoch)))
         do_validation = validating_dataloader is not None
         do_testing = testing_dataloader is not None
 
         def draw():
             fig = plt.figure(figsize=set_size())
-            x_metric = list(range(0, train_config.log_step * len(metric_rd_list), train_config.log_step))
-            plt.plot(x_metric, metric_rd_list, label="Relative Difference")
-            plt.plot(x_metric, metric_mse_list, label="Difference")
+            x_metric = list(range(0, train_config.log_step * len(rl2_list), train_config.log_step))
+            plt.plot(x_metric, rl2_list, label="Relative Difference")
+            plt.plot(x_metric, l2_list, label="Difference")
             plt.xlabel('epoch')
             plt.legend()
             if img_save_path is not None:
@@ -293,12 +362,12 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
             bar.set_description(desc)
 
             if (train_config.log_step > 0 and epoch % train_config.log_step == 0) or epoch == n_epoch - 1:
-                metric_rd, metric_mse = run_test(model, dataset_config, silence=True)
-                metric_rd_list.append(metric_rd)
-                metric_mse_list.append(metric_mse)
+                rl2, l2, _ = run_test(model, dataset_config, silence=True)
+                rl2_list.append(rl2)
+                l2_list.append(l2)
                 wandb.log({
-                    'metric relative difference': metric_rd,
-                    'metric difference': metric_mse
+                    'Relative L2 error': rl2,
+                    'L2 error': l2
                 }, step=epoch)
             scheduler.step()
             for param_group in optimizer.param_groups:
@@ -327,8 +396,8 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: boo
     if test_points is None:
         test_points = dataset_config.test_points
     bar = test_points if silence else tqdm(test_points)
-    metric_rd_list = []
-    metric_mse_list = []
+    metric_rl2_list = []
+    metric_l2_list = []
     for test_point in bar:
         if not silence:
             bar.set_description(f'Solving system with initial point {np.round(test_point, decimals=2)}.')
@@ -346,17 +415,18 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: boo
                           img_save_path=img_save_path)
         plt.close()
         delay = dataset_config.n_point_delay
-        metric_relative_diff, metric_mse = metric(P[delay:-delay], Z[2 * delay:])
+        rl2, l2 = metric(P[delay:-delay], Z[2 * delay:])
 
-        if np.isinf(metric_relative_diff):
+        if np.isinf(rl2):
+            print(f'[WARNING] Running with initial condition Z = {test_point} failed.')
             continue
-        metric_rd_list.append(metric_relative_diff)
-        metric_mse_list.append(metric_mse)
+        metric_rl2_list.append(rl2)
+        metric_l2_list.append(l2)
 
         if base_path is not None:
-            np.savetxt(f'{img_save_path}/metric.txt', np.array([metric_relative_diff, metric_mse]))
-    metric_rd = np.nanmean(metric_rd_list).item()
-    metric_mse = np.nanmean(metric_mse_list).item()
+            np.savetxt(f'{img_save_path}/metric.txt', np.array([rl2, l2]))
+    rl2 = np.nanmean(metric_rl2_list).item()
+    l2 = np.nanmean(metric_l2_list).item()
     if plot or base_path is not None:
         def plot_result(data, label, title, xlabel, path):
             fig = plt.figure(figsize=set_size())
@@ -364,9 +434,9 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: boo
             plt.legend()
             plt.title(title)
             plt.xlabel(xlabel)
-            plt.ylim([0, 100])
-            plt.xlim([0, 10])
-            plt.ylabel('frequency')
+            # plt.ylim([0, 20])
+            # plt.xlim([0, 5])
+            plt.ylabel('Frequency')
             if plot:
                 plt.show()
             else:
@@ -374,11 +444,11 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: boo
                 fig.clear()
                 plt.close(fig)
 
-        plot_result(data=metric_rd_list, label=f'mean relative difference {metric_rd :.3f}',
-                    title='relative difference', xlabel='relative difference', path=f'{base_path}/metric_rd.png')
-        plot_result(data=metric_rd_list, label=f'mean difference {metric_mse :.3f}',
-                    title='difference', xlabel='difference', path=f'{base_path}/metric_mse.png')
-    return metric_rd, metric_mse
+        plot_result(data=metric_rl2_list, label=f'Relative L2 error', title='Relative L2 error',
+                    xlabel='Relative L2 error', path=f'{base_path}/rl2.png')
+        plot_result(data=metric_l2_list, label=f'L2 error', title='L2 error', xlabel='L2 error',
+                    path=f'{base_path}/l2.png')
+    return rl2, l2, len(metric_rl2_list)
 
 
 def postprocess(samples, dataset_config: DatasetConfig):
@@ -392,7 +462,7 @@ def postprocess(samples, dataset_config: DatasetConfig):
         u = feature[3:]
         p = sample[1].cpu().numpy()
         p = predict_integral(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=2,
-                             n_point_delay=dataset_config.n_point_delay, dynamic=DynamicSystem.dynamic_static)
+                             n_point_delay=dataset_config.n_point_delay, dynamic=dataset_config.system.dynamic)
         new_samples.append((torch.from_numpy(np.concatenate([t, z, u])), torch.tensor(p)))
     print(f'[WARNING] {len(new_samples)} samples replaced by numerical solutions')
     all_samples = new_samples
@@ -486,7 +556,7 @@ def get_test_datasets(dataset_config, train_config):
 
 def create_trajectory_dataset(dataset_config: DatasetConfig, test_points: List = None):
     all_samples = []
-    if dataset_config.implicit:
+    if dataset_config.explicit:
         print('creating implicit datasets (Use Z(t+D) as P(t))')
     else:
         print('creating explicit datasets (Calculate P(t))')
@@ -497,7 +567,7 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, test_points: List =
     else:
         bar = tqdm(test_points)
     for Z0 in bar:
-        if dataset_config.implicit:
+        if dataset_config.explicit:
             U, Z, _ = run(method='explict', Z0=Z0, dataset_config=dataset_config)
             dataset = ImplicitDataset(
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
@@ -517,7 +587,7 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, test_points: List =
     return all_samples
 
 
-def create_stateless_dataset(dataset_config: DatasetConfig, filter=True):
+def create_stateless_dataset(dataset_config: DatasetConfig, filter_ood_sample=True):
     dt: float = dataset_config.dt
     n_point_delay: int = dataset_config.n_point_delay
     n_sample_per_dataset: int = dataset_config.n_sample_per_dataset
@@ -567,18 +637,17 @@ def create_stateless_dataset(dataset_config: DatasetConfig, filter=True):
             P_t = predict_integral(Z_t=Z_t, U_D=U_D, dt=dt, n_state=n_state, n_point_delay=n_point_delay,
                                    dynamic=DynamicSystem.dynamic_static)
             features = sample_to_tensor(Z_t, U_D, dt * n_point_delay)
-            if filter:
-                def filter_test(factor, p):
+            if filter_ood_sample:
+                def filter_out_of_distribution_sample(factor, p):
                     return abs(P_t[0]) <= abs(Z_t[0]) * factor and abs(P_t[1]) <= abs(
                         Z_t[1]) * factor and np.random.uniform(0, 1) <= p
 
-                if filter_test(0.1, 1):
+                if filter_out_of_distribution_sample(0.1, 1):
                     all_samples.append((features, torch.from_numpy(P_t)))
                     j += 1
             else:
                 all_samples.append((features, torch.from_numpy(P_t)))
                 j += 1
-
     random.shuffle(all_samples)
     return all_samples
 
@@ -624,7 +693,7 @@ def get_lr_scheduler(optimizer: torch.optim.Optimizer, train_config: TrainConfig
         raise NotImplementedError()
 
 
-def run_all(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
+def main_(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
     training_dataloader, validating_dataloader = get_training_and_validation_datasets(dataset_config, train_config)
     testing_dataloader = get_test_datasets(dataset_config, train_config)
 
@@ -633,9 +702,10 @@ def run_all(dataset_config: DatasetConfig, model_config: ModelConfig, train_conf
     model = run_train(dataset_config=dataset_config, model_config=model_config, train_config=train_config,
                       training_dataloader=training_dataloader, validating_dataloader=validating_dataloader,
                       testing_dataloader=testing_dataloader, img_save_path=model_config.base_path)
-    metric_rd, metric_mse = run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
-                                     debug=train_config.debug)
-    return metric_rd, metric_mse
+    metric_rd, metric_mse, n_success = run_test(m=model, dataset_config=dataset_config,
+                                                base_path=model_config.base_path,
+                                                debug=train_config.debug)
+    return metric_rd, metric_mse, n_success
 
 
 def main(sweep: bool = False):
@@ -645,27 +715,31 @@ def main(sweep: bool = False):
         recreate_testing_dataset=False,
         trajectory=False,
         dt=0.125,
-        n_dataset=2500,
+        n_dataset=2000,
         duration=8,
         delay=3.,
         n_sample_per_dataset=1,
         ic_lower_bound=-2,
         ic_upper_bound=2,
-        append_training_dataset=True
+        system_n=3,
+        system_c=5,
+        append_training_dataset=False
     )
     model_config = ModelConfig(
-        model_name='FNO',
+        # model_name='FNO',
+        model_name='FNOTwoStage',
         fno_n_layers=2,
         fno_n_modes_height=4,
-        fno_hidden_channels=8,
+        fno_hidden_channels=16
     )
     train_config = TrainConfig(
-        learning_rate=2e-3,
-        n_epoch=200,
+        learning_rate=1e-3,
+        n_epoch=400,
         batch_size=64,
-        weight_decay=1e-3,
-        log_step=25,
-        training_ratio=1.
+        weight_decay=0.0001376,
+        log_step=100,
+        training_ratio=1.,
+        load_model=False
     )
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     if sweep:
@@ -674,24 +748,22 @@ def main(sweep: bool = False):
             'method': 'bayes',
             'metric': {
                 'name': 'metric',
-                'goal': 'maximize'
+                'goal': 'minimize'
             },
             'parameters': {
+                'fno_n_layers': {
+                    'values': [1, 2]
+                },
+                'fno_n_modes_height': {
+                    'values': [8, 16, 32]
+                },
+                'fno_hidden_channels': {
+                    'values': [16, 32, 64]
+                },
                 'learning_rate': {
                     'distribution': 'log_uniform_values',
-                    'min': 1e-6,
-                    'max': 2e-3
-                },
-                'batch_size': {
-                    'values': [32, 64, 128]
-                },
-                'weight_decay': {
-                    'distribution': 'log_uniform_values',
-                    'min': 1e-6,
-                    'max': 1e-2
-                },
-                'n_epoch': {
-                    'values': list(range(100, 500, 50))
+                    'min': 1e-4,
+                    'max': 1e-3
                 }
             }
         }
@@ -701,7 +773,10 @@ def main(sweep: bool = False):
             with wandb.init(config=config):
                 config = wandb.config
                 train_config.learning_rate = config.learning_rate
-                metric_rd, metric_mse = run_all(dataset_config, model_config, train_config)
+                model_config.fno_hidden_channels = config.fno_hidden_channels
+                model_config.fno_n_layers = config.fno_n_layers
+                model_config.fno_n_modes_height = config.fno_n_modes_height
+                metric_rd, metric_mse, n_success = main_(dataset_config, model_config, train_config)
                 wandb.log({
                     "metric": metric_mse
                 })
@@ -710,10 +785,18 @@ def main(sweep: bool = False):
     else:
         wandb.init(
             project="no",
-            name=get_time_str()
+            name=get_time_str(),
+            config={
+                **asdict(dataset_config),
+                **asdict(model_config),
+                **asdict(train_config)
+            }
         )
-        run_all(dataset_config, model_config, train_config)
+        metric_rd, metric_mse, n_success = main_(dataset_config, model_config, train_config)
+        print(f'Relative L2 error: {metric_rd}')
+        print(f'L2 error: {metric_mse}')
+        print(f'#finished cases: {n_success}')
 
 
 if __name__ == '__main__':
-    main(sweep=True)
+    main(sweep=False)

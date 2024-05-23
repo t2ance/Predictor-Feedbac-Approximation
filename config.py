@@ -4,6 +4,8 @@ from typing import Optional, Tuple, List, Literal
 
 import numpy as np
 
+import dynamic_systems
+
 
 @dataclass
 class ModelConfig:
@@ -13,7 +15,8 @@ class ModelConfig:
     fno_n_modes_height: Optional[int] = field(default=16)
     fno_hidden_channels: Optional[int] = field(default=32)
     fno_n_layers: Optional[int] = field(default=4)
-    model_name: Optional[Literal['FNO', 'DeepONet']] = field(default='FNO')
+    fno_end_to_end: Optional[bool] = field(default=True)
+    model_name: Optional[Literal['FNO', 'DeepONet', 'FNOTwoStage', 'PIFNO', 'FNOTwoStage2']] = field(default='FNO')
 
     @property
     def base_path(self):
@@ -66,13 +69,17 @@ class DatasetConfig:
     validating_dataset_file: Optional[str] = field(default='./datasets/validate.pkl')
     testing_dataset_file: Optional[str] = field(default='./datasets/test.pkl')
     trajectory: Optional[bool] = field(default=True)
-    implicit: Optional[bool] = field(default=False)
+    explicit: Optional[bool] = field(default=False)
     noise_sigma_numerical: Optional[float] = field(default=0.)
     system_c: Optional[float] = field(default=1.)
     system_n: Optional[float] = field(default=2.)
     postprocess: Optional[bool] = field(default=False)
     n_plot_sample: Optional[int] = field(default=0)
     random_u_type: Optional[Literal['line', 'sin', 'exp', 'spline', 'poly', 'sinexp']] = field(default='spline')
+
+    @property
+    def system(self) -> dynamic_systems.DynamicSystem:
+        return dynamic_systems.DynamicSystem(c=self.system_c, n=self.system_n, delay=self.delay)
 
     @property
     def ts(self) -> np.ndarray:
