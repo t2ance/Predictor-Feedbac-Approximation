@@ -21,11 +21,11 @@ class DynamicSystem:
         return np.array([Z1_t_dot, Z2_t_dot])
 
     def dynamic_tensor_batched(self, Z_t, t, U_delay):
-        Z1_t = Z_t[0]
-        Z2_t = Z_t[1]
+        Z1_t = Z_t[:, :, 0]
+        Z2_t = Z_t[:, :, 1]
         Z1_t_dot = Z2_t - self.c * Z2_t ** self.n * U_delay
         Z2_t_dot = U_delay
-        return torch.tensor([Z1_t_dot, Z2_t_dot])
+        return torch.stack([Z1_t_dot, Z2_t_dot], dim=1)
 
     def kappa(self, Z_t):
         Z1 = Z_t[0]
@@ -66,7 +66,7 @@ class DynamicSystem:
         return Z1, Z2
 
 
-def predict_neural_operator(model, U_D, Z_t, t):
+def solve_integral_equation_neural_operator(model, U_D, Z_t, t):
     device = next(model.parameters()).device
     u_tensor = torch.tensor(U_D, dtype=torch.float32, device=device).view(1, -1)
     z_tensor = torch.tensor(Z_t, dtype=torch.float32, device=device).view(1, -1)
@@ -78,16 +78,16 @@ def predict_neural_operator(model, U_D, Z_t, t):
     return outputs.to('cpu').detach().numpy()[0]
 
 
-def predict_integral(Z_t, n_point_delay: int, n_state: int, dt: float, U_D: np.ndarray, dynamic):
+def solve_integral_equation(Z_t, n_point_delay: int, n_state: int, dt: float, U_D: np.ndarray, dynamic):
     P_D = np.zeros((n_point_delay, n_state))
     P_D[0, :] = Z_t
     for j in range(n_point_delay - 1):
         P_D[j + 1, :] = P_D[j, :] + dt * dynamic(P_D[j, :], j * dt, U_D[j])
-    p = predict_integral_general(f=dynamic, Z_t=Z_t, P_D=P_D, U_D=U_D, dt=dt, t=dt * n_point_delay)
+    p = solve_integral_equation_(f=dynamic, Z_t=Z_t, P_D=P_D, U_D=U_D, dt=dt, t=dt * n_point_delay)
     return p
 
 
-def predict_integral_general(f, Z_t, P_D, U_D, dt, t):
+def solve_integral_equation_(f, Z_t, P_D, U_D, dt: float, t: float):
     assert len(P_D) == len(U_D)
     integral = sum([f(p, t, u) for p, u in zip(P_D, U_D)]) * dt
     return integral + Z_t
@@ -97,7 +97,7 @@ def ode_forward(Z_t, Z_t_dot, dt):
     return Z_t + Z_t_dot * dt
 
 
-def predict_integral_explict(t, delay, Z1_t, Z2_t, U_D, ts_D, dt):
+def solve_integral_equation_explict(t, delay, Z1_t, Z2_t, U_D, ts_D, dt):
     assert len(ts_D) == len(U_D)
     term1 = sum(U_D) * dt
     term2 = sum([(t - theta) * u * dt for u, theta in zip(U_D, ts_D)])
@@ -107,6 +107,10 @@ def predict_integral_explict(t, delay, Z1_t, Z2_t, U_D, ts_D, dt):
 
 
 if __name__ == '__main__':
-    # u = DynamicSystem(Z0=np.array([0, 1]), dataset_config=DatasetConfig()).U_explict(0)
-    # print(u)
+    from config import DatasetConfig
+
+    dataset_config = DatasetConfig()
+    solve_integral_equation(np.array([0, 1]), dataset_config.n_point_delay, dataset_config.n_state, dataset_config.dt,
+                            np.random.randn(dataset_config.n_point_delay),
+                            dynamic=dataset_config.system.dynamic)
     ...

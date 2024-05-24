@@ -75,7 +75,9 @@ class DatasetConfig:
     system_n: Optional[float] = field(default=2.)
     postprocess: Optional[bool] = field(default=False)
     n_plot_sample: Optional[int] = field(default=0)
-    random_u_type: Optional[Literal['line', 'sin', 'exp', 'spline', 'poly', 'sinexp']] = field(default='spline')
+    filter_ood_sample: Optional[bool] = field(default=True)
+    random_u_type: Optional[Literal['line', 'sin', 'exp', 'spline', 'poly', 'sinexp', 'chebyshev']] = field(
+        default='spline')
 
     @property
     def system(self) -> dynamic_systems.DynamicSystem:

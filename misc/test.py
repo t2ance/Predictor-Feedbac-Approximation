@@ -3,9 +3,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
 
-from config import DatasetConfig
-from main import run, create_trajectory_dataset
-
 
 def fit(x_data, y_data):
     def func(x, c, k):
@@ -21,27 +18,35 @@ def fit(x_data, y_data):
 
 
 if __name__ == '__main__':
-    dataset_config = DatasetConfig(n_sample_per_dataset=5, dt=0.01, duration=4, recreate_training_dataset=True,
-                                   recreate_testing_dataset=True)
-    samples = create_trajectory_dataset(dataset_config)
-    for sample in samples:
-        t_z_u = sample[0].cpu().numpy()
-        t = t_z_u[0]
-        z = t_z_u[1:3]
-        u = t_z_u[3:]
-        p = sample[1].cpu().numpy()
-        # print(sample)
-        ts = np.linspace(t - dataset_config.delay, t, dataset_config.n_point_delay)
-        plt.plot(ts, u, label='u')
-        plt.scatter(ts[-1], z[0], label='Zt_0')
-        plt.scatter(ts[-1], z[1], label='Zt_1')
-        plt.scatter(ts[-1], p[0], label='Pt_0')
-        plt.scatter(ts[-1], p[1], label='Pt_1')
-        plt.legend()
-        # plt.ylim([-2, 2])
-        plt.show()
-        plt.clf()
-        print('_')
+    f = lambda x: np.random.uniform(0, 5) * np.cos(np.random.uniform(0, 5) * np.arccos(x))
+    x = np.linspace(-10, 10)
+    plt.plot(x, f(x))
+    plt.plot(x, f(x))
+    plt.plot(x, f(x))
+    plt.plot(x, f(x))
+    plt.plot(x, f(x))
+    plt.show()
+    # dataset_config = DatasetConfig(n_sample_per_dataset=5, dt=0.01, duration=4, recreate_training_dataset=True,
+    #                                recreate_testing_dataset=True)
+    # samples = create_trajectory_dataset(dataset_config)
+    # for sample in samples:
+    #     t_z_u = sample[0].cpu().numpy()
+    #     t = t_z_u[0]
+    #     z = t_z_u[1:3]
+    #     u = t_z_u[3:]
+    #     p = sample[1].cpu().numpy()
+    #     # print(sample)
+    #     ts = np.linspace(t - dataset_config.delay, t, dataset_config.n_point_delay)
+    #     plt.plot(ts, u, label='u')
+    #     plt.scatter(ts[-1], z[0], label='Zt_0')
+    #     plt.scatter(ts[-1], z[1], label='Zt_1')
+    #     plt.scatter(ts[-1], p[0], label='Pt_0')
+    #     plt.scatter(ts[-1], p[1], label='Pt_1')
+    #     plt.legend()
+    #     # plt.ylim([-2, 2])
+    #     plt.show()
+    #     plt.clf()
+    #     print('_')
     # U, Z, _ = run(method='explict', silence=True, Z0=(0, 1.), dataset_config=dataset_config)
     # U, Z, _ = run(method='numerical', silence=True, Z0=(0, 1.), dataset_config=dataset_config)
     # popt = fit(dataset_config.ts[dataset_config.n_point_delay:], U[dataset_config.n_point_delay:])

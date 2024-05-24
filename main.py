@@ -10,61 +10,19 @@ import numpy as np
 import torch
 import wandb
 from scipy.integrate import odeint
-from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ImplicitDataset, ExplictDataset, PredictionDataset, sample_to_tensor
-from dynamic_systems import DynamicSystem, predict_integral, predict_integral_general, predict_neural_operator
+from dynamic_systems import solve_integral_equation, solve_integral_equation_, solve_integral_equation_neural_operator
 from model import FNOProjection, FNOTwoStage, PIFNO
-from utils import count_params, get_time_str, set_size, setup_plt, pad_leading_zeros
+from utils import count_params, get_time_str, set_size, pad_leading_zeros, plot_comparison, plot_difference, \
+    metric, check_dir, plot_sample, no_predict_and_loss, get_lr_scheduler, prepare_datasets
 
 
-def plot_comparison(ts, P_hat, P, Z, delay, n_point_delay, save_path, ylim=None):
-    fig = plt.figure(figsize=set_size())
-    plt.title('Comparison')
-    for t_i in range(2):
-        if P is not None:
-            plt.plot(ts[n_point_delay:], P[:-n_point_delay, t_i], label=f'$P_{t_i + 1}(t-{delay})$')
-        plt.plot(ts[n_point_delay:], P_hat[:-n_point_delay, t_i], label=f'$\hat P_{t_i + 1}(t-{delay})$')
-        plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$')
-    plt.xlabel('t')
-    if ylim is not None:
-        plt.ylim(ylim)
-    plt.legend()
-    if save_path is not None:
-        plt.savefig(save_path)
-        fig.clear()
-        plt.close(fig)
-    else:
-        plt.show()
-
-
-def plot_difference(ts, P_hat, P, Z, n_point_delay, save_path, ylim=None):
-    fig = plt.figure(figsize=set_size())
-    difference = P_hat[:-n_point_delay] - Z[n_point_delay:]
-    plt.plot(ts[n_point_delay:], difference[:, 0], label='$\hat P_1 - Z_1$')
-    plt.plot(ts[n_point_delay:], difference[:, 1], label='$\hat P_2 - Z_2$')
-    if P is not None:
-        difference_no = P[:-n_point_delay] - Z[n_point_delay:]
-        plt.plot(ts[n_point_delay:], difference_no[:, 0], label='$\delta PNO_1$')
-        plt.plot(ts[n_point_delay:], difference_no[:, 1], label='$\delta PNO_2$')
-    plt.xlabel('t')
-    if ylim is not None:
-        plt.ylim(ylim)
-    plt.legend()
-    if save_path is not None:
-        plt.savefig(save_path)
-        fig.clear()
-        plt.close(fig)
-    else:
-        plt.show()
-
-
-def run(dataset_config: DatasetConfig, Z0: Tuple, model=None,
-        method: Literal['explict', 'numerical', 'no', 'numerical_no'] = None, title='', save_path: str = None,
-        img_save_path: str = None):
+def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'numerical', 'no', 'numerical_no'] = None,
+        model=None, title='', save_path: str = None, img_save_path: str = None):
     system = dataset_config.system
     n_point_delay = dataset_config.n_point_delay
     ts = dataset_config.ts
@@ -90,7 +48,11 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, model=None,
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0
-            P[t_i, :] = predict_integral_general(f=system.dynamic, Z_t=Z_t, P_D=P[t_minus_D_i:t_i],
+            P_compare[t_i, :] = solve_integral_equation(Z_t, n_point_delay, dataset_config.n_state, dt,
+                                                        pad_leading_zeros(segment=U[t_minus_D_i:t_i],
+                                                                          length=n_point_delay),
+                                                        dynamic=dataset_config.system.dynamic)
+            P[t_i, :] = solve_integral_equation_(f=system.dynamic, Z_t=Z_t, P_D=P[t_minus_D_i:t_i],
                                                  U_D=U[t_minus_D_i:t_i], dt=dt,
                                                  t=t) + dataset_config.noise()
             if t_i > n_point_delay:
@@ -103,10 +65,9 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, model=None,
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0
-            P[t_i, :] = predict_neural_operator(model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i],
-                                                                                   length=n_point_delay),
-                                                Z_t=Z_t, t=t)
-            P_compare[t_i, :] = predict_integral_general(f=system.dynamic, Z_t=Z_t, P_D=P[t_minus_D_i:t_i],
+            P[t_i, :] = solve_integral_equation_neural_operator(
+                model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t, t=t)
+            P_compare[t_i, :] = solve_integral_equation_(f=system.dynamic, Z_t=Z_t, P_D=P[t_minus_D_i:t_i],
                                                          U_D=U[t_minus_D_i:t_i], dt=dt,
                                                          t=t) + dataset_config.noise()
             if t_i > n_point_delay:
@@ -118,10 +79,10 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, model=None,
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0
-            P[t_i, :] = predict_integral_general(f=system.dynamic, Z_t=Z_t, P_D=P[t_minus_D_i:t_i],
+            P[t_i, :] = solve_integral_equation_(f=system.dynamic, Z_t=Z_t, P_D=P[t_minus_D_i:t_i],
                                                  U_D=U[t_minus_D_i:t_i], dt=dt,
                                                  t=t) + dataset_config.noise()
-            P_compare[t_i, :] = predict_neural_operator(
+            P_compare[t_i, :] = solve_integral_equation_neural_operator(
                 model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t,
                 t=t)
             if t_i > n_point_delay:
@@ -183,7 +144,7 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, model=None,
         fig.clear()
         plt.close(fig)
 
-        if method != 'numerical_no':
+        if method != 'numerical_no' or model != 'numerical':
             P_compare = None
         plot_comparison(ts, P, P_compare, Z, delay, n_point_delay,
                         f'{img_save_path}/comparison_full.png' if img_save_path is not None else None)
@@ -198,16 +159,6 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, model=None,
     if method == 'explict':
         return U, Z, None
     return U, Z, P
-
-
-def no_predict_and_loss(inputs, labels, model):
-    z_u = inputs[:, 1:]
-
-    if not isinstance(model, dde.nn.DeepONet):
-        return model(z_u, labels)
-    else:
-        outputs = model([z_u, inputs[:, :1]])
-        return outputs, torch.nn.MSELoss()(outputs, labels)
 
 
 def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig,
@@ -367,19 +318,6 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
     return model
 
 
-def check_dir(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-
-def metric(preds, trues):
-    N = trues.shape[0]
-    preds = np.atleast_2d(preds)
-    trues = np.atleast_2d(trues)
-    return np.sum(np.linalg.norm(preds - trues, axis=1) / np.linalg.norm(trues, axis=1)) / N, \
-           np.sum(np.linalg.norm(preds - trues, axis=1)) / N
-
-
 def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: bool = False, silence: bool = False,
              test_points: List = None, plot: bool = False):
     if test_points is None:
@@ -450,33 +388,12 @@ def postprocess(samples, dataset_config: DatasetConfig):
         z = feature[1:3]
         u = feature[3:]
         p = sample[1].cpu().numpy()
-        p = predict_integral(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=2,
-                             n_point_delay=dataset_config.n_point_delay, dynamic=dataset_config.system.dynamic)
+        p = solve_integral_equation(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=2,
+                                    n_point_delay=dataset_config.n_point_delay, dynamic=dataset_config.system.dynamic)
         new_samples.append((torch.from_numpy(np.concatenate([t, z, u])), torch.tensor(p)))
     print(f'[WARNING] {len(new_samples)} samples replaced by numerical solutions')
     all_samples = new_samples
     return all_samples
-
-
-def plot_sample(feature, label, dataset_config: DatasetConfig):
-    if isinstance(feature, torch.Tensor):
-        feature = feature.cpu().numpy()
-    if isinstance(label, torch.Tensor):
-        label = label.cpu().numpy()
-    print(f'[Feature Shape]: {feature.shape}')
-    print(f'[Label Shape]: {label.shape}')
-    t = feature[:1]
-    z = feature[1:3]
-    u = feature[3:]
-    p = label
-    ts = np.linspace(t - dataset_config.delay, t, dataset_config.n_point_delay)
-    plt.plot(ts, u, label='U')
-    plt.scatter(ts[-1], z[0], label='$Z_t(0)$')
-    plt.scatter(ts[-1], z[1], label='$Z_t(1)$')
-    plt.scatter(ts[-1], p[0], label='$P_t(0)$')
-    plt.scatter(ts[-1], p[1], label='$P_t(1)$')
-    plt.legend()
-    plt.show()
 
 
 def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_config: TrainConfig):
@@ -576,12 +493,14 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, test_points: List =
     return all_samples
 
 
-def create_stateless_dataset(dataset_config: DatasetConfig, filter_ood_sample=True):
+def create_stateless_dataset(dataset_config: DatasetConfig):
     dt: float = dataset_config.dt
     n_point_delay: int = dataset_config.n_point_delay
     n_sample_per_dataset: int = dataset_config.n_sample_per_dataset
     n_state: int = dataset_config.n_state
     all_samples = []
+    n_sample = 0
+    n_id_sample = 0
     for i in tqdm(list(range(1, dataset_config.n_dataset + 1))):
         j = 0
         while j < n_sample_per_dataset:
@@ -597,6 +516,8 @@ def create_stateless_dataset(dataset_config: DatasetConfig, filter_ood_sample=Tr
                 f = lambda x: np.sin(np.sqrt(i) * x)
             elif dataset_config.random_u_type == 'exp':
                 f = lambda x: np.exp(-np.sqrt(i) * x)
+            elif dataset_config.random_u_type == 'chebyshev':
+                f = lambda x: np.random.uniform(0, 5) * np.cos(np.random.uniform(0, 5) * np.arccos(x))
             elif dataset_config.random_u_type == 'spline':
                 def f(x):
                     segment_length = np.random.uniform(0, 2)
@@ -623,10 +544,10 @@ def create_stateless_dataset(dataset_config: DatasetConfig, filter_ood_sample=Tr
                 raise NotImplementedError()
             Z_t = np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound, 2)
             U_D = f(np.linspace(0, 1, n_point_delay))
-            P_t = predict_integral(Z_t=Z_t, U_D=U_D, dt=dt, n_state=n_state, n_point_delay=n_point_delay,
-                                   dynamic=DynamicSystem.dynamic_static)
+            P_t = solve_integral_equation(Z_t=Z_t, U_D=U_D, dt=dt, n_state=n_state, n_point_delay=n_point_delay,
+                                          dynamic=dataset_config.system.dynamic)
             features = sample_to_tensor(Z_t, U_D, dt * n_point_delay)
-            if filter_ood_sample:
+            if dataset_config.filter_ood_sample:
                 def filter_out_of_distribution_sample(factor, p):
                     return abs(P_t[0]) <= abs(Z_t[0]) * factor and abs(P_t[1]) <= abs(
                         Z_t[1]) * factor and np.random.uniform(0, 1) <= p
@@ -634,52 +555,16 @@ def create_stateless_dataset(dataset_config: DatasetConfig, filter_ood_sample=Tr
                 if filter_out_of_distribution_sample(0.1, 1):
                     all_samples.append((features, torch.from_numpy(P_t)))
                     j += 1
+                    n_id_sample += 1
             else:
                 all_samples.append((features, torch.from_numpy(P_t)))
                 j += 1
+                n_id_sample += 1
+            n_sample += 1
+    print(
+        f'Generated {n_sample} samples in total, {n_id_sample} samples in distribution, percent: {n_id_sample / n_sample}')
     random.shuffle(all_samples)
     return all_samples
-
-
-def prepare_datasets(samples, training_ratio: float, batch_size: int, device: str):
-    def split_dataset(dataset, ratio):
-        n_total = len(dataset)
-        n_sample = int(n_total * ratio)
-        random.shuffle(dataset)
-        return dataset[:n_sample], dataset[n_sample:]
-
-    train_dataset, validate_dataset = split_dataset(samples, training_ratio)
-    training_dataloader = DataLoader(PredictionDataset(train_dataset), batch_size=batch_size, shuffle=False,
-                                     # generator=torch.Generator(device=device)
-                                     )
-    if len(validate_dataset) == 0:
-        validating_dataloader = None
-    else:
-        validating_dataloader = DataLoader(PredictionDataset(validate_dataset), batch_size=batch_size, shuffle=False,
-                                           # generator=torch.Generator(device=device)
-                                           )
-    return training_dataloader, validating_dataloader
-
-
-def get_lr_scheduler(optimizer: torch.optim.Optimizer, train_config: TrainConfig):
-    """ Create a schedule with a learning rate that decreases linearly after
-    linearly increasing during a warmup period.
-    """
-    if train_config.lr_scheduler_type == 'linear_with_warmup':
-        num_warmup_steps = int(train_config.n_epoch * train_config.scheduler_ratio_warmup)
-
-        def lr_lambda(current_step):
-            if current_step < num_warmup_steps:
-                return float(current_step) / float(max(1, num_warmup_steps))
-            return max(0.0, float(train_config.n_epoch - current_step) / float(
-                max(1, train_config.n_epoch - num_warmup_steps)))
-
-        return LambdaLR(optimizer, lr_lambda)
-    elif train_config.lr_scheduler_type == 'exponential':
-        return torch.optim.lr_scheduler.StepLR(optimizer, step_size=train_config.scheduler_step_size,
-                                               gamma=train_config.scheduler_gamma)
-    else:
-        raise NotImplementedError()
 
 
 def main_(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
@@ -700,34 +585,33 @@ def main_(dataset_config: DatasetConfig, model_config: ModelConfig, train_config
 def main(sweep: bool = False):
     # setup_plt()
     dataset_config = DatasetConfig(
-        recreate_training_dataset=False,
+        recreate_training_dataset=True,
         recreate_testing_dataset=False,
         trajectory=False,
         dt=0.125,
-        n_dataset=2000,
+        n_dataset=1,
         duration=8,
         delay=3.,
-        n_sample_per_dataset=1,
+        n_sample_per_dataset=200,
         ic_lower_bound=-2,
         ic_upper_bound=2,
-        system_n=3,
-        system_c=5,
-        append_training_dataset=False
+        append_training_dataset=False,
+        filter_ood_sample=True
     )
     model_config = ModelConfig(
         # model_name='FNO',
         # model_name='FNOTwoStage',
         model_name='PIFNO',
-        fno_n_layers=2,
-        fno_n_modes_height=4,
-        fno_hidden_channels=16
+        fno_n_layers=5,
+        fno_n_modes_height=16,
+        fno_hidden_channels=64
     )
     train_config = TrainConfig(
-        learning_rate=1e-3,
-        n_epoch=400,
+        learning_rate=1e-4,
+        n_epoch=500,
         batch_size=64,
-        weight_decay=0.0001376,
-        log_step=100,
+        weight_decay=1e-4,
+        log_step=-1,
         training_ratio=1.,
         load_model=False
     )
@@ -735,25 +619,25 @@ def main(sweep: bool = False):
     if sweep:
         sweep_config = {
             'name': get_time_str(),
-            'method': 'bayes',
+            'method': 'random',
             'metric': {
                 'name': 'metric',
                 'goal': 'minimize'
             },
             'parameters': {
                 'fno_n_layers': {
-                    'values': [1, 2]
+                    'values': list(range(5, 10))
                 },
                 'fno_n_modes_height': {
-                    'values': [8, 16, 32]
+                    'values': [16, 32, 64]
                 },
                 'fno_hidden_channels': {
                     'values': [16, 32, 64]
                 },
                 'learning_rate': {
                     'distribution': 'log_uniform_values',
-                    'min': 1e-4,
-                    'max': 1e-3
+                    'min': 1e-5,
+                    'max': 1e-4
                 }
             }
         }

@@ -1,16 +1,14 @@
-import pickle
-
+import matplotlib.patches as mpatches
 import numpy as np
 from matplotlib import pyplot as plt
 
 from config import DatasetConfig
-from dynamic_systems import predict_integral, DynamicSystem
-from main import create_trajectory_dataset, create_stateless_dataset
-import matplotlib.patches as mpatches
+from dynamic_systems import solve_integral_equation
+from main import create_trajectory_dataset, create_stateless_dataset, run
 
 
-def draw_distribution(dataset_config, filter_ood_sample):
-    testing_random_samples = create_stateless_dataset(dataset_config, filter_ood_sample=filter_ood_sample)
+def draw_distribution(dataset_config):
+    testing_random_samples = create_stateless_dataset(dataset_config)
 
     print(len(testing_random_samples))
     testing_trajectory_samples = create_trajectory_dataset(dataset_config)
@@ -113,9 +111,9 @@ def draw_difference(dataset_config):
         p = p.cpu().numpy()
         p0 = p[0:1]
         p1 = p[1:2]
-        P_t = predict_integral(Z_t=Z_t, U_D=U_D, dt=dataset_config.dt, n_state=dataset_config.n_state,
-                               n_point_delay=dataset_config.n_point_delay,
-                               dynamic=None)
+        P_t = solve_integral_equation(Z_t=Z_t, U_D=U_D, dt=dataset_config.dt, n_state=dataset_config.n_state,
+                                      n_point_delay=dataset_config.n_point_delay,
+                                      dynamic=None)
         l = (P_t - p) ** 2
         loss += l
     print(loss / len(samples))
@@ -128,9 +126,7 @@ if __name__ == '__main__':
         recreate_testing_dataset=True,
         trajectory=False,
         random_u_type='spline',
-        # random_u_type='poly',
-        # random_u_type='sinexp',
-        dt=0.1,
+        dt=0.01,
         n_dataset=300,
         duration=8,
         delay=3.,
@@ -140,8 +136,16 @@ if __name__ == '__main__':
         postprocess=False,
         n_plot_sample=False
     )
+    # Z_t = np.array([0, 1])
+    # n_point_delay = dataset_config.n_point_delay
+    # U_D = np.random.randn(n_point_delay)
+    # predict_integral(Z_t=Z_t, n_point_delay=n_point_delay, n_state=2, dt=0.125, U_D=U_D,
+    #                  dynamic=dataset_config.system.dynamic, )
+    # run(dataset_config, (0, 1), method='numerical', img_save_path='./misc/result')
+    # for _ in tqdm(range(36)):
+    #     U, Z, P = run(method='numerical', Z0=np.random.random(2), dataset_config=dataset_config)
     # draw_distribution(dataset_config, False)
-    draw_distribution(dataset_config, True)
+    draw_distribution(dataset_config)
     # draw_difference()
     # with open('./datasets/train.pkl', 'wb') as file:
     #     pickle.dump([], file)
