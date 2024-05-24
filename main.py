@@ -16,9 +16,9 @@ from tqdm import tqdm
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ImplicitDataset, ExplictDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import solve_integral_equation, solve_integral_equation_, solve_integral_equation_neural_operator
-from model import FNOProjection, FNOTwoStage, PIFNO
+from model import FNOProjection, FNOTwoStage, PIFNO, SampleGenerationNet
 from utils import count_params, get_time_str, set_size, pad_leading_zeros, plot_comparison, plot_difference, \
-    metric, check_dir, plot_sample, no_predict_and_loss, get_lr_scheduler, prepare_datasets
+    metric, check_dir, plot_sample, no_predict_and_loss, get_lr_scheduler, prepare_datasets, postprocess
 
 
 def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'numerical', 'no', 'numerical_no'] = None,
@@ -198,7 +198,7 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
     elif model_name == 'PIFNO':
         model = PIFNO(
             n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_layers=n_layers, dt=dataset_config.dt,
-            n_state=dataset_config.n_state, dynamic=dataset_config.system.dynamic_tensor_batched).to(device)
+            n_state=dataset_config.n_state, dynamic=dataset_config.system.dynamic_tensor_batched2).to(device)
     else:
         raise NotImplementedError()
     print(f'#parameters: {count_params(model)}')
@@ -378,24 +378,6 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: boo
     return rl2, l2, len(metric_rl2_list)
 
 
-def postprocess(samples, dataset_config: DatasetConfig):
-    print('[DEBUG] postprocessing')
-    new_samples = []
-    random.shuffle(samples)
-    for sample in samples:
-        feature = sample[0].cpu().numpy()
-        t = feature[:1]
-        z = feature[1:3]
-        u = feature[3:]
-        p = sample[1].cpu().numpy()
-        p = solve_integral_equation(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=2,
-                                    n_point_delay=dataset_config.n_point_delay, dynamic=dataset_config.system.dynamic)
-        new_samples.append((torch.from_numpy(np.concatenate([t, z, u])), torch.tensor(p)))
-    print(f'[WARNING] {len(new_samples)} samples replaced by numerical solutions')
-    all_samples = new_samples
-    return all_samples
-
-
 def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_config: TrainConfig):
     create_dataset = not os.path.exists(
         dataset_config.training_dataset_file) or dataset_config.recreate_training_dataset
@@ -409,10 +391,15 @@ def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_co
 
     if create_dataset:
         print('Creating training dataset')
-        if dataset_config.trajectory:
+        if dataset_config.data_generation_strategy == 'trajectory':
             training_samples = create_trajectory_dataset(dataset_config)
+        elif dataset_config.data_generation_strategy == 'random':
+            training_samples = create_random_dataset(dataset_config)
+        elif dataset_config.data_generation_strategy == 'nn':
+            training_samples = create_nn_dataset(dataset_config)
         else:
-            training_samples = create_stateless_dataset(dataset_config)
+            raise NotImplementedError()
+
         print(f'Created {len(training_samples)} samples')
         if dataset_config.append_training_dataset:
             training_samples_loaded = load()
@@ -430,7 +417,7 @@ def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_co
             pickle.dump(training_samples, file)
             print(f'{len(training_samples)} samples saved')
 
-    if dataset_config.trajectory and dataset_config.postprocess:
+    if dataset_config.data_generation_strategy == 'trajectory' and dataset_config.postprocess:
         training_samples = postprocess(training_samples, dataset_config)
     for feature, label in training_samples[:dataset_config.n_plot_sample]:
         plot_sample(feature, label, dataset_config)
@@ -493,7 +480,7 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, test_points: List =
     return all_samples
 
 
-def create_stateless_dataset(dataset_config: DatasetConfig):
+def create_random_dataset(dataset_config: DatasetConfig):
     dt: float = dataset_config.dt
     n_point_delay: int = dataset_config.n_point_delay
     n_sample_per_dataset: int = dataset_config.n_sample_per_dataset
@@ -552,7 +539,7 @@ def create_stateless_dataset(dataset_config: DatasetConfig):
                     return abs(P_t[0]) <= abs(Z_t[0]) * factor and abs(P_t[1]) <= abs(
                         Z_t[1]) * factor and np.random.uniform(0, 1) <= p
 
-                if filter_out_of_distribution_sample(0.1, 1):
+                if filter_out_of_distribution_sample(dataset_config.ood_sample_bound, 1):
                     all_samples.append((features, torch.from_numpy(P_t)))
                     j += 1
                     n_id_sample += 1
@@ -563,6 +550,82 @@ def create_stateless_dataset(dataset_config: DatasetConfig):
             n_sample += 1
     print(
         f'Generated {n_sample} samples in total, {n_id_sample} samples in distribution, percent: {n_id_sample / n_sample}')
+    random.shuffle(all_samples)
+    return all_samples
+
+
+def create_nn_dataset(dataset_config: DatasetConfig):
+    dt: float = dataset_config.dt
+    n_point_delay: int = dataset_config.n_point_delay
+    n_sample_per_dataset: int = dataset_config.n_sample_per_dataset
+    n_state: int = dataset_config.n_state
+    n_sample = dataset_config.n_dataset * n_sample_per_dataset
+    model = SampleGenerationNet(dataset_config.n_state, dataset_config.n_point_delay)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=dataset_config.generation_net_lr,
+                                  weight_decay=dataset_config.generation_net_weight_decay)
+    batch_size = dataset_config.generation_net_batch_size
+    n_epoch = dataset_config.generation_net_n_epoch
+
+    def torch_uniform(shape, a, b):
+        rand_tensor = torch.rand(shape)
+        transformed_tensor = a + (b - a) * rand_tensor
+        return transformed_tensor
+
+    def get_random_z_p(batch_size):
+        z = torch_uniform(shape=(batch_size, 2), a=dataset_config.ic_lower_bound, b=dataset_config.ic_upper_bound)
+        p = torch_uniform(shape=(batch_size, 2), a=dataset_config.ic_lower_bound, b=dataset_config.ic_upper_bound)
+        # p_norm = p.norm(dim=1)
+        # z_norm = z.norm(dim=1)
+        # scaling = z_norm / p_norm * torch.rand(batch_size) * dataset_config.ood_sample_bound
+        # scaling = p * scaling.unsqueeze(-1)
+        scaling = abs(z) / abs(p) * torch.rand(batch_size).unsqueeze(-1) * dataset_config.ood_sample_bound
+        return torch.hstack([z, p]), z, p * scaling
+
+    def solve_integral_equation_batched(n_sample, u, z):
+        P_D = torch.zeros((n_sample, n_state, n_point_delay))
+        P_D[:, :, 0] = z
+        for j in range(n_point_delay - 1):
+            P_D_new = P_D.clone()
+            P_D_new[:, :, j + 1] = P_D[:, :, j] \
+                                   + dt * dataset_config.system.dynamic_tensor_batched1(P_D[:, :, j], j * dt, u[:, j])
+            P_D = P_D_new
+        p_generated = dataset_config.system.dynamic_tensor_batched2(P_D.permute(0, 2, 1), None, u).sum(dim=-1) * dt + z
+        return p_generated
+
+    model.train()
+    training_loss_list = []
+    training_loss = 0
+    bar = tqdm(range(n_epoch))
+    for epoch in bar:
+        inputs, z, p = get_random_z_p(batch_size)
+        u = model(inputs)
+        p_generated = solve_integral_equation_batched(batch_size, u, z)
+        loss = (p - p_generated).norm(dim=1).mean()
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        training_loss += loss.item()
+        avg_loss = training_loss / (epoch + 1)
+        training_loss_list.append(avg_loss)
+        bar.set_description(f'avg loss = {avg_loss}')
+
+    plt.title('training loss')
+    plt.plot(training_loss_list)
+    plt.yscale("log")
+    plt.xlabel('epoch')
+    plt.savefig(f'{dataset_config.dataset_base_path}/metric.png')
+    plt.clf()
+
+    model.eval()
+    with torch.no_grad():
+        inputs, z, p = get_random_z_p(n_sample)
+        u = model(inputs)
+        p_generated = solve_integral_equation_batched(n_sample, u, z)
+        loss = (p - p_generated).norm(dim=1).mean()
+        print(f'L2 error in generated dataset: {loss}')
+        torch.hstack([torch.zeros_like(z)[:, 0:1], z, u])
+        # all_samples = list(zip(torch.hstack([torch.zeros_like(z)[:, 0:1], z, u]), p_generated))
+        all_samples = list(zip(torch.hstack([torch.zeros_like(z)[:, 0:1], z, u]), p_generated))
     random.shuffle(all_samples)
     return all_samples
 
@@ -587,21 +650,19 @@ def main(sweep: bool = False):
     dataset_config = DatasetConfig(
         recreate_training_dataset=True,
         recreate_testing_dataset=False,
-        trajectory=False,
+        data_generation_strategy='nn',
         dt=0.125,
         n_dataset=1,
-        duration=8,
-        delay=3.,
-        n_sample_per_dataset=200,
-        ic_lower_bound=-2,
-        ic_upper_bound=2,
+        n_sample_per_dataset=2000,
         append_training_dataset=False,
-        filter_ood_sample=True
+        n_plot_sample=5,
+        filter_ood_sample=True,
+        ood_sample_bound=0.1
     )
     model_config = ModelConfig(
-        # model_name='FNO',
+        model_name='FNO',
         # model_name='FNOTwoStage',
-        model_name='PIFNO',
+        # model_name='PIFNO',
         fno_n_layers=5,
         fno_n_modes_height=16,
         fno_hidden_channels=64

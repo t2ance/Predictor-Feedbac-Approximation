@@ -13,6 +13,25 @@ from torch.utils.data import DataLoader
 
 from config import DatasetConfig, TrainConfig
 from dataset import PredictionDataset
+from dynamic_systems import solve_integral_equation
+
+
+def postprocess(samples, dataset_config: DatasetConfig):
+    print('[DEBUG] postprocessing')
+    new_samples = []
+    random.shuffle(samples)
+    for sample in samples:
+        feature = sample[0].cpu().numpy()
+        t = feature[:1]
+        z = feature[1:3]
+        u = feature[3:]
+        p = sample[1].cpu().numpy()
+        p = solve_integral_equation(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=2,
+                                    n_point_delay=dataset_config.n_point_delay, dynamic=dataset_config.system.dynamic)
+        new_samples.append((torch.from_numpy(np.concatenate([t, z, u])), torch.tensor(p)))
+    print(f'[WARNING] {len(new_samples)} samples replaced by numerical solutions')
+    all_samples = new_samples
+    return all_samples
 
 
 def prepare_datasets(samples, training_ratio: float, batch_size: int, device: str):

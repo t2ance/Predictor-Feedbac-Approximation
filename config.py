@@ -58,8 +58,8 @@ class DatasetConfig:
             np.linspace(-1, 1, 6),
             np.linspace(-1, 1, 6)
         )])
-    ic_lower_bound: Optional[float] = field(default=0.)
-    ic_upper_bound: Optional[float] = field(default=1.)
+    ic_lower_bound: Optional[float] = field(default=-2)
+    ic_upper_bound: Optional[float] = field(default=2)
     n_state: Optional[int] = field(default=2)
     n_sample_per_dataset: Optional[int] = field(default=100)
     n_dataset: Optional[int] = field(default=200)
@@ -68,9 +68,11 @@ class DatasetConfig:
     training_dataset_file: Optional[str] = field(default='./datasets/train.pkl')
     validating_dataset_file: Optional[str] = field(default='./datasets/validate.pkl')
     testing_dataset_file: Optional[str] = field(default='./datasets/test.pkl')
-    trajectory: Optional[bool] = field(default=True)
+    dataset_base_path: Optional[str] = field(default='./datasets')
+    data_generation_strategy: Optional[Literal['trajectory', 'random', 'nn']] = field(default='trajectory')
     explicit: Optional[bool] = field(default=False)
     noise_sigma_numerical: Optional[float] = field(default=0.)
+    ood_sample_bound: Optional[float] = field(default=0.1)
     system_c: Optional[float] = field(default=1.)
     system_n: Optional[float] = field(default=2.)
     postprocess: Optional[bool] = field(default=False)
@@ -78,6 +80,11 @@ class DatasetConfig:
     filter_ood_sample: Optional[bool] = field(default=True)
     random_u_type: Optional[Literal['line', 'sin', 'exp', 'spline', 'poly', 'sinexp', 'chebyshev']] = field(
         default='spline')
+
+    generation_net_batch_size: Optional[int] = field(default=64)
+    generation_net_lr: Optional[int] = field(default=1e-3)
+    generation_net_n_epoch: Optional[int] = field(default=5000)
+    generation_net_weight_decay: Optional[int] = field(default=0)
 
     @property
     def system(self) -> dynamic_systems.DynamicSystem:

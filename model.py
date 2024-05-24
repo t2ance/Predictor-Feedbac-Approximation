@@ -2,6 +2,20 @@ from typing import Callable
 
 import torch
 from neuralop.models import FNO1d
+from torch import nn
+
+
+class SampleGenerationNet(torch.nn.Module):
+    def __init__(self, n_state: int, n_point_delay: int, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.net = nn.Sequential(
+            nn.Linear(2 * n_state, 4 * n_point_delay),
+            nn.Linear(4 * n_point_delay, 4 * n_point_delay),
+            nn.Linear(4 * n_point_delay, n_point_delay)
+        )
+
+    def forward(self, x: torch.Tensor):
+        return self.net(x)
 
 
 class PIFNO(torch.nn.Module):

@@ -4,11 +4,11 @@ from matplotlib import pyplot as plt
 
 from config import DatasetConfig
 from dynamic_systems import solve_integral_equation
-from main import create_trajectory_dataset, create_stateless_dataset, run
+from main import create_trajectory_dataset, create_random_dataset, run
 
 
 def draw_distribution(dataset_config):
-    testing_random_samples = create_stateless_dataset(dataset_config)
+    testing_random_samples = create_random_dataset(dataset_config)
 
     print(len(testing_random_samples))
     testing_trajectory_samples = create_trajectory_dataset(dataset_config)
@@ -124,17 +124,17 @@ if __name__ == '__main__':
     dataset_config = DatasetConfig(
         recreate_training_dataset=True,
         recreate_testing_dataset=True,
-        trajectory=False,
+        data_generation_strategy='random',
         random_u_type='spline',
-        dt=0.01,
-        n_dataset=300,
+        dt=0.125,
+        # dt=0.05,
+        n_dataset=500,
         duration=8,
         delay=3.,
+        system_n=1,
+        system_c=1,
         n_sample_per_dataset=1,
-        ic_lower_bound=-2,
-        ic_upper_bound=2,
-        postprocess=False,
-        n_plot_sample=False
+        filter_ood_sample=True
     )
     # Z_t = np.array([0, 1])
     # n_point_delay = dataset_config.n_point_delay
