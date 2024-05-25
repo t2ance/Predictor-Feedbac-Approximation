@@ -1,6 +1,7 @@
 import os
 import pickle
 import random
+import time
 from dataclasses import asdict
 from typing import Literal, Tuple, List
 
@@ -10,7 +11,7 @@ import numpy as np
 import torch
 import wandb
 from scipy.integrate import odeint
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from config import DatasetConfig, ModelConfig, TrainConfig
@@ -18,7 +19,8 @@ from dataset import ImplicitDataset, ExplictDataset, PredictionDataset, sample_t
 from dynamic_systems import solve_integral_equation, solve_integral_equation_, solve_integral_equation_neural_operator
 from model import FNOProjection, FNOTwoStage, PIFNO, SampleGenerationNet
 from utils import count_params, get_time_str, set_size, pad_leading_zeros, plot_comparison, plot_difference, \
-    metric, check_dir, plot_sample, no_predict_and_loss, get_lr_scheduler, prepare_datasets, postprocess
+    metric, check_dir, plot_sample, no_predict_and_loss, get_lr_scheduler, prepare_datasets, postprocess, \
+    draw_distribution
 
 
 def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'numerical', 'no', 'numerical_no'] = None,
@@ -305,10 +307,7 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
                 rl2, l2, _ = run_test(model, dataset_config, silence=True)
                 rl2_list.append(rl2)
                 l2_list.append(l2)
-                wandb.log({
-                    'Relative L2 error': rl2,
-                    'L2 error': l2
-                }, step=epoch)
+                wandb.log({'Relative L2 error': rl2, 'L2 error': l2}, step=epoch)
             scheduler.step()
             for param_group in optimizer.param_groups:
                 param_group['lr'] = max(param_group['lr'], train_config.scheduler_min_lr)
@@ -361,8 +360,6 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: boo
             plt.legend()
             plt.title(title)
             plt.xlabel(xlabel)
-            # plt.ylim([0, 20])
-            # plt.xlim([0, 5])
             plt.ylabel('Frequency')
             if plot:
                 plt.show()
@@ -419,9 +416,9 @@ def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_co
 
     if dataset_config.data_generation_strategy == 'trajectory' and dataset_config.postprocess:
         training_samples = postprocess(training_samples, dataset_config)
-    for feature, label in training_samples[:dataset_config.n_plot_sample]:
-        plot_sample(feature, label, dataset_config)
-
+    for i, (feature, label) in enumerate(training_samples[:dataset_config.n_plot_sample]):
+        plot_sample(feature, label, dataset_config, f'{str(i)}.png')
+    draw_distribution(training_samples, dataset_config.dataset_base_path)
     training_dataloader, validating_dataloader = prepare_datasets(
         training_samples, train_config.training_ratio, train_config.batch_size, train_config.device)
     print(f'#Training sample: {int(len(training_samples) * train_config.training_ratio)}')
@@ -440,9 +437,7 @@ def get_test_datasets(dataset_config, train_config):
         with open(dataset_config.testing_dataset_file, 'rb') as file:
             testing_samples = pickle.load(file)
     testing_dataloader = DataLoader(PredictionDataset(testing_samples), batch_size=train_config.batch_size,
-                                    shuffle=False,
-                                    # generator=torch.Generator(device=train_config.device)
-                                    )
+                                    shuffle=False)
     print(f'#Testing sample: {len(testing_samples)}')
     return testing_dataloader
 
@@ -536,8 +531,10 @@ def create_random_dataset(dataset_config: DatasetConfig):
             features = sample_to_tensor(Z_t, U_D, dt * n_point_delay)
             if dataset_config.filter_ood_sample:
                 def filter_out_of_distribution_sample(factor, p):
-                    return abs(P_t[0]) <= abs(Z_t[0]) * factor and abs(P_t[1]) <= abs(
-                        Z_t[1]) * factor and np.random.uniform(0, 1) <= p
+                    # return abs(P_t[0]) <= abs(Z_t[0]) * factor and abs(P_t[1]) <= abs(
+                    #     Z_t[1]) * factor and np.random.uniform(0, 1) <= p
+                    return np.linalg.norm(P_t) / np.linalg.norm(Z_t) <= factor \
+                        and np.random.uniform(0, 1) <= p
 
                 if filter_out_of_distribution_sample(dataset_config.ood_sample_bound, 1):
                     all_samples.append((features, torch.from_numpy(P_t)))
@@ -561,8 +558,6 @@ def create_nn_dataset(dataset_config: DatasetConfig):
     n_state: int = dataset_config.n_state
     n_sample = dataset_config.n_dataset * n_sample_per_dataset
     model = SampleGenerationNet(dataset_config.n_state, dataset_config.n_point_delay)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=dataset_config.generation_net_lr,
-                                  weight_decay=dataset_config.generation_net_weight_decay)
     batch_size = dataset_config.generation_net_batch_size
     n_epoch = dataset_config.generation_net_n_epoch
 
@@ -574,11 +569,11 @@ def create_nn_dataset(dataset_config: DatasetConfig):
     def get_random_z_p(batch_size):
         z = torch_uniform(shape=(batch_size, 2), a=dataset_config.ic_lower_bound, b=dataset_config.ic_upper_bound)
         p = torch_uniform(shape=(batch_size, 2), a=dataset_config.ic_lower_bound, b=dataset_config.ic_upper_bound)
-        # p_norm = p.norm(dim=1)
-        # z_norm = z.norm(dim=1)
-        # scaling = z_norm / p_norm * torch.rand(batch_size) * dataset_config.ood_sample_bound
-        # scaling = p * scaling.unsqueeze(-1)
-        scaling = abs(z) / abs(p) * torch.rand(batch_size).unsqueeze(-1) * dataset_config.ood_sample_bound
+        p_norm = p.norm(dim=1)
+        z_norm = z.norm(dim=1)
+        scaling = z_norm / p_norm * torch.rand(batch_size) * dataset_config.ood_sample_bound
+        scaling = p * scaling.unsqueeze(-1)
+        # scaling = abs(z) / abs(p) * torch.rand(batch_size).unsqueeze(-1) * dataset_config.ood_sample_bound
         return torch.hstack([z, p]), z, p * scaling
 
     def solve_integral_equation_batched(n_sample, u, z):
@@ -592,40 +587,80 @@ def create_nn_dataset(dataset_config: DatasetConfig):
         p_generated = dataset_config.system.dynamic_tensor_batched2(P_D.permute(0, 2, 1), None, u).sum(dim=-1) * dt + z
         return p_generated
 
+    class RandomDataset(Dataset):
+        def __init__(self):
+            self.num_samples = dataset_config.generation_net_dataset_size
+            self.data = get_random_z_p(dataset_config.generation_net_dataset_size)
+
+        def __len__(self):
+            return self.num_samples
+
+        def __getitem__(self, idx):
+            inputs, z, p = self.data
+            return inputs[idx], z[idx], p[idx]
+
+    def regularization(u):
+        regularization_type = dataset_config.regularization_type
+        if regularization_type is None:
+            return 0
+        if regularization_type == 'total variation':
+            return torch.abs(u[:, 1:] - u[:, :-1]).mean()
+        else:
+            raise NotImplementedError()
+
+    dataloader = DataLoader(RandomDataset(), batch_size=batch_size, shuffle=False)
+    bar = tqdm(range(n_epoch))
+
+    optimizer = torch.optim.AdamW(model.parameters(), lr=dataset_config.generation_net_lr,
+                                  weight_decay=dataset_config.generation_net_weight_decay)
+    scheduler = get_lr_scheduler(optimizer, dataset_config)
     model.train()
     training_loss_list = []
-    training_loss = 0
-    bar = tqdm(range(n_epoch))
     for epoch in bar:
-        inputs, z, p = get_random_z_p(batch_size)
-        u = model(inputs)
-        p_generated = solve_integral_equation_batched(batch_size, u, z)
-        loss = (p - p_generated).norm(dim=1).mean()
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        training_loss += loss.item()
-        avg_loss = training_loss / (epoch + 1)
-        training_loss_list.append(avg_loss)
-        bar.set_description(f'avg loss = {avg_loss}')
+        training_loss_list_in = []
+        for inputs, z, p in dataloader:
+            u = model(inputs)
+            p_generated = solve_integral_equation_batched(len(inputs), u, z)
+            ie_loss = (p - p_generated).norm(dim=1).mean()
+
+            smooth_loss = regularization(u)
+            loss = ie_loss + dataset_config.lamda * smooth_loss
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            training_loss_list_in.append(loss.item())
+
+        loss_epoch = sum(training_loss_list_in) / len(training_loss_list_in)
+        training_loss_list.append(loss_epoch)
+        scheduler.step()
+        lr = scheduler.get_last_lr()[-1]
+        bar.set_description(f'Epoch [{epoch + 1}/{n_epoch}] || Avg loss {loss_epoch:.6f} || Lr {lr:.6f}')
+        wandb.log({
+            "generation/loss": loss_epoch,
+            "generation/lr": lr
+        }, step=epoch)
 
     plt.title('training loss')
     plt.plot(training_loss_list)
     plt.yscale("log")
     plt.xlabel('epoch')
-    plt.savefig(f'{dataset_config.dataset_base_path}/metric.png')
+    plt.savefig(f'{dataset_config.dataset_base_path}/loss.png')
     plt.clf()
 
     model.eval()
     with torch.no_grad():
+        create_dataset_begin = time.time()
         inputs, z, p = get_random_z_p(n_sample)
         u = model(inputs)
         p_generated = solve_integral_equation_batched(n_sample, u, z)
         loss = (p - p_generated).norm(dim=1).mean()
         print(f'L2 error in generated dataset: {loss}')
         torch.hstack([torch.zeros_like(z)[:, 0:1], z, u])
-        # all_samples = list(zip(torch.hstack([torch.zeros_like(z)[:, 0:1], z, u]), p_generated))
+        # all_samples = list(zip(torch.hstack([torch.zeros_like(z)[:, 0:1], z, u]), p))
         all_samples = list(zip(torch.hstack([torch.zeros_like(z)[:, 0:1], z, u]), p_generated))
+        create_dataset_end = time.time()
+        print(f'{create_dataset_end - create_dataset_begin} seconds used for creating dataset.')
+
     random.shuffle(all_samples)
     return all_samples
 
@@ -651,13 +686,18 @@ def main(sweep: bool = False):
         recreate_training_dataset=True,
         recreate_testing_dataset=False,
         data_generation_strategy='nn',
-        dt=0.125,
+        # data_generation_strategy='random',
+        # dt=0.125,
+        dt=0.05,
         n_dataset=1,
         n_sample_per_dataset=2000,
         append_training_dataset=False,
-        n_plot_sample=5,
+        n_plot_sample=10,
         filter_ood_sample=True,
-        ood_sample_bound=0.1
+        ood_sample_bound=0.2,
+        generation_net_lr=1e-3,
+        generation_net_n_epoch=100,
+        generation_net_dataset_size=5000
     )
     model_config = ModelConfig(
         model_name='FNO',

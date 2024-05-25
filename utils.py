@@ -16,6 +16,54 @@ from dataset import PredictionDataset
 from dynamic_systems import solve_integral_equation
 
 
+def draw_distribution(samples, img_save_path: str = None):
+    u_list = []
+    z0_list = []
+    z1_list = []
+    p0_list = []
+    p1_list = []
+    p_z_ratio_list = []
+    for feature, p in samples:
+        feature = feature.cpu().numpy()
+        z = feature[1:3]
+        z0 = feature[1:2]
+        z1 = feature[2:3]
+        u = feature[3:]
+        p = p.cpu().numpy()
+        p0 = p[0:1]
+        p1 = p[1:2]
+        u_list += u.tolist()
+        z0_list += z0.tolist()
+        z1_list += z1.tolist()
+        p0_list += p0.tolist()
+        p1_list += p1.tolist()
+        p_z_ratio_list.append(np.linalg.norm(p) / np.linalg.norm(z))
+    bins = 100
+    alpha = 0.5
+
+    def draw_1d(t, title, file_name, xlabel='data', ylabel='density', xlim=None):
+        if xlim is None:
+            xlim = [-5, 5]
+        plt.hist(t, bins=bins, density=True, alpha=alpha)
+        plt.title(title)
+        plt.xlim(xlim)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.legend()
+        if img_save_path is not None:
+            plt.savefig(f'{img_save_path}/{file_name}')
+            plt.clf()
+        else:
+            plt.show()
+
+    draw_1d(p_z_ratio_list, r'$\frac{||P||_2}{||Z||_2}$', 'p_z.png')
+    draw_1d(u_list, 'U', 'u.png')
+    draw_1d(z0_list, '$Z_0$', 'z0.png')
+    draw_1d(z1_list, '$Z_1$', 'z1.png')
+    draw_1d(p0_list, '$P_0$', 'p0.png')
+    draw_1d(p1_list, '$P_1$', 'p1.png')
+
+
 def postprocess(samples, dataset_config: DatasetConfig):
     print('[DEBUG] postprocessing')
     new_samples = []
@@ -54,34 +102,35 @@ def prepare_datasets(samples, training_ratio: float, batch_size: int, device: st
     return training_dataloader, validating_dataloader
 
 
-def get_lr_scheduler(optimizer: torch.optim.Optimizer, train_config: TrainConfig):
+def get_lr_scheduler(optimizer: torch.optim.Optimizer, config):
+    assert isinstance(config, TrainConfig) or isinstance(config, DatasetConfig)
     """ Create a schedule with a learning rate that decreases linearly after
     linearly increasing during a warmup period.
     """
-    if train_config.lr_scheduler_type == 'linear_with_warmup':
-        num_warmup_steps = int(train_config.n_epoch * train_config.scheduler_ratio_warmup)
+    if config.lr_scheduler_type == 'linear_with_warmup':
+        num_warmup_steps = int(config.n_epoch * config.scheduler_ratio_warmup)
 
         def lr_lambda(current_step):
             if current_step < num_warmup_steps:
                 return float(current_step) / float(max(1, num_warmup_steps))
-            return max(0.0, float(train_config.n_epoch - current_step) / float(
-                max(1, train_config.n_epoch - num_warmup_steps)))
+            return max(0.0, float(config.n_epoch - current_step) / float(
+                max(1, config.n_epoch - num_warmup_steps)))
 
         return LambdaLR(optimizer, lr_lambda)
-    elif train_config.lr_scheduler_type == 'exponential':
-        return torch.optim.lr_scheduler.StepLR(optimizer, step_size=train_config.scheduler_step_size,
-                                               gamma=train_config.scheduler_gamma)
+    elif config.lr_scheduler_type == 'exponential':
+        return torch.optim.lr_scheduler.StepLR(optimizer, step_size=config.scheduler_step_size,
+                                               gamma=config.scheduler_gamma)
     else:
         raise NotImplementedError()
 
 
-def plot_sample(feature, label, dataset_config: DatasetConfig):
+def plot_sample(feature, label, dataset_config: DatasetConfig, name: str = '1.png'):
     if isinstance(feature, torch.Tensor):
         feature = feature.cpu().numpy()
     if isinstance(label, torch.Tensor):
         label = label.cpu().numpy()
-    print(f'[Feature Shape]: {feature.shape}')
-    print(f'[Label Shape]: {label.shape}')
+    # print(f'[Feature Shape]: {feature.shape}')
+    # print(f'[Label Shape]: {label.shape}')
     t = feature[:1]
     z = feature[1:3]
     u = feature[3:]
@@ -93,7 +142,11 @@ def plot_sample(feature, label, dataset_config: DatasetConfig):
     plt.scatter(ts[-1], p[0], label='$P_t(0)$')
     plt.scatter(ts[-1], p[1], label='$P_t(1)$')
     plt.legend()
-    plt.show()
+    # plt.show()
+    out_dir = f'{dataset_config.dataset_base_path}/sample'
+    check_dir(out_dir)
+    plt.savefig(f'{out_dir}/{name}')
+    plt.clf()
 
 
 def metric(preds, trues):

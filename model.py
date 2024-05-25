@@ -3,6 +3,14 @@ from typing import Callable
 import torch
 from neuralop.models import FNO1d
 from torch import nn
+from torch.nn import init
+
+
+def initialize_weights(m):
+    if isinstance(m, nn.Linear):
+        init.xavier_normal_(m.weight)
+        if m.bias is not None:
+            init.zeros_(m.bias)
 
 
 class SampleGenerationNet(torch.nn.Module):
@@ -10,9 +18,14 @@ class SampleGenerationNet(torch.nn.Module):
         super().__init__(*args, **kwargs)
         self.net = nn.Sequential(
             nn.Linear(2 * n_state, 4 * n_point_delay),
+            nn.Sigmoid(),
+            # nn.Linear(4 * n_point_delay, 8 * n_point_delay),
+            # nn.Sigmoid(),
             nn.Linear(4 * n_point_delay, 4 * n_point_delay),
+            nn.Sigmoid(),
             nn.Linear(4 * n_point_delay, n_point_delay)
         )
+        # self.apply(initialize_weights)
 
     def forward(self, x: torch.Tensor):
         return self.net(x)

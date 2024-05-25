@@ -81,10 +81,23 @@ class DatasetConfig:
     random_u_type: Optional[Literal['line', 'sin', 'exp', 'spline', 'poly', 'sinexp', 'chebyshev']] = field(
         default='spline')
 
+    generation_net_dataset_size: Optional[int] = field(default=1000)
     generation_net_batch_size: Optional[int] = field(default=64)
-    generation_net_lr: Optional[int] = field(default=1e-3)
-    generation_net_n_epoch: Optional[int] = field(default=5000)
+    generation_net_lr: Optional[float] = field(default=1e-3)
     generation_net_weight_decay: Optional[int] = field(default=0)
+
+    lamda: Optional[float] = field(default=1.)
+    regularization_type: Optional[str] = field(default='total variation')
+    generation_net_n_epoch: Optional[int] = field(default=5000)
+    scheduler_step_size: Optional[int] = field(default=1)
+    scheduler_gamma: Optional[float] = field(default=1.)
+    scheduler_min_lr: Optional[float] = field(default=0.)
+    scheduler_ratio_warmup: Optional[float] = field(default=0.1)
+    lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential']] = field(default='linear_with_warmup')
+
+    @property
+    def n_epoch(self):
+        return self.generation_net_n_epoch
 
     @property
     def system(self) -> dynamic_systems.DynamicSystem:
