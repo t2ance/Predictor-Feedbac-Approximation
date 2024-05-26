@@ -13,19 +13,83 @@ def initialize_weights(m):
             init.zeros_(m.bias)
 
 
-class SampleGenerationNet(torch.nn.Module):
+class ChebyshevNet(nn.Module):
+    def __init__(self, n_state: int, n_terms: int, points):
+        assert points.max().item() <= 1 and points.min().item() >= 0
+        super(ChebyshevNet, self).__init__()
+        self.net = nn.Sequential(
+            nn.Linear(2 * n_state, 8 * n_state),
+            nn.ReLU(),
+            nn.Linear(8 * n_state, 4 * n_state),
+            nn.ReLU(),
+            nn.Linear(4 * n_state, n_terms)
+        )
+        self.points = torch.tensor(points)  # ndarray of points where we want to evaluate the function
+        self.n_terms = n_terms
+
+    def forward(self, x):
+        coefficients = self.net(x)
+
+        # Define Chebyshev polynomial function
+        def chebyshev_polynomial(n, x):
+            return torch.cos(n * torch.acos(x)).to(dtype=coefficients.dtype)
+
+        # Generate all Chebyshev polynomials up to n_terms
+        n_values = torch.arange(self.n_terms, dtype=coefficients.dtype).unsqueeze(1)
+        T_n = chebyshev_polynomial(n_values, self.points.unsqueeze(0))
+
+        # Construct the Chebyshev series approximation using matrix multiplication
+        series = torch.matmul(coefficients, T_n)
+
+        return series
+
+
+class FourierNet(nn.Module):
+    def __init__(self, n_state: int, n_mode: int, points):
+        super(FourierNet, self).__init__()
+
+        self.net = nn.Sequential(
+            nn.Linear(2 * n_state, 8 * n_state),
+            nn.ReLU(),
+            nn.Linear(8 * n_state, 4 * n_state),
+            nn.ReLU(),
+            nn.Linear(4 * n_state, 2 * n_mode + 1)
+        )
+        self.points = torch.tensor(points)  # points where we want to evaluate the function
+
+    def forward(self, x):
+        coefficients = self.net(x)
+        # Construct the Fourier series approximation
+        n = (coefficients.shape[1] - 1) // 2
+        a0 = coefficients[:, 0] / 2.0
+
+        # Generate the cosine and sine terms for all harmonics
+        harmonics = torch.arange(1, n + 1, dtype=torch.float32).unsqueeze(0).unsqueeze(2)
+        points_expanded = self.points.unsqueeze(0).unsqueeze(0)
+
+        cos_terms = torch.cos(2 * torch.pi * harmonics * points_expanded)
+        sin_terms = torch.sin(2 * torch.pi * harmonics * points_expanded)
+
+        # Extract the cosine and sine coefficients
+        cos_coefficients = coefficients[:, 1::2].unsqueeze(2)
+        sin_coefficients = coefficients[:, 2::2].unsqueeze(2)
+
+        # Compute the series using broadcasting
+        series = a0.unsqueeze(1) + torch.sum(cos_coefficients * cos_terms + sin_coefficients * sin_terms, dim=1)
+
+        return series
+
+
+class FullyConnectedNet(torch.nn.Module):
     def __init__(self, n_state: int, n_point_delay: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.net = nn.Sequential(
             nn.Linear(2 * n_state, 4 * n_point_delay),
-            nn.Sigmoid(),
-            # nn.Linear(4 * n_point_delay, 8 * n_point_delay),
-            # nn.Sigmoid(),
+            nn.ReLU(),
             nn.Linear(4 * n_point_delay, 4 * n_point_delay),
-            nn.Sigmoid(),
+            nn.ReLU(),
             nn.Linear(4 * n_point_delay, n_point_delay)
         )
-        # self.apply(initialize_weights)
 
     def forward(self, x: torch.Tensor):
         return self.net(x)

@@ -65,10 +65,8 @@ class DatasetConfig:
     n_dataset: Optional[int] = field(default=200)
     recreate_training_dataset: Optional[bool] = field(default=True)
     recreate_testing_dataset: Optional[bool] = field(default=True)
-    training_dataset_file: Optional[str] = field(default='./datasets/train.pkl')
-    validating_dataset_file: Optional[str] = field(default='./datasets/validate.pkl')
-    testing_dataset_file: Optional[str] = field(default='./datasets/test.pkl')
-    dataset_base_path: Optional[str] = field(default='./datasets')
+    base_path: Optional[str] = field(default='./datasets')
+
     data_generation_strategy: Optional[Literal['trajectory', 'random', 'nn']] = field(default='trajectory')
     explicit: Optional[bool] = field(default=False)
     noise_sigma_numerical: Optional[float] = field(default=0.)
@@ -81,14 +79,20 @@ class DatasetConfig:
     random_u_type: Optional[Literal['line', 'sin', 'exp', 'spline', 'poly', 'sinexp', 'chebyshev']] = field(
         default='spline')
 
-    generation_net_dataset_size: Optional[int] = field(default=1000)
-    generation_net_batch_size: Optional[int] = field(default=64)
-    generation_net_lr: Optional[float] = field(default=1e-3)
-    generation_net_weight_decay: Optional[int] = field(default=0)
+    net_dataset_size: Optional[int] = field(default=1000)
+    net_batch_size: Optional[int] = field(default=64)
+    net_lr: Optional[float] = field(default=1e-3)
+    net_weight_decay: Optional[int] = field(default=0)
+    net_n_epoch: Optional[int] = field(default=5000)
+    net_type: Optional[Literal['fc', 'fourier', 'chebyshev']] = field(default='fc')
 
     lamda: Optional[float] = field(default=1.)
     regularization_type: Optional[str] = field(default='total variation')
-    generation_net_n_epoch: Optional[int] = field(default=5000)
+
+    fourier_n_mode: Optional[int] = field(default=4)
+
+    chebyshev_n_term: Optional[int] = field(default=4)
+
     scheduler_step_size: Optional[int] = field(default=1)
     scheduler_gamma: Optional[float] = field(default=1.)
     scheduler_min_lr: Optional[float] = field(default=0.)
@@ -96,8 +100,24 @@ class DatasetConfig:
     lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential']] = field(default='linear_with_warmup')
 
     @property
+    def dataset_base_path(self):
+        return f'{self.base_path}/{self.data_generation_strategy}'
+
+    @property
+    def training_dataset_file(self):
+        return f'{self.dataset_base_path}/train.pkl'
+
+    @property
+    def validating_dataset_file(self):
+        return f'{self.dataset_base_path}/validate.pkl'
+
+    @property
+    def testing_dataset_file(self):
+        return f'{self.dataset_base_path}/test.pkl'
+
+    @property
     def n_epoch(self):
-        return self.generation_net_n_epoch
+        return self.net_n_epoch
 
     @property
     def system(self) -> dynamic_systems.DynamicSystem:

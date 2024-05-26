@@ -17,10 +17,10 @@ from tqdm import tqdm
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ImplicitDataset, ExplictDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import solve_integral_equation, solve_integral_equation_, solve_integral_equation_neural_operator
-from model import FNOProjection, FNOTwoStage, PIFNO, SampleGenerationNet
+from model import FNOProjection, FNOTwoStage, PIFNO, FullyConnectedNet, FourierNet, ChebyshevNet
 from utils import count_params, get_time_str, set_size, pad_leading_zeros, plot_comparison, plot_difference, \
     metric, check_dir, plot_sample, no_predict_and_loss, get_lr_scheduler, prepare_datasets, postprocess, \
-    draw_distribution
+    draw_distribution, set_seed
 
 
 def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'numerical', 'no', 'numerical_no'] = None,
@@ -286,10 +286,10 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
                 testing_loss_t = testing_loss / len(testing_dataloader)
                 testing_loss_arr.append(testing_loss_t)
             lr = scheduler.get_last_lr()[-1]
-            desc = f'Epoch [{epoch + 1}/{n_epoch}] || Lr: {lr} || Training loss: {training_loss_t:.6f}'
+            desc = f'Epoch [{epoch + 1}/{n_epoch}] || Lr: {lr:6f} || Training loss: {training_loss_t:.6f}'
             wandb.log({
-                'training loss': training_loss_t,
-                'lr': lr
+                'train/loss': training_loss_t,
+                'train/lr': lr
             }, step=epoch)
             if do_validation:
                 desc += f' || Validation loss: {validating_loss_t:.6f}'
@@ -343,8 +343,9 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: boo
         delay = dataset_config.n_point_delay
         rl2, l2 = metric(P[delay:-delay], Z[2 * delay:])
 
-        if np.isinf(rl2):
-            print(f'[WARNING] Running with initial condition Z = {test_point} failed.')
+        if np.isinf(rl2) or np.isnan(rl2):
+            if not silence:
+                print(f'[WARNING] Running with initial condition Z = {test_point} failed.')
             continue
         metric_rl2_list.append(rl2)
         metric_l2_list.append(l2)
@@ -388,6 +389,7 @@ def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_co
 
     if create_dataset:
         print('Creating training dataset')
+        check_dir(dataset_config.dataset_base_path)
         if dataset_config.data_generation_strategy == 'trajectory':
             training_samples = create_trajectory_dataset(dataset_config)
         elif dataset_config.data_generation_strategy == 'random':
@@ -557,9 +559,31 @@ def create_nn_dataset(dataset_config: DatasetConfig):
     n_sample_per_dataset: int = dataset_config.n_sample_per_dataset
     n_state: int = dataset_config.n_state
     n_sample = dataset_config.n_dataset * n_sample_per_dataset
-    model = SampleGenerationNet(dataset_config.n_state, dataset_config.n_point_delay)
-    batch_size = dataset_config.generation_net_batch_size
-    n_epoch = dataset_config.generation_net_n_epoch
+    print(f'Generating dataset using [{dataset_config.net_type}] network')
+    if dataset_config.net_type == 'fc':
+        model = FullyConnectedNet(dataset_config.n_state, dataset_config.n_point_delay)
+    elif dataset_config.net_type == 'fourier':
+        model = FourierNet(dataset_config.n_state, dataset_config.fourier_n_mode,
+                           np.linspace(0, dataset_config.delay, dataset_config.n_point_delay))
+    elif dataset_config.net_type == 'chebyshev':
+        model = ChebyshevNet(dataset_config.n_state, dataset_config.chebyshev_n_term,
+                             np.linspace(0, 1, dataset_config.n_point_delay))
+    else:
+        raise NotImplementedError()
+    batch_size = dataset_config.net_batch_size
+    n_epoch = dataset_config.net_n_epoch
+
+    class RandomDataset(Dataset):
+        def __init__(self):
+            self.num_samples = dataset_config.net_dataset_size
+            self.data = get_random_z_p(dataset_config.net_dataset_size)
+
+        def __len__(self):
+            return self.num_samples
+
+        def __getitem__(self, idx):
+            inputs, z, p = self.data
+            return inputs[idx], z[idx], p[idx]
 
     def torch_uniform(shape, a, b):
         rand_tensor = torch.rand(shape)
@@ -567,13 +591,15 @@ def create_nn_dataset(dataset_config: DatasetConfig):
         return transformed_tensor
 
     def get_random_z_p(batch_size):
-        z = torch_uniform(shape=(batch_size, 2), a=dataset_config.ic_lower_bound, b=dataset_config.ic_upper_bound)
-        p = torch_uniform(shape=(batch_size, 2), a=dataset_config.ic_lower_bound, b=dataset_config.ic_upper_bound)
-        p_norm = p.norm(dim=1)
-        z_norm = z.norm(dim=1)
-        scaling = z_norm / p_norm * torch.rand(batch_size) * dataset_config.ood_sample_bound
-        scaling = p * scaling.unsqueeze(-1)
-        # scaling = abs(z) / abs(p) * torch.rand(batch_size).unsqueeze(-1) * dataset_config.ood_sample_bound
+        # z = torch_uniform(shape=(batch_size, 2), a=dataset_config.ic_lower_bound, b=dataset_config.ic_upper_bound)
+        # p = torch_uniform(shape=(batch_size, 2), a=dataset_config.ic_lower_bound, b=dataset_config.ic_upper_bound)
+        z = torch.randn(size=(batch_size, 2))
+        p = torch.randn(size=(batch_size, 2))
+        # p_norm = p.norm(dim=1)
+        # z_norm = z.norm(dim=1)
+        # scaling = z_norm / p_norm * torch.rand(batch_size) * dataset_config.ood_sample_bound
+        # scaling = p * scaling.unsqueeze(-1)
+        scaling = abs(z) / abs(p) * torch.rand(batch_size).unsqueeze(-1) * dataset_config.ood_sample_bound
         return torch.hstack([z, p]), z, p * scaling
 
     def solve_integral_equation_batched(n_sample, u, z):
@@ -587,62 +613,71 @@ def create_nn_dataset(dataset_config: DatasetConfig):
         p_generated = dataset_config.system.dynamic_tensor_batched2(P_D.permute(0, 2, 1), None, u).sum(dim=-1) * dt + z
         return p_generated
 
-    class RandomDataset(Dataset):
-        def __init__(self):
-            self.num_samples = dataset_config.generation_net_dataset_size
-            self.data = get_random_z_p(dataset_config.generation_net_dataset_size)
-
-        def __len__(self):
-            return self.num_samples
-
-        def __getitem__(self, idx):
-            inputs, z, p = self.data
-            return inputs[idx], z[idx], p[idx]
-
     def regularization(u):
         regularization_type = dataset_config.regularization_type
         if regularization_type is None:
             return 0
         if regularization_type == 'total variation':
             return torch.abs(u[:, 1:] - u[:, :-1]).mean()
+        elif regularization_type == 'dirichlet energy':
+            diff_f = u[1:] - u[:-1]
+            gradients = diff_f / dataset_config.dt
+            return (gradients ** 2).sum()
+            # return gradients.norm()
         else:
             raise NotImplementedError()
 
     dataloader = DataLoader(RandomDataset(), batch_size=batch_size, shuffle=False)
     bar = tqdm(range(n_epoch))
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=dataset_config.generation_net_lr,
-                                  weight_decay=dataset_config.generation_net_weight_decay)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=dataset_config.net_lr,
+                                  weight_decay=dataset_config.net_weight_decay)
     scheduler = get_lr_scheduler(optimizer, dataset_config)
     model.train()
-    training_loss_list = []
+    training_total_loss_list = []
+    training_smooth_loss_list = []
+    training_ie_loss_list = []
     for epoch in bar:
-        training_loss_list_in = []
+        smooth_loss_list = []
+        ie_loss_list = []
+        total_loss_list = []
         for inputs, z, p in dataloader:
             u = model(inputs)
-            p_generated = solve_integral_equation_batched(len(inputs), u, z)
-            ie_loss = (p - p_generated).norm(dim=1).mean()
+            p_true = solve_integral_equation_batched(len(inputs), u, z)
+            ie_loss = (p - p_true).norm(dim=1).mean()
 
             smooth_loss = regularization(u)
             loss = ie_loss + dataset_config.lamda * smooth_loss
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            training_loss_list_in.append(loss.item())
+            smooth_loss_list.append(smooth_loss.item())
+            ie_loss_list.append(ie_loss.item())
+            total_loss_list.append(loss.item())
 
-        loss_epoch = sum(training_loss_list_in) / len(training_loss_list_in)
-        training_loss_list.append(loss_epoch)
+        total_loss_avg = sum(total_loss_list) / len(total_loss_list)
+        smooth_loss_avg = sum(smooth_loss_list) / len(smooth_loss_list)
+        ie_loss_avg = sum(ie_loss_list) / len(ie_loss_list)
+        training_total_loss_list.append(total_loss_avg)
+        training_smooth_loss_list.append(smooth_loss_avg)
+        training_ie_loss_list.append(ie_loss_avg)
         scheduler.step()
         lr = scheduler.get_last_lr()[-1]
-        bar.set_description(f'Epoch [{epoch + 1}/{n_epoch}] || Avg loss {loss_epoch:.6f} || Lr {lr:.6f}')
+        bar.set_description(f'Epoch [{epoch + 1}/{n_epoch}] || Total loss {total_loss_avg:.6f} '
+                            f'|| Smooth loss {smooth_loss_avg:.6f} || IE loss {ie_loss_avg:.6f} || Lr {lr:.6f}')
         wandb.log({
-            "generation/loss": loss_epoch,
+            "generation/total loss": total_loss_avg,
+            "generation/integral equation loss": ie_loss_avg,
+            "generation/smoothness loss": smooth_loss_avg,
             "generation/lr": lr
         }, step=epoch)
 
     plt.title('training loss')
-    plt.plot(training_loss_list)
-    plt.yscale("log")
+    plt.plot(training_total_loss_list, label='Total loss')
+    plt.plot(training_ie_loss_list, label='Integral equation loss')
+    plt.plot(training_smooth_loss_list, label='Smoothness loss')
+    plt.legend()
+    plt.yscale('log')
     plt.xlabel('epoch')
     plt.savefig(f'{dataset_config.dataset_base_path}/loss.png')
     plt.clf()
@@ -652,17 +687,27 @@ def create_nn_dataset(dataset_config: DatasetConfig):
         create_dataset_begin = time.time()
         inputs, z, p = get_random_z_p(n_sample)
         u = model(inputs)
-        p_generated = solve_integral_equation_batched(n_sample, u, z)
-        loss = (p - p_generated).norm(dim=1).mean()
+        p_true = solve_integral_equation_batched(n_sample, u, z)
+        loss = (p - p_true).norm(dim=1).mean()
         print(f'L2 error in generated dataset: {loss}')
-        torch.hstack([torch.zeros_like(z)[:, 0:1], z, u])
-        # all_samples = list(zip(torch.hstack([torch.zeros_like(z)[:, 0:1], z, u]), p))
-        all_samples = list(zip(torch.hstack([torch.zeros_like(z)[:, 0:1], z, u]), p_generated))
+        # all_samples = list(zip(torch.hstack([torch.zeros_like(z)[:, 0:1], z, u]).cpu(), p.cpu()))
+        all_samples = list(zip(torch.hstack([torch.zeros_like(z)[:, 0:1], z, u]).cpu(), p_true.cpu()))
         create_dataset_end = time.time()
         print(f'{create_dataset_end - create_dataset_begin} seconds used for creating dataset.')
-
+    # retain_samples = []
+    # for sample in all_samples:
+    #     feature, p = sample
+    #     feature = feature.cpu().numpy()
+    #     z = feature[1:3]
+    #     p = p.cpu().numpy()
+    #     ratio = np.linalg.norm(p) / np.linalg.norm(z)
+    #     if ratio <= dataset_config.ood_sample_bound:
+    #         retain_samples.append(sample)
+    # print(f'Generated {len(all_samples)} samples, {len(retain_samples)} retained')
     random.shuffle(all_samples)
     return all_samples
+    # random.shuffle(retain_samples)
+    # return retain_samples
 
 
 def main_(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
@@ -681,37 +726,43 @@ def main_(dataset_config: DatasetConfig, model_config: ModelConfig, train_config
 
 
 def main(sweep: bool = False):
+    set_seed(0)
     # setup_plt()
     dataset_config = DatasetConfig(
         recreate_training_dataset=True,
         recreate_testing_dataset=False,
         data_generation_strategy='nn',
         # data_generation_strategy='random',
-        # dt=0.125,
-        dt=0.05,
+        dt=0.125,
+        # dt=0.05,
         n_dataset=1,
-        n_sample_per_dataset=2000,
+        n_sample_per_dataset=5000,
         append_training_dataset=False,
-        n_plot_sample=10,
+        n_plot_sample=20,
         filter_ood_sample=True,
-        ood_sample_bound=0.2,
-        generation_net_lr=1e-3,
-        generation_net_n_epoch=100,
-        generation_net_dataset_size=5000
+        ood_sample_bound=0.1,
+        net_lr=1e-3,
+        net_n_epoch=250,
+        net_dataset_size=2000,
+        net_type='chebyshev',
+        fourier_n_mode=4,
+        chebyshev_n_term=4,
+        lamda=.0,
+        regularization_type='total variation'
     )
     model_config = ModelConfig(
         model_name='FNO',
         # model_name='FNOTwoStage',
         # model_name='PIFNO',
-        fno_n_layers=5,
-        fno_n_modes_height=16,
-        fno_hidden_channels=64
+        fno_n_layers=1,
+        fno_n_modes_height=32,
+        fno_hidden_channels=16
     )
     train_config = TrainConfig(
-        learning_rate=1e-4,
+        learning_rate=0.1,
         n_epoch=500,
         batch_size=64,
-        weight_decay=1e-4,
+        weight_decay=1e-2,
         log_step=-1,
         training_ratio=1.,
         load_model=False
@@ -720,25 +771,25 @@ def main(sweep: bool = False):
     if sweep:
         sweep_config = {
             'name': get_time_str(),
-            'method': 'random',
+            'method': 'bayes',
             'metric': {
                 'name': 'metric',
                 'goal': 'minimize'
             },
             'parameters': {
                 'fno_n_layers': {
-                    'values': list(range(5, 10))
+                    'values': list(range(1, 5))
                 },
                 'fno_n_modes_height': {
-                    'values': [16, 32, 64]
+                    'values': [8, 16, 32, 64]
                 },
                 'fno_hidden_channels': {
-                    'values': [16, 32, 64]
+                    'values': [8, 16, 32, 64]
                 },
                 'learning_rate': {
                     'distribution': 'log_uniform_values',
-                    'min': 1e-5,
-                    'max': 1e-4
+                    'min': 1e-4,
+                    'max': 1e-2
                 }
             }
         }
@@ -753,7 +804,7 @@ def main(sweep: bool = False):
                 model_config.fno_n_modes_height = config.fno_n_modes_height
                 metric_rd, metric_mse, n_success = main_(dataset_config, model_config, train_config)
                 wandb.log({
-                    "metric": metric_mse
+                    "metric": np.nan if n_success != len(dataset_config.test_points) and metric_mse < 5 else metric_mse
                 })
 
         wandb.agent(sweep_id, sweep_main)
@@ -770,7 +821,7 @@ def main(sweep: bool = False):
         metric_rd, metric_mse, n_success = main_(dataset_config, model_config, train_config)
         print(f'Relative L2 error: {metric_rd}')
         print(f'L2 error: {metric_mse}')
-        print(f'#finished cases: {n_success}')
+        print(f'Successful cases: [{n_success}/{len(dataset_config.test_points)}]')
 
 
 if __name__ == '__main__':

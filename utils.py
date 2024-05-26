@@ -56,7 +56,7 @@ def draw_distribution(samples, img_save_path: str = None):
         else:
             plt.show()
 
-    draw_1d(p_z_ratio_list, r'$\frac{||P||_2}{||Z||_2}$', 'p_z.png')
+    draw_1d(p_z_ratio_list, r'$\frac{||P||_2}{||Z||_2}$', 'p_z.png', xlim=[-1, 1])
     draw_1d(u_list, 'U', 'u.png')
     draw_1d(z0_list, '$Z_0$', 'z0.png')
     draw_1d(z1_list, '$Z_1$', 'z1.png')
@@ -175,11 +175,14 @@ def no_predict_and_loss(inputs, labels, model):
 def plot_comparison(ts, P_hat, P, Z, delay, n_point_delay, save_path, ylim=None):
     fig = plt.figure(figsize=set_size())
     plt.title('Comparison')
+    colors = ['red', 'green', 'blue']
     for t_i in range(2):
         if P is not None:
-            plt.plot(ts[n_point_delay:], P[:-n_point_delay, t_i], label=f'$P_{t_i + 1}(t-{delay})$')
-        plt.plot(ts[n_point_delay:], P_hat[:-n_point_delay, t_i], label=f'$\hat P_{t_i + 1}(t-{delay})$')
-        plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$')
+            plt.plot(ts[n_point_delay:], P[:-n_point_delay, t_i], label=f'$P_{t_i + 1}(t-{delay})$', linestyle=':',
+                     color=colors[t_i])
+        plt.plot(ts[n_point_delay:], P_hat[:-n_point_delay, t_i], label=f'$\hat P_{t_i + 1}(t-{delay})$',
+                 linestyle='--', color=colors[t_i])
+        plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$', color=colors[t_i])
     plt.xlabel('t')
     if ylim is not None:
         plt.ylim(ylim)
@@ -297,6 +300,23 @@ def pad_leading_zeros(segment, length):
             segment = torch.concatenate((padding, segment))
 
     return segment
+
+
+def set_seed(seed: int):
+    """
+    Helper function for reproducible behavior to set the seed in `random`, `numpy`, `torch` and/or `tf` (if installed).
+
+    Args:
+        seed (`int`):
+            The seed to set.
+        deterministic (`bool`, *optional*, defaults to `False`):
+            Whether to use deterministic algorithms where available. Can slow down training.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 
 if __name__ == '__main__':
