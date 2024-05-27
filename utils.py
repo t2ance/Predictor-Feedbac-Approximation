@@ -60,8 +60,8 @@ def draw_distribution(samples, img_save_path: str = None):
     draw_1d(u_list, 'U', 'u.png')
     draw_1d(z0_list, '$Z_0$', 'z0.png')
     draw_1d(z1_list, '$Z_1$', 'z1.png')
-    draw_1d(p0_list, '$P_0$', 'p0.png')
-    draw_1d(p1_list, '$P_1$', 'p1.png')
+    draw_1d(p0_list, '$P_0$', 'p0.png', xlim=[-1, 1])
+    draw_1d(p1_list, '$P_1$', 'p1.png', xlim=[-1, 1])
 
 
 def postprocess(samples, dataset_config: DatasetConfig):

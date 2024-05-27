@@ -17,7 +17,7 @@ from tqdm import tqdm
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ImplicitDataset, ExplictDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import solve_integral_equation, solve_integral_equation_, solve_integral_equation_neural_operator
-from model import FNOProjection, FNOTwoStage, PIFNO, FullyConnectedNet, FourierNet, ChebyshevNet
+from model import FNOProjection, FNOTwoStage, PIFNO, FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
 from utils import count_params, get_time_str, set_size, pad_leading_zeros, plot_comparison, plot_difference, \
     metric, check_dir, plot_sample, no_predict_and_loss, get_lr_scheduler, prepare_datasets, postprocess, \
     draw_distribution, set_seed
@@ -568,6 +568,9 @@ def create_nn_dataset(dataset_config: DatasetConfig):
     elif dataset_config.net_type == 'chebyshev':
         model = ChebyshevNet(dataset_config.n_state, dataset_config.chebyshev_n_term,
                              np.linspace(0, 1, dataset_config.n_point_delay))
+    elif dataset_config.net_type == 'bspline':
+        model = BSplineNet(dataset_config.n_state, dataset_config.bspline_n_knot, dataset_config.bspline_degree,
+                           np.linspace(0, dataset_config.delay, dataset_config.n_point_delay))
     else:
         raise NotImplementedError()
     batch_size = dataset_config.net_batch_size
@@ -742,11 +745,13 @@ def main(sweep: bool = False):
         filter_ood_sample=True,
         ood_sample_bound=0.1,
         net_lr=1e-3,
-        net_n_epoch=250,
-        net_dataset_size=2000,
-        net_type='chebyshev',
+        net_n_epoch=200,
+        net_dataset_size=2500,
+        net_type='bspline',
         fourier_n_mode=4,
         chebyshev_n_term=4,
+        bspline_degree=1,
+        bspline_n_knot=6,
         lamda=.0,
         regularization_type='total variation'
     )
@@ -763,7 +768,7 @@ def main(sweep: bool = False):
         n_epoch=500,
         batch_size=64,
         weight_decay=1e-2,
-        log_step=-1,
+        log_step=50,
         training_ratio=1.,
         load_model=False
     )
@@ -804,7 +809,8 @@ def main(sweep: bool = False):
                 model_config.fno_n_modes_height = config.fno_n_modes_height
                 metric_rd, metric_mse, n_success = main_(dataset_config, model_config, train_config)
                 wandb.log({
-                    "metric": np.nan if n_success != len(dataset_config.test_points) and metric_mse < 5 else metric_mse
+                    "metric": np.nan if n_success != len(dataset_config.test_points) or metric_mse > 5 else metric_mse,
+                    "n_success": n_success
                 })
 
         wandb.agent(sweep_id, sweep_main)

@@ -84,7 +84,7 @@ class DatasetConfig:
     net_lr: Optional[float] = field(default=1e-3)
     net_weight_decay: Optional[int] = field(default=0)
     net_n_epoch: Optional[int] = field(default=5000)
-    net_type: Optional[Literal['fc', 'fourier', 'chebyshev']] = field(default='fc')
+    net_type: Optional[Literal['fc', 'fourier', 'chebyshev', 'bspline']] = field(default='fc')
 
     lamda: Optional[float] = field(default=1.)
     regularization_type: Optional[str] = field(default='total variation')
@@ -92,6 +92,8 @@ class DatasetConfig:
     fourier_n_mode: Optional[int] = field(default=4)
 
     chebyshev_n_term: Optional[int] = field(default=4)
+    bspline_n_knot: Optional[int] = field(default=2)
+    bspline_degree: Optional[int] = field(default=2)
 
     scheduler_step_size: Optional[int] = field(default=1)
     scheduler_gamma: Optional[float] = field(default=1.)
@@ -101,7 +103,11 @@ class DatasetConfig:
 
     @property
     def dataset_base_path(self):
-        return f'{self.base_path}/{self.data_generation_strategy}'
+        base_path = f'{self.base_path}/{self.data_generation_strategy}'
+        if self.data_generation_strategy == 'nn':
+            return f'{base_path}/{self.net_type}'
+        else:
+            return base_path
 
     @property
     def training_dataset_file(self):

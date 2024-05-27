@@ -4,6 +4,7 @@ import torch
 from neuralop.models import FNO1d
 from torch import nn
 from torch.nn import init
+from scipy.interpolate import BSpline
 
 
 def initialize_weights(m):
@@ -11,6 +12,40 @@ def initialize_weights(m):
         init.xavier_normal_(m.weight)
         if m.bias is not None:
             init.zeros_(m.bias)
+
+
+# 定义神经网络
+class BSplineNet(nn.Module):
+    def __init__(self, n_state: int, n_knot: int, degree: int, points):
+        super(BSplineNet, self).__init__()
+        self.points = torch.tensor(points)  # points where we want to evaluate the function
+        self.n_knot = n_knot
+        self.degree = degree
+        self.net = nn.Sequential(
+            nn.Linear(2 * n_state, 8 * n_state),
+            nn.ReLU(),
+            nn.Linear(8 * n_state, 4 * n_state),
+            nn.ReLU(),
+            nn.Linear(4 * n_state, n_knot)
+        )
+        self.knots = torch.linspace(points.min(), points.max(), n_knot + degree + 1)
+
+    def forward(self, x):
+        coefficients = self.net(x)
+
+        def b_spline_basis(x, degree, i, knots):
+            if degree == 0:
+                return ((knots[i] <= x) & (x < knots[i + 1])).float()
+            else:
+                left = ((x - knots[i]) / (knots[i + degree] - knots[i])) * b_spline_basis(x, degree - 1, i, knots)
+                right = ((knots[i + degree + 1] - x) / (knots[i + degree + 1] - knots[i + 1])) \
+                        * b_spline_basis(x, degree - 1, i + 1, knots)
+                return left + right
+
+        basis = torch.stack([b_spline_basis(self.points, self.degree, i, self.knots) for i in range(self.n_knot)],
+                            dim=0).to(dtype=coefficients.dtype)
+        series = torch.matmul(coefficients, basis)
+        return series
 
 
 class ChebyshevNet(nn.Module):
