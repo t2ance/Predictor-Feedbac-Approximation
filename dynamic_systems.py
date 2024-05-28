@@ -1,14 +1,51 @@
+from abc import abstractmethod
+
 import numpy as np
 import torch
 from deepxde.nn.pytorch import DeepONet
 
 
 class DynamicSystem:
+    @abstractmethod
+    def name(self):
+        ...
+
+    @property
+    def n_state(self):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def dynamic(self, Z_t, t, U_delay):
+        ...
+
+    @abstractmethod
+    def kappa(self, Z_t):
+        ...
+
+    @abstractmethod
+    def dynamic_tensor_batched1(self, Z_t, t, U_delay):
+        ...
+
+    @abstractmethod
+    def dynamic_tensor_batched2(self, Z_t, t, U_delay):
+        ...
+
+
+class DynamicSystem1(DynamicSystem):
     '''
     The dynamic system with constant c & n
     '''
 
+    @property
+    def name(self):
+        return 's1'
+
+    @property
+    def n_state(self):
+        return 2
+
     def __init__(self, c, n, delay):
+        super().__init__()
         self.c = c
         self.n = n
         self.delay = delay
@@ -71,6 +108,58 @@ class DynamicSystem:
 
         Z2 = np.exp(self.delay - t) * ((self.delay - t) * middle_term + (1 - t + self.delay) * z2_D)
         return Z1, Z2
+
+
+class DynamicSystem2(DynamicSystem):
+    @property
+    def name(self):
+        return 's2'
+
+    @property
+    def n_state(self):
+        return 3
+
+    def __init__(self, delay):
+        super().__init__()
+        self.delay = delay
+
+    def dynamic(self, Z_t, t, U_delay):
+        Z1_t = Z_t[0]
+        Z2_t = Z_t[1]
+        Z3_t = Z_t[2]
+        Z1_t_dot = Z2_t + Z3_t ** 2
+        Z2_t_dot = Z3_t + Z3_t * U_delay
+        Z3_t_dot = U_delay
+        return np.array([Z1_t_dot, Z2_t_dot, Z3_t_dot])
+
+    def dynamic_tensor_batched1(self, Z_t, t, U_delay):
+        Z1_t = Z_t[:, 0]
+        Z2_t = Z_t[:, 1]
+        Z3_t = Z_t[:, 2]
+        Z1_t_dot = Z2_t + Z3_t ** 2
+        Z2_t_dot = Z3_t + Z3_t * U_delay
+        Z3_t_dot = U_delay
+        return torch.stack([Z1_t_dot, Z2_t_dot, Z3_t_dot], dim=1)
+
+    def dynamic_tensor_batched2(self, Z_t, t, U_delay):
+        Z1_t = Z_t[:, :, 0]
+        Z2_t = Z_t[:, :, 1]
+        Z3_t = Z_t[:, :, 2]
+        Z1_t_dot = Z2_t + Z3_t ** 2
+        Z2_t_dot = Z3_t + Z3_t * U_delay
+        Z3_t_dot = U_delay
+        return torch.stack([Z1_t_dot, Z2_t_dot, Z3_t_dot], dim=1)
+
+    def kappa(self, Z_t):
+        P1 = Z_t[0]
+        P2 = Z_t[1]
+        P3 = Z_t[2]
+        return (
+                -P1 - 3 * P2 - 3 * P3 - 3 / 8 * P2 ** 2
+                + 3 / 4 * P3 * (-P1 - 2 * P2 + 1 / 2 * P3
+                                + P2 * P3 / 2 + 5 / 8 * P3 ** 2 - 1 / 4 * P3 ** 3
+                                - 3 / 8 * (P2 - P3 ** 2 / 2) ** 2)
+        )
 
 
 def solve_integral_equation_neural_operator(model, U_D, Z_t, t):

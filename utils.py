@@ -16,27 +16,19 @@ from dataset import PredictionDataset
 from dynamic_systems import solve_integral_equation
 
 
-def draw_distribution(samples, img_save_path: str = None):
+def draw_distribution(samples, n_state: int, img_save_path: str = None):
     u_list = []
-    z0_list = []
-    z1_list = []
-    p0_list = []
-    p1_list = []
+    z_list = []
+    p_list = []
     p_z_ratio_list = []
     for feature, p in samples:
         feature = feature.cpu().numpy()
-        z = feature[1:3]
-        z0 = feature[1:2]
-        z1 = feature[2:3]
-        u = feature[3:]
+        z = feature[1:1 + n_state]
+        u = feature[1 + n_state:]
         p = p.cpu().numpy()
-        p0 = p[0:1]
-        p1 = p[1:2]
         u_list += u.tolist()
-        z0_list += z0.tolist()
-        z1_list += z1.tolist()
-        p0_list += p0.tolist()
-        p1_list += p1.tolist()
+        z_list.append(z)
+        p_list.append(p)
         p_z_ratio_list.append(np.linalg.norm(p) / np.linalg.norm(z))
     bins = 100
     alpha = 0.5
@@ -58,10 +50,11 @@ def draw_distribution(samples, img_save_path: str = None):
 
     draw_1d(p_z_ratio_list, r'$\frac{||P||_2}{||Z||_2}$', 'p_z.png', xlim=[-1, 1])
     draw_1d(u_list, 'U', 'u.png')
-    draw_1d(z0_list, '$Z_0$', 'z0.png')
-    draw_1d(z1_list, '$Z_1$', 'z1.png')
-    draw_1d(p0_list, '$P_0$', 'p0.png', xlim=[-1, 1])
-    draw_1d(p1_list, '$P_1$', 'p1.png', xlim=[-1, 1])
+    zs = np.array(z_list)
+    ps = np.array(p_list)
+    for i in range(n_state):
+        draw_1d(zs[:, i], f'$Z_{i}$', f'z{i}.png')
+        draw_1d(ps[:, i], f'$P_{i}$', f'p{i}.png', xlim=[-1, 1])
 
 
 def postprocess(samples, dataset_config: DatasetConfig):
@@ -74,7 +67,7 @@ def postprocess(samples, dataset_config: DatasetConfig):
         z = feature[1:3]
         u = feature[3:]
         p = sample[1].cpu().numpy()
-        p = solve_integral_equation(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=2,
+        p = solve_integral_equation(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=dataset_config.system.n_state,
                                     n_point_delay=dataset_config.n_point_delay, dynamic=dataset_config.system.dynamic)
         new_samples.append((torch.from_numpy(np.concatenate([t, z, u])), torch.tensor(p)))
     print(f'[WARNING] {len(new_samples)} samples replaced by numerical solutions')
@@ -131,18 +124,18 @@ def plot_sample(feature, label, dataset_config: DatasetConfig, name: str = '1.pn
         label = label.cpu().numpy()
     # print(f'[Feature Shape]: {feature.shape}')
     # print(f'[Label Shape]: {label.shape}')
+    n_state = dataset_config.system.n_state
     t = feature[:1]
-    z = feature[1:3]
-    u = feature[3:]
+    z = feature[1:1 + n_state]
+    u = feature[1 + n_state:]
     p = label
     ts = np.linspace(t - dataset_config.delay, t, dataset_config.n_point_delay)
     plt.plot(ts, u, label='U')
-    plt.scatter(ts[-1], z[0], label='$Z_t(0)$')
-    plt.scatter(ts[-1], z[1], label='$Z_t(1)$')
-    plt.scatter(ts[-1], p[0], label='$P_t(0)$')
-    plt.scatter(ts[-1], p[1], label='$P_t(1)$')
+    for i in range(n_state):
+        plt.scatter(ts[-1], z[i], label=f'$Z_t({i})$')
+        plt.scatter(ts[-1], p[i], label=f'$P_t({i})$')
+        ...
     plt.legend()
-    # plt.show()
     out_dir = f'{dataset_config.dataset_base_path}/sample'
     check_dir(out_dir)
     plt.savefig(f'{out_dir}/{name}')
@@ -172,11 +165,11 @@ def no_predict_and_loss(inputs, labels, model):
         return outputs, torch.nn.MSELoss()(outputs, labels)
 
 
-def plot_comparison(ts, P_hat, P, Z, delay, n_point_delay, save_path, ylim=None):
+def plot_comparison(ts, P_hat, P, Z, delay, n_point_delay, save_path, n_state: int, ylim=None):
     fig = plt.figure(figsize=set_size())
     plt.title('Comparison')
-    colors = ['red', 'green', 'blue']
-    for t_i in range(2):
+    colors = ['red', 'green', 'blue', 'yellow', 'black']
+    for t_i in range(n_state):
         if P is not None:
             plt.plot(ts[n_point_delay:], P[:-n_point_delay, t_i], label=f'$P_{t_i + 1}(t-{delay})$', linestyle=':',
                      color=colors[t_i])
@@ -195,15 +188,15 @@ def plot_comparison(ts, P_hat, P, Z, delay, n_point_delay, save_path, ylim=None)
         plt.show()
 
 
-def plot_difference(ts, P_hat, P, Z, n_point_delay, save_path, ylim=None):
+def plot_difference(ts, P_hat, P, Z, n_point_delay, save_path, n_state: int, ylim=None):
     fig = plt.figure(figsize=set_size())
     difference = P_hat[:-n_point_delay] - Z[n_point_delay:]
-    plt.plot(ts[n_point_delay:], difference[:, 0], label='$\hat P_1 - Z_1$')
-    plt.plot(ts[n_point_delay:], difference[:, 1], label='$\hat P_2 - Z_2$')
+    for i in range(n_state):
+        plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\hat P_{i + 1} - Z_{i + 1}$')
     if P is not None:
         difference_no = P[:-n_point_delay] - Z[n_point_delay:]
-        plt.plot(ts[n_point_delay:], difference_no[:, 0], label='$\delta PNO_1$')
-        plt.plot(ts[n_point_delay:], difference_no[:, 1], label='$\delta PNO_2$')
+        for i in range(n_state):
+            plt.plot(ts[n_point_delay:], difference_no[:, i], label=f'$\delta PNO_{i + 1}$')
     plt.xlabel('t')
     if ylim is not None:
         plt.ylim(ylim)

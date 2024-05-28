@@ -32,9 +32,9 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'nu
     dt = dataset_config.dt
     n_point = dataset_config.n_point
     U = np.zeros(n_point)
-    Z = np.zeros((n_point, 2))
-    P = np.zeros((n_point, 2))
-    P_compare = np.zeros((n_point, 2))
+    Z = np.zeros((n_point, system.n_state))
+    P = np.zeros((n_point, system.n_state))
+    P_compare = np.zeros((n_point, system.n_state))
     Z[n_point_delay, :] = Z0
     for t_i in range(dataset_config.n_point):
         t_minus_D_i = max(t_i - n_point_delay, 0)
@@ -149,14 +149,18 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'nu
         if method != 'numerical_no' or model != 'numerical':
             P_compare = None
         plot_comparison(ts, P, P_compare, Z, delay, n_point_delay,
-                        f'{img_save_path}/comparison_full.png' if img_save_path is not None else None)
+                        f'{img_save_path}/comparison_full.png' if img_save_path is not None else None,
+                        dataset_config.n_state)
         plot_comparison(ts, P, P_compare, Z, delay, n_point_delay,
-                        f'{img_save_path}/comparison_zoom.png' if img_save_path is not None else None, [-5, 5])
+                        f'{img_save_path}/comparison_zoom.png' if img_save_path is not None else None,
+                        dataset_config.n_state, [-5, 5])
 
         plot_difference(ts, P, P_compare, Z, n_point_delay,
-                        f'{img_save_path}/difference_full.png' if img_save_path is not None else None)
+                        f'{img_save_path}/difference_full.png' if img_save_path is not None else None,
+                        dataset_config.n_state)
         plot_difference(ts, P, P_compare, Z, n_point_delay,
-                        f'{img_save_path}/difference_zoom.png' if img_save_path is not None else None, [-1, 1])
+                        f'{img_save_path}/difference_zoom.png' if img_save_path is not None else None,
+                        dataset_config.n_state, [-1, 1])
 
     if method == 'explict':
         return U, Z, None
@@ -419,7 +423,7 @@ def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_co
         training_samples = postprocess(training_samples, dataset_config)
     for i, (feature, label) in enumerate(training_samples[:dataset_config.n_plot_sample]):
         plot_sample(feature, label, dataset_config, f'{str(i)}.png')
-    draw_distribution(training_samples, dataset_config.dataset_base_path)
+    draw_distribution(training_samples, dataset_config.n_state, dataset_config.dataset_base_path)
     training_dataloader, validating_dataloader = prepare_datasets(
         training_samples, train_config.training_ratio, train_config.batch_size, train_config.device)
     print(f'#Training sample: {int(len(training_samples) * train_config.training_ratio)}')
@@ -451,7 +455,7 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, test_points: List =
     if test_points is None:
         bar = tqdm(list(
             np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
-                              (dataset_config.n_dataset, 2))))
+                              (dataset_config.n_dataset, dataset_config.n_state))))
     else:
         bar = tqdm(test_points)
     for Z0 in bar:
@@ -736,14 +740,15 @@ def main(sweep: bool = True):
     set_seed(0)
     # setup_plt()
     dataset_config = DatasetConfig(
-        recreate_training_dataset=False,
-        data_generation_strategy='nn',
+        dynamic_system='s2',
+        recreate_training_dataset=True,
+        # data_generation_strategy='nn',
         # data_generation_strategy='random',
-        # data_generation_strategy='trajectory',
+        data_generation_strategy='trajectory',
         dt=0.125,
         # dt=0.05,
-        n_dataset=1,
-        n_sample_per_dataset=20000,
+        n_dataset=100,
+        n_sample_per_dataset=50,
         append_training_dataset=False,
         n_plot_sample=20,
         filter_ood_sample=True,
@@ -760,7 +765,7 @@ def main(sweep: bool = True):
         ic_upper_bound=2.5,
         lamda=.0,
         regularization_type='total variation',
-        load_net=True
+        load_net=False
     )
     model_config = ModelConfig(
         model_name='FNO',

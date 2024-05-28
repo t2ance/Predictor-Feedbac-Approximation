@@ -6,6 +6,8 @@ import numpy as np
 
 import dynamic_systems
 
+system = 's2'
+
 
 @dataclass
 class ModelConfig:
@@ -20,7 +22,7 @@ class ModelConfig:
 
     @property
     def base_path(self):
-        return f'./result/{self.model_name}'
+        return f'./{system}/result/{self.model_name}'
 
 
 @dataclass
@@ -36,7 +38,7 @@ class TrainConfig:
     log_step: Optional[int] = field(default=10)
     n_epoch: Optional[int] = field(default=100)
     device: Optional[str] = field(default='cuda:0')
-    model_save_path: Optional[str] = field(default='./checkpoint')
+    model_save_path: Optional[str] = field(default=f'./{system}/checkpoint')
     load_model: Optional[bool] = field(default=False)
 
     scheduler_step_size: Optional[int] = field(default=1)
@@ -60,12 +62,11 @@ class DatasetConfig:
         )])
     ic_lower_bound: Optional[float] = field(default=-2)
     ic_upper_bound: Optional[float] = field(default=2)
-    n_state: Optional[int] = field(default=2)
     n_sample_per_dataset: Optional[int] = field(default=100)
     n_dataset: Optional[int] = field(default=200)
     recreate_training_dataset: Optional[bool] = field(default=True)
     recreate_testing_dataset: Optional[bool] = field(default=True)
-    base_path: Optional[str] = field(default='./datasets')
+    base_path: Optional[str] = field(default=f'./{system}/datasets')
 
     data_generation_strategy: Optional[Literal['trajectory', 'random', 'nn']] = field(default='trajectory')
     explicit: Optional[bool] = field(default=False)
@@ -102,6 +103,12 @@ class DatasetConfig:
     scheduler_ratio_warmup: Optional[float] = field(default=0.1)
     lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential']] = field(default='linear_with_warmup')
 
+    dynamic_system: Optional[Literal['s1', 's2']] = field(default='s2')
+
+    @property
+    def n_state(self):
+        return self.system.n_state
+
     @property
     def dataset_base_path(self):
         base_path = f'{self.base_path}/{self.data_generation_strategy}'
@@ -128,7 +135,10 @@ class DatasetConfig:
 
     @property
     def system(self) -> dynamic_systems.DynamicSystem:
-        return dynamic_systems.DynamicSystem(c=self.system_c, n=self.system_n, delay=self.delay)
+        if self.dynamic_system == 's1':
+            return dynamic_systems.DynamicSystem1(c=self.system_c, n=self.system_n, delay=self.delay)
+        else:
+            return dynamic_systems.DynamicSystem2(delay=self.delay)
 
     @property
     def ts(self) -> np.ndarray:

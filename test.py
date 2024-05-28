@@ -122,20 +122,23 @@ def draw_difference(dataset_config):
 
 
 if __name__ == '__main__':
-    dataset_config = DatasetConfig(
-        recreate_training_dataset=True,
-        recreate_testing_dataset=False,
-        data_generation_strategy='trajectory',
-        random_u_type='spline',
-        dt=0.02,
-        n_dataset=500,
-        system_n=2,
-        system_c=5,
-        n_sample_per_dataset=1,
-        filter_ood_sample=True
-    )
-    samples = create_trajectory_dataset(dataset_config)
-    draw_distribution(samples)
+    dataset_config = DatasetConfig(delay=1, duration=16)
+    U, Z, P = run(method='numerical', Z0=(2, 2, 2), dataset_config=dataset_config, img_save_path='./misc')
+
+    # dataset_config = DatasetConfig(
+    #     recreate_training_dataset=True,
+    #     recreate_testing_dataset=False,
+    #     data_generation_strategy='trajectory',
+    #     random_u_type='spline',
+    #     dt=0.02,
+    #     n_dataset=500,
+    #     system_n=2,
+    #     system_c=5,
+    #     n_sample_per_dataset=1,
+    #     filter_ood_sample=True
+    # )
+    # samples = create_trajectory_dataset(dataset_config)
+    # draw_distribution(samples)
     # Z_t = np.array([0, 1])
     # n_point_delay = dataset_config.n_point_delay
     # U_D = np.random.randn(n_point_delay)
