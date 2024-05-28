@@ -42,7 +42,7 @@ class TrainConfig:
     scheduler_step_size: Optional[int] = field(default=1)
     scheduler_gamma: Optional[float] = field(default=1.)
     scheduler_min_lr: Optional[float] = field(default=0.)
-    scheduler_ratio_warmup: Optional[float] = field(default=0.1)
+    scheduler_ratio_warmup: Optional[float] = field(default=0.02)
     lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential']] = field(default='linear_with_warmup')
 
 
@@ -85,6 +85,7 @@ class DatasetConfig:
     net_weight_decay: Optional[int] = field(default=0)
     net_n_epoch: Optional[int] = field(default=5000)
     net_type: Optional[Literal['fc', 'fourier', 'chebyshev', 'bspline']] = field(default='fc')
+    load_net: Optional[bool] = field(default=False)
 
     lamda: Optional[float] = field(default=1.)
     regularization_type: Optional[str] = field(default='total variation')
@@ -111,15 +112,15 @@ class DatasetConfig:
 
     @property
     def training_dataset_file(self):
-        return f'{self.dataset_base_path}/train.pkl'
+        return f'{self.dataset_base_path}/train.pt'
 
     @property
     def validating_dataset_file(self):
-        return f'{self.dataset_base_path}/validate.pkl'
+        return f'{self.dataset_base_path}/validate.pt'
 
     @property
     def testing_dataset_file(self):
-        return f'{self.dataset_base_path}/test.pkl'
+        return f'{self.dataset_base_path}/test.pt'
 
     @property
     def n_epoch(self):

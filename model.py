@@ -123,6 +123,8 @@ class FullyConnectedNet(torch.nn.Module):
             nn.ReLU(),
             nn.Linear(4 * n_point_delay, 4 * n_point_delay),
             nn.ReLU(),
+            nn.Linear(4 * n_point_delay, 4 * n_point_delay),
+            nn.ReLU(),
             nn.Linear(4 * n_point_delay, n_point_delay)
         )
 
