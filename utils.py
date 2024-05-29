@@ -17,7 +17,7 @@ from dynamic_systems import solve_integral_equation
 
 p_z_colors = ['red', 'green', 'blue', 'yellow', 'black']
 legend_loc = 'upper left'
-legend_fontsize = 5
+legend_fontsize = 8
 
 
 def draw_distribution(samples, n_state: int, img_save_path: str = None):
@@ -52,7 +52,7 @@ def draw_distribution(samples, n_state: int, img_save_path: str = None):
         else:
             plt.show()
 
-    draw_1d(p_z_ratio_list, r'$\frac{||P||_2}{||Z||_2}$', 'p_z.png', xlim=[-1, 1])
+    draw_1d(p_z_ratio_list, r'$\frac{||P||_2}{||Z||_2}$', 'p_z.png', xlim=[-2, 2])
     draw_1d(u_list, 'U', 'u.png')
     zs = np.array(z_list)
     ps = np.array(p_list)
@@ -248,6 +248,21 @@ def plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, save_pa
         difference = P_explicit[:-n_point_delay] - Z[n_point_delay:]
         for i in range(n_state):
             plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{explicit}}_{i + 1}$')
+    plt.xlabel('t')
+    if ylim is not None:
+        plt.ylim(ylim)
+    plt.legend(loc=legend_loc, fontsize=legend_fontsize)
+    if save_path is not None:
+        plt.savefig(save_path)
+        fig.clear()
+        plt.close(fig)
+    else:
+        plt.show()
+
+
+def plot_single(ts, data, label, save_path, ylim=None):
+    fig = plt.figure(figsize=set_size())
+    plt.plot(ts, data, label=label)
     plt.xlabel('t')
     if ylim is not None:
         plt.ylim(ylim)

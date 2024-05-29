@@ -5,7 +5,6 @@ from matplotlib import pyplot as plt
 from config import DatasetConfig
 from dynamic_systems import solve_integral_equation
 from main import create_trajectory_dataset, create_random_dataset, run
-from utils import draw_distribution
 
 
 def draw_distribution2(dataset_config):

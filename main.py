@@ -20,7 +20,7 @@ from dynamic_systems import solve_integral_equation, solve_integral_equation_, s
 from model import FNOProjection, FNOTwoStage, PIFNO, FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
 from utils import count_params, get_time_str, set_size, pad_leading_zeros, plot_comparison, plot_difference, \
     metric, check_dir, plot_sample, no_predict_and_loss, get_lr_scheduler, prepare_datasets, postprocess, \
-    draw_distribution, set_seed
+    draw_distribution, set_seed, plot_single
 
 
 def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'numerical', 'no', 'numerical_no'] = None,
@@ -105,17 +105,19 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'nu
             pickle.dump(result, file)
 
     if img_save_path is not None:
-        comparison_full = f'{img_save_path}/comparison_full.png' if img_save_path is not None else None
-        comparison_zoom = f'{img_save_path}/comparison_zoom.png' if img_save_path is not None else None
-        difference_full = f'{img_save_path}/difference_full.png' if img_save_path is not None else None
-        difference_zoom = f'{img_save_path}/difference_zoom.png' if img_save_path is not None else None
+        comparison_full = f'{img_save_path}/comparison_full.png'
+        comparison_zoom = f'{img_save_path}/comparison_zoom.png'
+        difference_full = f'{img_save_path}/difference_full.png'
+        difference_zoom = f'{img_save_path}/difference_zoom.png'
+        u_path = f'{img_save_path}/u.png'
         plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, comparison_full,
                         dataset_config.n_state)
         plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, comparison_zoom,
                         dataset_config.n_state, [-5, 5])
         plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, difference_full, dataset_config.n_state)
         plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, difference_zoom, dataset_config.n_state,
-                        [-1, 1])
+                        [-5, 5])
+        plot_single(ts, U, '$U(t)$', u_path)
 
     if method == 'explict':
         return U, Z, P_explicit
@@ -252,19 +254,21 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
             lr = scheduler.get_last_lr()[-1]
             desc = f'Epoch [{epoch + 1}/{n_epoch}] || Lr: {lr:6f} || Training loss: {training_loss_t:.6f}'
             wandb.log({
-                'train/loss': training_loss_t,
+                'train/training loss': training_loss_t,
                 'train/lr': lr,
                 'train/epoch': epoch + 1
             })
             if do_validation:
                 desc += f' || Validation loss: {validating_loss_t:.6f}'
                 wandb.log({
-                    'validation loss': validating_loss_t
+                    'train/validation loss': validating_loss_t,
+                    'train/epoch': epoch + 1
                 })
             if do_testing:
                 desc += f' || Test loss: {testing_loss_t:.6f}'
                 wandb.log({
-                    'test loss': testing_loss_t
+                    'train/test loss': testing_loss_t,
+                    'train/epoch': epoch + 1
                 })
             bar.set_description(desc)
 
@@ -273,7 +277,12 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
                                               debug=train_config.debug)
                 rl2_list.append(rl2)
                 l2_list.append(l2)
-                wandb.log({'train/Relative L2 error': rl2, 'train/L2 error': l2, 'train/n_success': n_success})
+                wandb.log({
+                    'train/Relative L2 error': rl2,
+                    'train/L2 error': l2,
+                    'train/n_success': n_success,
+                    'train/epoch': epoch + 1
+                })
             scheduler.step()
             for param_group in optimizer.param_groups:
                 param_group['lr'] = max(param_group['lr'], train_config.scheduler_min_lr)
@@ -470,7 +479,7 @@ def create_random_dataset(dataset_config: DatasetConfig):
                 end = segment_length * np.ceil(np.max(x) / segment_length)
 
                 key_points = np.arange(start, end + segment_length, segment_length)
-                random_values = np.random.uniform(-1, 1, size=key_points.shape[0])
+                random_values = np.random.uniform(-10, 10, size=key_points.shape[0])
 
                 indices = np.searchsorted(key_points, x, side='right') - 1
                 x1 = key_points[indices]
@@ -487,21 +496,22 @@ def create_random_dataset(dataset_config: DatasetConfig):
                 shift = np.random.uniform(0, 100)
                 return np.exp(-k * x) * np.sin(feq * (x + shift))
         elif random_u_type == 'sparse':
-            def create_almost_zero_array(arr, zero_ratio):
+            def create_almost_zero_array(arr):
                 new_arr = np.zeros_like(arr)
-                num_zeros = int(arr.size * zero_ratio)
-                indices = np.random.choice(arr.size, num_zeros, replace=False)
-                new_arr.flat[indices] = 1
+                num_zeros = int(arr.size * np.random.rand())
+                if num_zeros > 0:
+                    new_arr[-num_zeros:] = np.random.rand(num_zeros)
                 return new_arr
 
             def func(x):
-                return create_almost_zero_array(x, 0.)
+                return create_almost_zero_array(x)
         else:
             raise NotImplementedError()
         return func
 
     def get_random_sample(func):
-        Z_t = np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound, 2)
+        # Z_t = np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound, 2)
+        Z_t = np.random.randn(2) * max(abs(dataset_config.ic_lower_bound), abs(dataset_config.ic_upper_bound))
         U_D = func(np.linspace(0, 1, n_point_delay))
         P_t = solve_integral_equation(Z_t=Z_t, U_D=U_D, dt=dt, n_state=n_state, n_point_delay=n_point_delay,
                                       dynamic=dataset_config.system.dynamic)
@@ -740,9 +750,12 @@ def main(sweep: bool = True):
         delay=3,
         duration=8,
         dt=0.125,
-        n_dataset=5000,
-        n_sample_per_dataset=1,
+        n_dataset=200,
+        n_sample_per_dataset=50,
+        n_sample_sparse=2500,
         append_training_dataset=False,
+        filter_ood_sample=True,
+        ood_sample_bound=1.,
         n_plot_sample=20,
         ic_lower_bound=-2,
         ic_upper_bound=2
@@ -754,18 +767,18 @@ def main(sweep: bool = True):
         fno_hidden_channels=32
     )
     train_config = TrainConfig(
-        learning_rate=1e-4,
+        learning_rate=3e-4,
+        training_ratio=0.8,
         n_epoch=1000,
         batch_size=128,
-        weight_decay=1e-5,
-        log_step=50,
-        training_ratio=1.,
-        load_model=False,
+        weight_decay=1e-1,
+        log_step=100,
         lr_scheduler_type='exponential',
         scheduler_gamma=0.99,
         scheduler_step_size=1,
         scheduler_min_lr=3e-6,
-        debug=True
+        debug=True,
+        do_test=True
     )
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     if sweep:
