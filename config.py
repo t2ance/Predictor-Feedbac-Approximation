@@ -6,7 +6,7 @@ import numpy as np
 
 import dynamic_systems
 
-system = 's2'
+system = 's1'
 
 
 @dataclass
@@ -55,11 +55,7 @@ class DatasetConfig:
     delay: Optional[float] = field(default=3.)
     duration: Optional[int] = field(default=8)
     dt: Optional[float] = field(default=0.005)
-    test_points: Optional[List[Tuple[float, float]]] = field(
-        default_factory=lambda: [(x, y) for x, y in itertools.product(
-            np.linspace(-1, 1, 6),
-            np.linspace(-1, 1, 6)
-        )])
+
     ic_lower_bound: Optional[float] = field(default=-2)
     ic_upper_bound: Optional[float] = field(default=2)
     n_sample_per_dataset: Optional[int] = field(default=100)
@@ -76,9 +72,10 @@ class DatasetConfig:
     system_n: Optional[float] = field(default=2.)
     postprocess: Optional[bool] = field(default=False)
     n_plot_sample: Optional[int] = field(default=0)
-    filter_ood_sample: Optional[bool] = field(default=True)
-    random_u_type: Optional[Literal['line', 'sin', 'exp', 'spline', 'poly', 'sinexp', 'chebyshev']] = field(
+    filter_ood_sample: Optional[bool] = field(default=False)
+    random_u_type: Optional[Literal['line', 'sin', 'exp', 'spline', 'poly', 'sinexp', 'chebyshev', 'sparse']] = field(
         default='spline')
+    n_sample_sparse: Optional[int] = field(default=100)
 
     net_dataset_size: Optional[int] = field(default=1000)
     net_batch_size: Optional[int] = field(default=64)
@@ -94,8 +91,8 @@ class DatasetConfig:
     fourier_n_mode: Optional[int] = field(default=4)
 
     chebyshev_n_term: Optional[int] = field(default=4)
-    bspline_n_knot: Optional[int] = field(default=2)
-    bspline_degree: Optional[int] = field(default=2)
+    bspline_n_knot: Optional[int] = field(default=4)
+    bspline_degree: Optional[int] = field(default=1)
 
     scheduler_step_size: Optional[int] = field(default=1)
     scheduler_gamma: Optional[float] = field(default=1.)
@@ -103,7 +100,21 @@ class DatasetConfig:
     scheduler_ratio_warmup: Optional[float] = field(default=0.1)
     lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential']] = field(default='linear_with_warmup')
 
-    dynamic_system: Optional[Literal['s1', 's2']] = field(default='s2')
+    @property
+    def test_points(self) -> List[Tuple]:
+        if system == 's1':
+            return [(x, y) for x, y in itertools.product(
+                np.linspace(-1, 1, 6),
+                np.linspace(-1, 1, 6)
+            )]
+        elif system == 's2':
+            return [(x, y, z) for x, y, z in itertools.product(
+                np.linspace(-0.5, 0.5, 3),
+                np.linspace(-0.5, 0.5, 3),
+                np.linspace(-0.5, 0.5, 3),
+            )]
+        else:
+            raise NotImplementedError()
 
     @property
     def n_state(self):
@@ -135,7 +146,7 @@ class DatasetConfig:
 
     @property
     def system(self) -> dynamic_systems.DynamicSystem:
-        if self.dynamic_system == 's1':
+        if system == 's1':
             return dynamic_systems.DynamicSystem1(c=self.system_c, n=self.system_n, delay=self.delay)
         else:
             return dynamic_systems.DynamicSystem2(delay=self.delay)

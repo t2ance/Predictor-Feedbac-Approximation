@@ -15,6 +15,10 @@ from config import DatasetConfig, TrainConfig
 from dataset import PredictionDataset
 from dynamic_systems import solve_integral_equation
 
+p_z_colors = ['red', 'green', 'blue', 'yellow', 'black']
+legend_loc = 'upper left'
+legend_fontsize = 5
+
 
 def draw_distribution(samples, n_state: int, img_save_path: str = None):
     u_list = []
@@ -41,7 +45,7 @@ def draw_distribution(samples, n_state: int, img_save_path: str = None):
         plt.xlim(xlim)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
-        plt.legend()
+        plt.legend(loc='upper left')
         if img_save_path is not None:
             plt.savefig(f'{img_save_path}/{file_name}')
             plt.clf()
@@ -132,10 +136,9 @@ def plot_sample(feature, label, dataset_config: DatasetConfig, name: str = '1.pn
     ts = np.linspace(t - dataset_config.delay, t, dataset_config.n_point_delay)
     plt.plot(ts, u, label='U')
     for i in range(n_state):
-        plt.scatter(ts[-1], z[i], label=f'$Z_t({i})$')
-        plt.scatter(ts[-1], p[i], label=f'$P_t({i})$')
-        ...
-    plt.legend()
+        plt.scatter(ts[-1], z[i], label=f'$Z_t({i})$', c=p_z_colors[i])
+        plt.scatter(ts[-1], p[i], label=f'$P_t({i})$', c=p_z_colors[i], marker='^')
+    plt.legend(loc='upper left')
     out_dir = f'{dataset_config.dataset_base_path}/sample'
     check_dir(out_dir)
     plt.savefig(f'{out_dir}/{name}')
@@ -165,21 +168,64 @@ def no_predict_and_loss(inputs, labels, model):
         return outputs, torch.nn.MSELoss()(outputs, labels)
 
 
-def plot_comparison(ts, P_hat, P, Z, delay, n_point_delay, save_path, n_state: int, ylim=None):
+def plot_system(title, ts, Z, U, P, img_save_path):
+    fig = plt.figure(figsize=set_size())
+    plt.title(title)
+
+    plt.subplot(511)
+    plt.ylim([-5, 5])
+    plt.plot(ts, Z[:, 0], label='$Z_1(t)$')
+    plt.ylabel('$Z_1(t)$')
+    plt.grid(True)
+
+    plt.subplot(512)
+    plt.ylim([-5, 5])
+    plt.plot(ts, Z[:, 1], label='$Z_2(t)$')
+    plt.ylabel('$Z_2(t)$')
+    plt.grid(True)
+
+    plt.subplot(513)
+    plt.ylim([-5, 5])
+    plt.plot(ts, U, label='$U(t)$', color='black')
+    plt.xlabel('time')
+    plt.ylabel('$U(t)$')
+    plt.grid(True)
+
+    plt.subplot(514)
+    plt.ylim([-5, 5])
+    plt.plot(ts, P[:, 0], label='$P_1(t)$')
+    plt.ylabel('$P_1(t)$')
+    plt.grid(True)
+
+    plt.subplot(515)
+    plt.ylim([-5, 5])
+    plt.plot(ts, P[:, 1], label='$P_2(t)$')
+    plt.ylabel('$P_2(t)$')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(f'{img_save_path}/system.png')
+    fig.clear()
+    plt.close(fig)
+
+
+def plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, save_path, n_state: int, ylim=None):
     fig = plt.figure(figsize=set_size())
     plt.title('Comparison')
-    colors = ['red', 'green', 'blue', 'yellow', 'black']
     for t_i in range(n_state):
-        if P is not None:
-            plt.plot(ts[n_point_delay:], P[:-n_point_delay, t_i], label=f'$P_{t_i + 1}(t-{delay})$', linestyle=':',
-                     color=colors[t_i])
-        plt.plot(ts[n_point_delay:], P_hat[:-n_point_delay, t_i], label=f'$\hat P_{t_i + 1}(t-{delay})$',
-                 linestyle='--', color=colors[t_i])
-        plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$', color=colors[t_i])
+        if P_numerical is not None:
+            plt.plot(ts[n_point_delay:], P_numerical[:-n_point_delay, t_i], linestyle=':', color=p_z_colors[t_i],
+                     label=f'$P^{{numerical}}_{t_i + 1}(t-{delay})$')
+        if P_no is not None:
+            plt.plot(ts[n_point_delay:], P_no[:-n_point_delay, t_i], linestyle='--', color=p_z_colors[t_i],
+                     label=f'$P^{{no}}_{t_i + 1}(t-{delay})$')
+        if P_explicit is not None:
+            plt.plot(ts[n_point_delay:], P_no[:-n_point_delay, t_i], linestyle='-.', color=p_z_colors[t_i],
+                     label=f'$P^{{explicit}}_{t_i + 1}(t-{delay})$')
+        plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$', color=p_z_colors[t_i])
     plt.xlabel('t')
     if ylim is not None:
         plt.ylim(ylim)
-    plt.legend()
+    plt.legend(loc=legend_loc, fontsize=legend_fontsize)
     if save_path is not None:
         plt.savefig(save_path)
         fig.clear()
@@ -188,19 +234,24 @@ def plot_comparison(ts, P_hat, P, Z, delay, n_point_delay, save_path, n_state: i
         plt.show()
 
 
-def plot_difference(ts, P_hat, P, Z, n_point_delay, save_path, n_state: int, ylim=None):
+def plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, save_path, n_state: int, ylim=None):
     fig = plt.figure(figsize=set_size())
-    difference = P_hat[:-n_point_delay] - Z[n_point_delay:]
-    for i in range(n_state):
-        plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\hat P_{i + 1} - Z_{i + 1}$')
-    if P is not None:
-        difference_no = P[:-n_point_delay] - Z[n_point_delay:]
+    if P_no is not None:
+        difference = P_no[:-n_point_delay] - Z[n_point_delay:]
         for i in range(n_state):
-            plt.plot(ts[n_point_delay:], difference_no[:, i], label=f'$\delta PNO_{i + 1}$')
+            plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{no}}_{i + 1}$')
+    if P_numerical is not None:
+        difference = P_numerical[:-n_point_delay] - Z[n_point_delay:]
+        for i in range(n_state):
+            plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{numerical}}_{i + 1}$')
+    if P_explicit is not None:
+        difference = P_explicit[:-n_point_delay] - Z[n_point_delay:]
+        for i in range(n_state):
+            plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{explicit}}_{i + 1}$')
     plt.xlabel('t')
     if ylim is not None:
         plt.ylim(ylim)
-    plt.legend()
+    plt.legend(loc=legend_loc, fontsize=legend_fontsize)
     if save_path is not None:
         plt.savefig(save_path)
         fig.clear()

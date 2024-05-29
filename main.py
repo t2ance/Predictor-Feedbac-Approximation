@@ -24,7 +24,7 @@ from utils import count_params, get_time_str, set_size, pad_leading_zeros, plot_
 
 
 def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'numerical', 'no', 'numerical_no'] = None,
-        model=None, title='', save_path: str = None, img_save_path: str = None):
+        model=None, save_path: str = None, img_save_path: str = None):
     system = dataset_config.system
     n_point_delay = dataset_config.n_point_delay
     ts = dataset_config.ts
@@ -33,8 +33,18 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'nu
     n_point = dataset_config.n_point
     U = np.zeros(n_point)
     Z = np.zeros((n_point, system.n_state))
-    P = np.zeros((n_point, system.n_state))
-    P_compare = np.zeros((n_point, system.n_state))
+    if method == 'explicit':
+        P_explicit = np.zeros((n_point, system.n_state))
+    else:
+        P_explicit = None
+    if method == 'numerical' or method == 'numerical_no':
+        P_numerical = np.zeros((n_point, system.n_state))
+    else:
+        P_numerical = None
+    if method == 'no' or method == 'numerical_no':
+        P_no = np.zeros((n_point, system.n_state))
+    else:
+        P_no = None
     Z[n_point_delay, :] = Z0
     for t_i in range(dataset_config.n_point):
         t_minus_D_i = max(t_i - n_point_delay, 0)
@@ -45,35 +55,24 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'nu
                 Z[t_i, :] = system.Z_explicit(t, Z0)
         elif method == 'numerical':
             if t_i > n_point_delay:
-                Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]],
-                                   args=(U[t_minus_D_i - 1],))[1]
+                Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0
-            P_compare[t_i, :] = solve_integral_equation(Z_t, n_point_delay, dataset_config.n_state, dt,
-                                                        pad_leading_zeros(segment=U[t_minus_D_i:t_i],
-                                                                          length=n_point_delay),
-                                                        dynamic=dataset_config.system.dynamic)
-            P[t_i, :] = solve_integral_equation_(f=system.dynamic, Z_t=Z_t, P_D=P[t_minus_D_i:t_i],
-                                                 U_D=U[t_minus_D_i:t_i], dt=dt,
-                                                 t=t) + dataset_config.noise()
+            P_numerical[t_i, :] = solve_integral_equation_(
+                f=system.dynamic, Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], dt=dt, t=t)
             if t_i > n_point_delay:
-                U[t_i] = system.kappa(P[t_i, :])
+                U[t_i] = system.kappa(P_numerical[t_i, :])
         elif method == 'no':
             if t_i > n_point_delay:
-                Z[t_i, :] = \
-                    odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]],
-                           args=(U[t_minus_D_i - 1],))[1]
+                Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0
-            P[t_i, :] = solve_integral_equation_neural_operator(
+            P_no[t_i, :] = solve_integral_equation_neural_operator(
                 model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t, t=t)
-            P_compare[t_i, :] = solve_integral_equation_(f=system.dynamic, Z_t=Z_t, P_D=P[t_minus_D_i:t_i],
-                                                         U_D=U[t_minus_D_i:t_i], dt=dt,
-                                                         t=t) + dataset_config.noise()
             if t_i > n_point_delay:
-                U[t_i] = system.kappa(P[t_i, :])
+                U[t_i] = system.kappa(P_no[t_i, :])
         elif method == 'numerical_no':
             if t_i > n_point_delay:
                 Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]],
@@ -81,14 +80,12 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'nu
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0
-            P[t_i, :] = solve_integral_equation_(f=system.dynamic, Z_t=Z_t, P_D=P[t_minus_D_i:t_i],
-                                                 U_D=U[t_minus_D_i:t_i], dt=dt,
-                                                 t=t) + dataset_config.noise()
-            P_compare[t_i, :] = solve_integral_equation_neural_operator(
-                model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t,
-                t=t)
+            P_numerical[t_i, :] = solve_integral_equation_(
+                f=system.dynamic, Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], dt=dt, t=t)
+            P_no[t_i, :] = solve_integral_equation_neural_operator(
+                model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t, t=t)
             if t_i > n_point_delay:
-                U[t_i] = system.kappa(P[t_i, :])
+                U[t_i] = system.kappa(P_numerical[t_i, :])
         else:
             raise NotImplementedError()
 
@@ -108,63 +105,26 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'nu
             pickle.dump(result, file)
 
     if img_save_path is not None:
-        fig = plt.figure(figsize=set_size())
-        plt.title(title)
-
-        plt.subplot(511)
-        plt.ylim([-5, 5])
-        plt.plot(ts, Z[:, 0], label='$Z_1(t)$')
-        plt.ylabel('$Z_1(t)$')
-        plt.grid(True)
-
-        plt.subplot(512)
-        plt.ylim([-5, 5])
-        plt.plot(ts, Z[:, 1], label='$Z_2(t)$')
-        plt.ylabel('$Z_2(t)$')
-        plt.grid(True)
-
-        plt.subplot(513)
-        plt.ylim([-5, 5])
-        plt.plot(ts, U, label='$U(t)$', color='black')
-        plt.xlabel('time')
-        plt.ylabel('$U(t)$')
-        plt.grid(True)
-
-        plt.subplot(514)
-        plt.ylim([-5, 5])
-        plt.plot(ts, P[:, 0], label='$P_1(t)$')
-        plt.ylabel('$P_1(t)$')
-        plt.grid(True)
-
-        plt.subplot(515)
-        plt.ylim([-5, 5])
-        plt.plot(ts, P[:, 1], label='$P_2(t)$')
-        plt.ylabel('$P_2(t)$')
-        plt.grid(True)
-        plt.tight_layout()
-        plt.savefig(f'{img_save_path}/system.png')
-        fig.clear()
-        plt.close(fig)
-
-        if method != 'numerical_no' or model != 'numerical':
-            P_compare = None
-        plot_comparison(ts, P, P_compare, Z, delay, n_point_delay,
-                        f'{img_save_path}/comparison_full.png' if img_save_path is not None else None,
+        comparison_full = f'{img_save_path}/comparison_full.png' if img_save_path is not None else None
+        comparison_zoom = f'{img_save_path}/comparison_zoom.png' if img_save_path is not None else None
+        difference_full = f'{img_save_path}/difference_full.png' if img_save_path is not None else None
+        difference_zoom = f'{img_save_path}/difference_zoom.png' if img_save_path is not None else None
+        plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, comparison_full,
                         dataset_config.n_state)
-        plot_comparison(ts, P, P_compare, Z, delay, n_point_delay,
-                        f'{img_save_path}/comparison_zoom.png' if img_save_path is not None else None,
+        plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, comparison_zoom,
                         dataset_config.n_state, [-5, 5])
-
-        plot_difference(ts, P, P_compare, Z, n_point_delay,
-                        f'{img_save_path}/difference_full.png' if img_save_path is not None else None,
-                        dataset_config.n_state)
-        plot_difference(ts, P, P_compare, Z, n_point_delay,
-                        f'{img_save_path}/difference_zoom.png' if img_save_path is not None else None,
-                        dataset_config.n_state, [-1, 1])
+        plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, difference_full, dataset_config.n_state)
+        plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, difference_zoom, dataset_config.n_state,
+                        [-1, 1])
 
     if method == 'explict':
-        return U, Z, None
-    return U, Z, P
+        return U, Z, P_explicit
+    elif method == 'no':
+        return U, Z, P_no
+    elif method == 'numerical' or method == 'numerical_no':
+        return U, Z, P_numerical
+    else:
+        raise NotImplementedError()
 
 
 def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig,
@@ -309,10 +269,11 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
             bar.set_description(desc)
 
             if (train_config.log_step > 0 and epoch % train_config.log_step == 0) or epoch == n_epoch - 1:
-                rl2, l2, _ = run_test(model, dataset_config, silence=True)
+                rl2, l2, n_success = run_test(model, dataset_config, base_path=model_config.base_path, silence=True,
+                                              debug=train_config.debug)
                 rl2_list.append(rl2)
                 l2_list.append(l2)
-                wandb.log({'train/Relative L2 error': rl2, 'train/L2 error': l2})
+                wandb.log({'train/Relative L2 error': rl2, 'train/L2 error': l2, 'train/n_success': n_success})
             scheduler.step()
             for param_group in optimizer.param_groups:
                 param_group['lr'] = max(param_group['lr'], train_config.scheduler_min_lr)
@@ -339,10 +300,10 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: boo
             img_save_path = None
 
         if debug:
-            U, Z, P = run(dataset_config=dataset_config, model=m, Z0=test_point, method='numerical_no', title='no',
+            U, Z, P = run(dataset_config=dataset_config, model=m, Z0=test_point, method='numerical_no',
                           img_save_path=img_save_path)
         else:
-            U, Z, P = run(dataset_config=dataset_config, model=m, Z0=test_point, method='no', title='no',
+            U, Z, P = run(dataset_config=dataset_config, model=m, Z0=test_point, method='no',
                           img_save_path=img_save_path)
         plt.close()
         delay = dataset_config.n_point_delay
@@ -482,74 +443,107 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, test_points: List =
 def create_random_dataset(dataset_config: DatasetConfig):
     dt: float = dataset_config.dt
     n_point_delay: int = dataset_config.n_point_delay
-    n_sample_per_dataset: int = dataset_config.n_sample_per_dataset
     n_state: int = dataset_config.n_state
     all_samples = []
-    n_sample = 0
-    n_id_sample = 0
-    for i in tqdm(list(range(1, dataset_config.n_dataset + 1))):
-        j = 0
-        while j < n_sample_per_dataset:
-            if dataset_config.random_u_type == 'line':
-                f = lambda x: (np.random.uniform(-1, 1, 2).reshape(-1, 1) * np.array(
-                    [x, np.ones_like(x)])).sum(
-                    axis=0)
-            elif dataset_config.random_u_type == 'poly':
-                f = lambda x: 3 * (np.random.uniform(-1, 1, 5).reshape(-1, 1) * np.array(
-                    [x ** 4, x ** 3, x ** 2, x, np.ones_like(x)])).sum(
-                    axis=0)
-            elif dataset_config.random_u_type == 'sin':
-                f = lambda x: np.sin(np.sqrt(i) * x)
-            elif dataset_config.random_u_type == 'exp':
-                f = lambda x: np.exp(-np.sqrt(i) * x)
-            elif dataset_config.random_u_type == 'chebyshev':
-                f = lambda x: np.random.uniform(0, 5) * np.cos(np.random.uniform(0, 5) * np.arccos(x))
-            elif dataset_config.random_u_type == 'spline':
-                def f(x):
-                    segment_length = np.random.uniform(0, 2)
-                    start = segment_length * np.floor(np.min(x) / segment_length)
-                    end = segment_length * np.ceil(np.max(x) / segment_length)
 
-                    key_points = np.arange(start, end + segment_length, segment_length)
-                    random_values = np.random.uniform(-1, 1, size=key_points.shape[0])
+    def u(random_u_type: str = dataset_config.random_u_type):
+        if random_u_type == 'line':
+            def func(x):
+                return (np.random.uniform(-1, 1, 2).reshape(-1, 1) * np.array([x, np.ones_like(x)])).sum(axis=0)
+        elif random_u_type == 'poly':
+            def func(x):
+                return 3 * (np.random.uniform(-1, 1, 5).reshape(-1, 1) * np.array(
+                    [x ** 4, x ** 3, x ** 2, x, np.ones_like(x)])).sum(axis=0)
+        elif random_u_type == 'sin':
+            def func(x):
+                return np.sin(np.random.uniform(0, 5) * x)
+        elif random_u_type == 'exp':
+            def func(x):
+                return np.exp(-np.random.uniform(0, 5) * x)
+        elif random_u_type == 'chebyshev':
+            def func(x):
+                return np.random.uniform(0, 5) * np.cos(np.random.uniform(0, 5) * np.arccos(x))
+        elif random_u_type == 'spline':
+            def func(x):
+                segment_length = np.random.uniform(0, 2)
+                start = segment_length * np.floor(np.min(x) / segment_length)
+                end = segment_length * np.ceil(np.max(x) / segment_length)
 
-                    indices = np.searchsorted(key_points, x, side='right') - 1
-                    x1 = key_points[indices]
-                    x2 = key_points[indices + 1]
-                    y1 = random_values[indices]
-                    y2 = random_values[indices + 1]
+                key_points = np.arange(start, end + segment_length, segment_length)
+                random_values = np.random.uniform(-1, 1, size=key_points.shape[0])
 
-                    y = y1 + (y2 - y1) * (x - x1) / (x2 - x1)
-                    return y
-            elif dataset_config.random_u_type == 'sinexp':
+                indices = np.searchsorted(key_points, x, side='right') - 1
+                x1 = key_points[indices]
+                x2 = key_points[indices + 1]
+                y1 = random_values[indices]
+                y2 = random_values[indices + 1]
+
+                y = y1 + (y2 - y1) * (x - x1) / (x2 - x1)
+                return y
+        elif random_u_type == 'sinexp':
+            def func(x):
                 feq = np.random.uniform(0, 100)
                 k = np.random.uniform(0, 100)
                 shift = np.random.uniform(0, 100)
-                f = lambda x: np.exp(-k * x) * np.sin(feq * (x + shift))
-            else:
-                raise NotImplementedError()
-            Z_t = np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound, 2)
-            U_D = f(np.linspace(0, 1, n_point_delay))
-            P_t = solve_integral_equation(Z_t=Z_t, U_D=U_D, dt=dt, n_state=n_state, n_point_delay=n_point_delay,
-                                          dynamic=dataset_config.system.dynamic)
-            features = sample_to_tensor(Z_t, U_D, dt * n_point_delay)
-            if dataset_config.filter_ood_sample:
-                def filter_out_of_distribution_sample(factor, p):
-                    return np.linalg.norm(P_t) / np.linalg.norm(Z_t) <= factor \
-                        and np.random.uniform(0, 1) <= p
+                return np.exp(-k * x) * np.sin(feq * (x + shift))
+        elif random_u_type == 'sparse':
+            def create_almost_zero_array(arr, zero_ratio):
+                new_arr = np.zeros_like(arr)
+                num_zeros = int(arr.size * zero_ratio)
+                indices = np.random.choice(arr.size, num_zeros, replace=False)
+                new_arr.flat[indices] = 1
+                return new_arr
 
-                if filter_out_of_distribution_sample(dataset_config.ood_sample_bound, 1):
-                    all_samples.append((features, torch.from_numpy(P_t)))
-                    j += 1
-                    n_id_sample += 1
-            else:
-                all_samples.append((features, torch.from_numpy(P_t)))
-                j += 1
+            def func(x):
+                return create_almost_zero_array(x, 0.)
+        else:
+            raise NotImplementedError()
+        return func
+
+    def get_random_sample(func):
+        Z_t = np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound, 2)
+        U_D = func(np.linspace(0, 1, n_point_delay))
+        P_t = solve_integral_equation(Z_t=Z_t, U_D=U_D, dt=dt, n_state=n_state, n_point_delay=n_point_delay,
+                                      dynamic=dataset_config.system.dynamic)
+        features = sample_to_tensor(Z_t, U_D, dt * n_point_delay)
+        sample = (features, torch.from_numpy(P_t))
+        return sample, features, Z_t, U_D, P_t
+
+    print(f'Generating dataset using {dataset_config.random_u_type}')
+    f = u()
+    n_sample = dataset_config.n_dataset * dataset_config.n_sample_per_dataset
+    n_id_sample = 0
+    n_total_sample = 0
+    bar = tqdm(total=n_sample)
+    print(f'Begin generating {n_sample} samples using {dataset_config.random_u_type}')
+    while n_id_sample < n_sample:
+        sample, _, Z_t, _, P_t = get_random_sample(f)
+        if dataset_config.filter_ood_sample:
+            def filter_out_of_distribution_sample(factor, p):
+                return np.linalg.norm(P_t) / np.linalg.norm(Z_t) <= factor \
+                    and np.random.uniform(0, 1) <= p
+
+            if filter_out_of_distribution_sample(dataset_config.ood_sample_bound, 1):
+                all_samples.append(sample)
                 n_id_sample += 1
-            n_sample += 1
+                bar.update(1)
+        else:
+            all_samples.append(sample)
+            n_id_sample += 1
+            bar.update(1)
+        n_total_sample += 1
     print(
-        f'Generated {n_sample} samples in total, {n_id_sample} samples in distribution, percent: {n_id_sample / n_sample}')
+        f'Generated {n_total_sample} samples in total, {n_id_sample} samples in distribution,'
+        f' percent: {n_id_sample / n_total_sample}')
+
+    f_sparse = u('sparse')
+    print(f'Begin generating {dataset_config.n_sample_sparse} samples with sparse U')
+    for _ in tqdm(list(range(dataset_config.n_sample_sparse))):
+        sample, _, _, _, _ = get_random_sample(f_sparse)
+        all_samples.append(sample)
+
     random.shuffle(all_samples)
+    print(f'{len(all_samples)} samples in total')
     return all_samples
 
 
@@ -731,8 +725,7 @@ def main_(dataset_config: DatasetConfig, model_config: ModelConfig, train_config
                       training_dataloader=training_dataloader, validating_dataloader=validating_dataloader,
                       testing_dataloader=testing_dataloader, img_save_path=model_config.base_path)
     metric_rd, metric_mse, n_success = run_test(m=model, dataset_config=dataset_config,
-                                                base_path=model_config.base_path,
-                                                debug=train_config.debug)
+                                                base_path=model_config.base_path)
     return metric_rd, metric_mse, n_success
 
 
@@ -740,44 +733,29 @@ def main(sweep: bool = True):
     set_seed(0)
     # setup_plt()
     dataset_config = DatasetConfig(
-        dynamic_system='s2',
         recreate_training_dataset=True,
         # data_generation_strategy='nn',
-        # data_generation_strategy='random',
-        data_generation_strategy='trajectory',
+        data_generation_strategy='random',
+        # data_generation_strategy='trajectory',
+        delay=3,
+        duration=8,
         dt=0.125,
-        # dt=0.05,
-        n_dataset=100,
-        n_sample_per_dataset=50,
+        n_dataset=5000,
+        n_sample_per_dataset=1,
         append_training_dataset=False,
         n_plot_sample=20,
-        filter_ood_sample=True,
-        ood_sample_bound=.1,
-        net_lr=3e-3,
-        net_n_epoch=250,
-        net_dataset_size=5000,
-        net_type='bspline',
-        fourier_n_mode=4,
-        chebyshev_n_term=2,
-        bspline_degree=1,
-        bspline_n_knot=6,
-        ic_lower_bound=-2.5,
-        ic_upper_bound=2.5,
-        lamda=.0,
-        regularization_type='total variation',
-        load_net=False
+        ic_lower_bound=-2,
+        ic_upper_bound=2
     )
     model_config = ModelConfig(
         model_name='FNO',
-        # model_name='FNOTwoStage',
-        # model_name='PIFNO',
-        fno_n_layers=3,
+        fno_n_layers=4,
         fno_n_modes_height=16,
-        fno_hidden_channels=64
+        fno_hidden_channels=32
     )
     train_config = TrainConfig(
-        learning_rate=5e-4,
-        n_epoch=2000,
+        learning_rate=1e-4,
+        n_epoch=1000,
         batch_size=128,
         weight_decay=1e-5,
         log_step=50,
@@ -785,8 +763,9 @@ def main(sweep: bool = True):
         load_model=False,
         lr_scheduler_type='exponential',
         scheduler_gamma=0.99,
-        scheduler_step_size=3,
-        scheduler_min_lr=3e-5
+        scheduler_step_size=1,
+        scheduler_min_lr=3e-6,
+        debug=True
     )
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     if sweep:
