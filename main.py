@@ -428,14 +428,16 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, test_points: List =
                               (dataset_config.n_dataset, dataset_config.n_state))))
     else:
         bar = tqdm(test_points)
-    for Z0 in bar:
+    for i, Z0 in enumerate(bar):
+        img_save_path = f'{dataset_config.dataset_base_path}/example/{str(i)}'
+        check_dir(img_save_path)
         if dataset_config.explicit:
-            U, Z, _ = run(method='explict', Z0=Z0, dataset_config=dataset_config)
+            U, Z, _ = run(method='explict', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
             dataset = ImplicitDataset(
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
                 dataset_config.n_point_delay, dataset_config.dt)
         else:
-            U, Z, P = run(method='numerical', Z0=Z0, dataset_config=dataset_config)
+            U, Z, P = run(method='numerical', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
             dataset = ExplictDataset(
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
                 torch.tensor(P, dtype=torch.float32), dataset_config.n_point_delay, dataset_config.dt)
@@ -503,8 +505,14 @@ def create_random_dataset(dataset_config: DatasetConfig):
                     new_arr[-num_zeros:] = np.random.rand(num_zeros)
                 return new_arr
 
+            f_spline = u('spline')
+
             def func(x):
-                return create_almost_zero_array(x)
+                # return create_almost_zero_array(x)
+                u_ = f_spline(x) * 0.2
+                num_zeros = int(len(u_) * np.random.rand())
+                u_[:num_zeros] = 0
+                return u_
         else:
             raise NotImplementedError()
         return func
@@ -744,40 +752,37 @@ def main(sweep: bool = True):
     # setup_plt()
     dataset_config = DatasetConfig(
         recreate_training_dataset=True,
-        # data_generation_strategy='nn',
-        data_generation_strategy='random',
-        # data_generation_strategy='trajectory',
-        delay=3,
+        data_generation_strategy='trajectory',
+        delay=1,
         duration=8,
         dt=0.125,
-        n_dataset=200,
+        n_dataset=400,
         n_sample_per_dataset=50,
-        n_sample_sparse=2500,
         append_training_dataset=False,
-        filter_ood_sample=True,
-        ood_sample_bound=1.,
+        # system_n=2,
+        # system_c=5,
         n_plot_sample=20,
-        ic_lower_bound=-2,
-        ic_upper_bound=2
+        ic_lower_bound=-0.5,
+        ic_upper_bound=0.5
     )
     model_config = ModelConfig(
         model_name='FNO',
-        fno_n_layers=4,
-        fno_n_modes_height=16,
-        fno_hidden_channels=32
+        fno_n_layers=10,
+        fno_n_modes_height=64,
+        fno_hidden_channels=128
     )
     train_config = TrainConfig(
-        learning_rate=3e-4,
+        learning_rate=1e-3,
         training_ratio=0.8,
-        n_epoch=1000,
+        n_epoch=500,
         batch_size=128,
-        weight_decay=1e-1,
-        log_step=100,
+        weight_decay=1e-2,
+        log_step=-1,
         lr_scheduler_type='exponential',
-        scheduler_gamma=0.99,
+        scheduler_gamma=0.97,
         scheduler_step_size=1,
-        scheduler_min_lr=3e-6,
-        debug=True,
+        scheduler_min_lr=1e-5,
+        debug=False,
         do_test=True
     )
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')

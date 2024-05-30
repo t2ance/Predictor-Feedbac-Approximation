@@ -6,7 +6,7 @@ import numpy as np
 
 import dynamic_systems
 
-system = 's1'
+system = 's2'
 
 
 @dataclass
@@ -54,7 +54,7 @@ class DatasetConfig:
     append_testing_dataset: Optional[bool] = field(default=False)
     delay: Optional[float] = field(default=3.)
     duration: Optional[int] = field(default=8)
-    dt: Optional[float] = field(default=0.005)
+    dt: Optional[float] = field(default=0.125)
 
     ic_lower_bound: Optional[float] = field(default=-2)
     ic_upper_bound: Optional[float] = field(default=2)
@@ -75,7 +75,7 @@ class DatasetConfig:
     filter_ood_sample: Optional[bool] = field(default=False)
     random_u_type: Optional[Literal['line', 'sin', 'exp', 'spline', 'poly', 'sinexp', 'chebyshev', 'sparse']] = field(
         default='spline')
-    n_sample_sparse: Optional[int] = field(default=100)
+    n_sample_sparse: Optional[int] = field(default=0)
 
     net_dataset_size: Optional[int] = field(default=1000)
     net_batch_size: Optional[int] = field(default=64)
@@ -109,9 +109,9 @@ class DatasetConfig:
             )]
         elif system == 's2':
             return [(x, y, z) for x, y, z in itertools.product(
-                np.linspace(-0.5, 0.5, 3),
-                np.linspace(-0.5, 0.5, 3),
-                np.linspace(-0.5, 0.5, 3),
+                np.linspace(-0.3, 0.3, 3),
+                np.linspace(-0.3, 0.3, 3),
+                np.linspace(-0.3, 0.3, 3),
             )]
         else:
             raise NotImplementedError()

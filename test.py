@@ -120,9 +120,160 @@ def draw_difference(dataset_config):
     ...
 
 
+def classify_sample():
+    import torch
+    from torch.utils.data import TensorDataset
+    from torch.utils.data import random_split
+    from torch.utils.data import DataLoader
+    from torch import nn
+    from torch import optim
+    def preprocess(samples):
+        samples = [torch.hstack([sample[0], sample[1].cuda()])[1:] for sample in samples]
+        return torch.vstack(samples)
+
+    trajectory = torch.load('./s1/datasets/trajectory/train.pt')
+    random = torch.load('./s1/datasets/random/train.pt')
+    trajectory = preprocess(trajectory)[:2500].float()
+    random = preprocess(random)[:2500].float()
+    # 创建标签
+    trajectory_labels = torch.ones(len(trajectory)).float()
+    random_labels = torch.zeros(len(random)).float()
+
+    # 合并数据和标签
+    data = torch.cat((trajectory, random), dim=0)
+    labels = torch.cat((trajectory_labels, random_labels), dim=0)
+
+    # 创建数据集
+    dataset = TensorDataset(data, labels)
+
+    # 划分训练集和验证集
+    train_size = int(0.8 * len(dataset))
+    val_size = len(dataset) - train_size
+    train_dataset, val_dataset = random_split(dataset, [train_size, val_size], torch.Generator(device='cuda'))
+
+    # 创建数据加载器
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=False)
+    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+
+    class Classifier(nn.Module):
+        def __init__(self, input_dim):
+            super(Classifier, self).__init__()
+            self.fc1 = nn.Linear(input_dim, 128)
+            self.fc2 = nn.Linear(128, 64)
+            self.fc3 = nn.Linear(64, 1)
+            self.sigmoid = nn.Sigmoid()
+
+        def forward(self, x):
+            x = torch.relu(self.fc1(x))
+            x = torch.relu(self.fc2(x))
+            x = self.fc3(x)
+            x = self.sigmoid(x)
+            return x
+
+    # 假设数据是向量，获取向量维度
+    input_dim = data.shape[1]
+    model = Classifier(input_dim)
+
+    criterion = nn.BCELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+    # 训练模型
+    num_epochs = 20
+    model.train()
+    for epoch in range(num_epochs):
+        for batch_data, batch_labels in train_loader:
+            optimizer.zero_grad()
+            outputs = model(batch_data)
+            loss = criterion(outputs.squeeze(), batch_labels)
+            loss.backward()
+            optimizer.step()
+        print(f'Epoch {epoch + 1}/{num_epochs}, Loss: {loss.item()}')
+
+    # 验证模型
+    model.eval()
+    with torch.no_grad():
+        val_loss = 0
+        for batch_data, batch_labels in val_loader:
+            outputs = model(batch_data)
+            loss = criterion(outputs.squeeze(), batch_labels)
+            val_loss += loss.item()
+        val_loss /= len(val_loader)
+        print(f'Validation Loss: {val_loss}')
+
+    # 获取模型预测的置信度
+    model.eval()
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        val_loss = 0
+        for batch_data, batch_labels in val_loader:
+            batch_data, batch_labels = batch_data, batch_labels
+            outputs = model(batch_data)
+            predicted = (outputs.squeeze() >= 0.5).float()
+            correct += (predicted == batch_labels).sum().item()
+            total += batch_labels.size(0)
+            loss = criterion(outputs.squeeze(), batch_labels)
+            val_loss += loss.item()
+        val_loss /= len(val_loader)
+        accuracy = correct / total
+        print(f'Validation Loss: {val_loss}')
+        print(f'Validation Accuracy: {accuracy}')
+
+    # 获取模型预测的置信度
+    with torch.no_grad():
+        confidences = model(data).squeeze()
+
+    # 设置置信度阈值 (例如 0.9)
+    threshold = 0.99
+    high_confidence_random_indices = (confidences < (1 - threshold)) & (labels == 0)
+    high_confidence_trajectory_indices = (confidences > threshold) & (labels == 1)
+
+    high_confidence_random_data = data[high_confidence_random_indices]
+    high_confidence_trajectory_data = data[high_confidence_trajectory_indices]
+
+    print(f'Number of high confidence random data points: {len(high_confidence_random_data)}')
+    print(f'Number of high confidence trajectory data points: {len(high_confidence_trajectory_data)}')
+
+    # print(f'High confidence random data: {high_confidence_random_data}')
+    # print(f'High confidence trajectory data: {high_confidence_trajectory_data}')
+
+    def plot_sample(sample, name):
+        dataset_config = DatasetConfig()
+        feature, label = sample[:-2].squeeze(), sample[-2:].squeeze()
+        if isinstance(feature, torch.Tensor):
+            feature = feature.cpu().numpy()
+        if isinstance(label, torch.Tensor):
+            label = label.cpu().numpy()
+        n_state = dataset_config.system.n_state
+        z = feature[: n_state]
+        u = feature[n_state:]
+        p = label
+        ts = np.linspace(0, dataset_config.delay, dataset_config.n_point_delay)
+        plt.plot(ts, u, label='U')
+        p_z_colors = ['red', 'blue']
+        for i in range(n_state):
+            plt.scatter(ts[-1], z[i], label=f'$Z_t({i})$', c=p_z_colors[i])
+            plt.scatter(ts[-1], p[i], label=f'$P_t({i})$', c=p_z_colors[i], marker='^')
+        plt.legend(loc='upper left')
+        out_dir = f'./misc/sample'
+        random_string = ""
+        import random as r
+        for i in range(8):
+            random_string += str(r.randint(0, 9))
+        plt.savefig(f'{out_dir}/{name}_{random_string}')
+        plt.clf()
+
+    for random_sample in high_confidence_random_data[:10]:
+        plot_sample(random_sample, 'random')
+
+    for trajectory_sample in high_confidence_trajectory_data[:10]:
+        plot_sample(trajectory_sample, 'trajectory')
+
+
 if __name__ == '__main__':
-    dataset_config = DatasetConfig(delay=1, duration=16)
-    U, Z, P = run(method='numerical', Z0=(2, 2, 2), dataset_config=dataset_config, img_save_path='./misc')
+    classify_sample()
+    # dataset_config = DatasetConfig(delay=1, duration=16)
+    # U, Z, P = run(method='numerical', Z0=(2, 2, 2), dataset_config=dataset_config, img_save_path='./misc')
 
     # dataset_config = DatasetConfig(
     #     recreate_training_dataset=True,

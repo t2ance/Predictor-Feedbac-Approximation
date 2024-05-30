@@ -16,7 +16,7 @@ from dataset import PredictionDataset
 from dynamic_systems import solve_integral_equation
 
 p_z_colors = ['red', 'green', 'blue', 'yellow', 'black']
-legend_loc = 'upper left'
+legend_loc = 'upper right'
 legend_fontsize = 8
 
 
@@ -126,8 +126,6 @@ def plot_sample(feature, label, dataset_config: DatasetConfig, name: str = '1.pn
         feature = feature.cpu().numpy()
     if isinstance(label, torch.Tensor):
         label = label.cpu().numpy()
-    # print(f'[Feature Shape]: {feature.shape}')
-    # print(f'[Label Shape]: {label.shape}')
     n_state = dataset_config.system.n_state
     t = feature[:1]
     z = feature[1:1 + n_state]
