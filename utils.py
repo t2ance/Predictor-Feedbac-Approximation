@@ -209,15 +209,22 @@ def plot_system(title, ts, Z, U, P, img_save_path):
 def plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, save_path, n_state: int, ylim=None):
     fig = plt.figure(figsize=set_size())
     plt.title('Comparison')
+
+    def p_safe(p, t_i):
+        if n_point_delay == 0:
+            return p[:, t_i]
+        else:
+            return p[:-n_point_delay, t_i]
+
     for t_i in range(n_state):
         if P_numerical is not None:
-            plt.plot(ts[n_point_delay:], P_numerical[:-n_point_delay, t_i], linestyle=':', color=p_z_colors[t_i],
+            plt.plot(ts[n_point_delay:], p_safe(P_numerical, t_i), linestyle=':', color=p_z_colors[t_i],
                      label=f'$P^{{numerical}}_{t_i + 1}(t-{delay})$')
         if P_no is not None:
-            plt.plot(ts[n_point_delay:], P_no[:-n_point_delay, t_i], linestyle='--', color=p_z_colors[t_i],
+            plt.plot(ts[n_point_delay:], p_safe(P_no, t_i), linestyle='--', color=p_z_colors[t_i],
                      label=f'$P^{{no}}_{t_i + 1}(t-{delay})$')
         if P_explicit is not None:
-            plt.plot(ts[n_point_delay:], P_no[:-n_point_delay, t_i], linestyle='-.', color=p_z_colors[t_i],
+            plt.plot(ts[n_point_delay:], p_safe(P_explicit, t_i), linestyle='-.', color=p_z_colors[t_i],
                      label=f'$P^{{explicit}}_{t_i + 1}(t-{delay})$')
         plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$', color=p_z_colors[t_i])
     plt.xlabel('t')
@@ -234,16 +241,23 @@ def plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, 
 
 def plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, save_path, n_state: int, ylim=None):
     fig = plt.figure(figsize=set_size())
+
+    def p_safe(p):
+        if n_point_delay == 0:
+            return p
+        else:
+            return p[:-n_point_delay]
+
     if P_no is not None:
-        difference = P_no[:-n_point_delay] - Z[n_point_delay:]
+        difference = p_safe(P_no) - Z[n_point_delay:]
         for i in range(n_state):
             plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{no}}_{i + 1}$')
     if P_numerical is not None:
-        difference = P_numerical[:-n_point_delay] - Z[n_point_delay:]
+        difference = p_safe(P_numerical) - Z[n_point_delay:]
         for i in range(n_state):
             plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{numerical}}_{i + 1}$')
     if P_explicit is not None:
-        difference = P_explicit[:-n_point_delay] - Z[n_point_delay:]
+        difference = p_safe(P_explicit) - Z[n_point_delay:]
         for i in range(n_state):
             plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{explicit}}_{i + 1}$')
     plt.xlabel('t')

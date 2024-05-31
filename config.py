@@ -6,7 +6,7 @@ import numpy as np
 
 import dynamic_systems
 
-system = 's2'
+system = 's3'
 
 
 @dataclass
@@ -111,7 +111,14 @@ class DatasetConfig:
             return [(x, y, z) for x, y, z in itertools.product(
                 np.linspace(-0.3, 0.3, 3),
                 np.linspace(-0.3, 0.3, 3),
-                np.linspace(-0.3, 0.3, 3),
+                np.linspace(-0.3, 0.3, 3)
+            )]
+        elif system == 's3':
+            return [(x, y, z) for x, y, z in itertools.product(
+                np.linspace(-0.2, 0.2, 2),
+                np.linspace(-0.2, 0.2, 2),
+                np.linspace(-0.2, 0.2, 2),
+                np.linspace(-0.2, 0.2, 2)
             )]
         else:
             raise NotImplementedError()
@@ -148,8 +155,12 @@ class DatasetConfig:
     def system(self) -> dynamic_systems.DynamicSystem:
         if system == 's1':
             return dynamic_systems.DynamicSystem1(c=self.system_c, n=self.system_n, delay=self.delay)
-        else:
+        elif system == 's2':
             return dynamic_systems.DynamicSystem2(delay=self.delay)
+        elif system == 's3':
+            return dynamic_systems.InvertedPendulum(delay=self.delay)
+        else:
+            raise NotImplementedError()
 
     @property
     def ts(self) -> np.ndarray:

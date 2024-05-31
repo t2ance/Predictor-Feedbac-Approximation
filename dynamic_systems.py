@@ -3,14 +3,19 @@ from abc import abstractmethod
 import numpy as np
 import torch
 from deepxde.nn.pytorch import DeepONet
+from scipy.signal import place_poles
 
 
 class DynamicSystem:
+    def __init__(self, delay):
+        super().__init__()
+        self.delay = delay
+
     @abstractmethod
     def name(self):
         ...
 
-    @property
+    @abstractmethod
     def n_state(self):
         raise NotImplementedError()
 
@@ -45,10 +50,9 @@ class DynamicSystem1(DynamicSystem):
         return 2
 
     def __init__(self, c, n, delay):
-        super().__init__()
+        super().__init__(delay)
         self.c = c
         self.n = n
-        self.delay = delay
 
     def dynamic(self, Z_t, t, U_delay):
         Z1_t = Z_t[0]
@@ -120,8 +124,7 @@ class DynamicSystem2(DynamicSystem):
         return 3
 
     def __init__(self, delay):
-        super().__init__()
-        self.delay = delay
+        super().__init__(delay)
 
     def dynamic(self, Z_t, t, U_delay):
         Z1_t = Z_t[0]
@@ -160,6 +163,55 @@ class DynamicSystem2(DynamicSystem):
                                 + P2 * P3 / 2 + 5 / 8 * P3 ** 2 - 1 / 4 * P3 ** 3
                                 - 3 / 8 * (P2 - P3 ** 2 / 2) ** 2)
         )
+
+
+class InvertedPendulum(DynamicSystem):
+    def __init__(self, delay: float, M=1.0, m=0.1, l=1.0, g=9.81, desired_poles=[-2, -2.5, -3, -3.5]):
+        self.M = M
+        self.m = m
+        self.l = l
+        self.g = g
+        self.desired_poles = desired_poles
+        self.A = np.array([
+            [0, 1, 0, 0],
+            [(self.M + self.m) * self.g / (self.M * self.l), 0, 0, 0],
+            [0, 0, 0, 1],
+            [-self.m * self.g / self.M, 0, 0, 0]
+        ])
+        self.B = np.array([
+            [0],
+            [-1 / (self.M * self.l)],
+            [0],
+            [1 / self.M]
+        ])
+        self.K = self.calculate_feedback_gain()
+        super().__init__(delay)
+
+    @property
+    def n_state(self):
+        return 4
+
+    def name(self):
+        return 's3'
+
+    def calculate_feedback_gain(self):
+        result = place_poles(self.A, self.B, self.desired_poles)
+        K = result.gain_matrix[0]
+        return K
+
+    def dynamic(self, Z_t, t, U_delay):
+        Z_dot = np.dot(self.A, Z_t) + self.B.flatten() * U_delay
+        return Z_dot
+
+    def kappa(self, Z_t):
+        u = -np.dot(self.K, Z_t)
+        return u
+
+    def dynamic_tensor_batched1(self, Z_t, t, U_delay):
+        pass
+
+    def dynamic_tensor_batched2(self, Z_t, t, U_delay):
+        pass
 
 
 def solve_integral_equation_neural_operator(model, U_D, Z_t, t):
