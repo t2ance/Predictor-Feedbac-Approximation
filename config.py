@@ -6,7 +6,7 @@ import numpy as np
 
 import dynamic_systems
 
-system = 's3'
+system = 's4'
 
 
 @dataclass
@@ -114,11 +114,16 @@ class DatasetConfig:
                 np.linspace(-0.3, 0.3, 3)
             )]
         elif system == 's3':
-            return [(x, y, z) for x, y, z in itertools.product(
+            return [(x, y, z, w) for x, y, z, w in itertools.product(
                 np.linspace(-0.2, 0.2, 2),
                 np.linspace(-0.2, 0.2, 2),
                 np.linspace(-0.2, 0.2, 2),
                 np.linspace(-0.2, 0.2, 2)
+            )]
+        elif system == 's4':
+            return [(x, y) for x, y in itertools.product(
+                np.linspace(-1, 1, 6),
+                np.linspace(-1, 1, 6),
             )]
         else:
             raise NotImplementedError()
@@ -159,6 +164,8 @@ class DatasetConfig:
             return dynamic_systems.DynamicSystem2(delay=self.delay)
         elif system == 's3':
             return dynamic_systems.InvertedPendulum(delay=self.delay)
+        elif system == 's4':
+            return dynamic_systems.VanDerPolOscillator(delay=self.delay)
         else:
             raise NotImplementedError()
 
@@ -182,6 +189,109 @@ class DatasetConfig:
         if self.noise_sigma_numerical == 0:
             return 0
         return np.random.randn() * self.noise_sigma_numerical
+
+
+def get_default_config():
+    if system == 's1':
+        return (
+
+        )
+    elif system == 's2':
+        return (DatasetConfig(
+            recreate_training_dataset=True,
+            data_generation_strategy='trajectory',
+            delay=1,
+            duration=8,
+            dt=0.125,
+            n_dataset=400,
+            n_sample_per_dataset=50,
+            append_training_dataset=False,
+            n_plot_sample=20,
+            ic_lower_bound=-0.5,
+            ic_upper_bound=0.5
+        ), ModelConfig(
+            model_name='FNO',
+            fno_n_layers=10,
+            fno_n_modes_height=64,
+            fno_hidden_channels=128
+        ), TrainConfig(
+            learning_rate=1e-3,
+            training_ratio=0.8,
+            n_epoch=500,
+            batch_size=128,
+            weight_decay=1e-2,
+            log_step=-1,
+            lr_scheduler_type='exponential',
+            scheduler_gamma=0.97,
+            scheduler_step_size=1,
+            scheduler_min_lr=1e-5,
+            debug=False,
+            do_test=True
+        ))
+    elif system == 's3':
+        return (DatasetConfig(
+            recreate_training_dataset=True,
+            data_generation_strategy='trajectory',
+            delay=0.2,
+            duration=16,
+            dt=0.01,
+            n_dataset=100,
+            n_sample_per_dataset=50,
+            n_plot_sample=20,
+            ic_lower_bound=-0.5,
+            ic_upper_bound=0.5
+        ), ModelConfig(
+            model_name='FNO',
+            fno_n_layers=10,
+            fno_n_modes_height=32,
+            fno_hidden_channels=64
+        ), TrainConfig(
+            learning_rate=1e-3,
+            training_ratio=0.8,
+            n_epoch=500,
+            batch_size=128,
+            weight_decay=1e-2,
+            log_step=-1,
+            lr_scheduler_type='exponential',
+            scheduler_gamma=0.97,
+            scheduler_step_size=1,
+            scheduler_min_lr=1e-5,
+            debug=False,
+            do_test=True
+        ))
+    elif system == 's4':
+        return (DatasetConfig(
+            recreate_training_dataset=True,
+            data_generation_strategy='trajectory',
+            delay=0.5,
+            duration=8,
+            dt=0.05,
+            n_dataset=100,
+            n_sample_per_dataset=50,
+            n_plot_sample=20,
+            ic_lower_bound=-1.5,
+            ic_upper_bound=1.5
+        ), ModelConfig(
+            model_name='FNO',
+            fno_n_layers=10,
+            fno_n_modes_height=32,
+            fno_hidden_channels=64
+        ), TrainConfig(
+            learning_rate=1e-3,
+            training_ratio=0.8,
+            n_epoch=500,
+            batch_size=128,
+            weight_decay=1e-2,
+            log_step=-1,
+            lr_scheduler_type='exponential',
+            scheduler_gamma=0.97,
+            scheduler_step_size=1,
+            scheduler_min_lr=1e-5,
+            debug=False,
+            do_test=True
+        ))
+    else:
+        raise NotImplementedError()
 
 
 if __name__ == '__main__':

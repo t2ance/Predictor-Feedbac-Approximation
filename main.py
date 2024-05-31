@@ -14,6 +14,7 @@ from scipy.integrate import odeint
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
+import config
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ImplicitDataset, ExplictDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import solve_integral_equation, solve_integral_equation_, solve_integral_equation_neural_operator
@@ -750,41 +751,7 @@ def main_(dataset_config: DatasetConfig, model_config: ModelConfig, train_config
 def main(sweep: bool = True):
     set_seed(0)
     # setup_plt()
-    dataset_config = DatasetConfig(
-        recreate_training_dataset=True,
-        data_generation_strategy='trajectory',
-        delay=1,
-        duration=8,
-        dt=0.125,
-        n_dataset=400,
-        n_sample_per_dataset=50,
-        append_training_dataset=False,
-        # system_n=2,
-        # system_c=5,
-        n_plot_sample=20,
-        ic_lower_bound=-0.5,
-        ic_upper_bound=0.5
-    )
-    model_config = ModelConfig(
-        model_name='FNO',
-        fno_n_layers=10,
-        fno_n_modes_height=64,
-        fno_hidden_channels=128
-    )
-    train_config = TrainConfig(
-        learning_rate=1e-3,
-        training_ratio=0.8,
-        n_epoch=500,
-        batch_size=128,
-        weight_decay=1e-2,
-        log_step=-1,
-        lr_scheduler_type='exponential',
-        scheduler_gamma=0.97,
-        scheduler_step_size=1,
-        scheduler_min_lr=1e-5,
-        debug=False,
-        do_test=True
-    )
+    dataset_config, model_config, train_config = config.get_default_config()
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     if sweep:
         sweep_config = {

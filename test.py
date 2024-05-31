@@ -271,8 +271,9 @@ def classify_sample():
 
 
 if __name__ == '__main__':
-    dataset_config = DatasetConfig(delay=0.2, duration=16)
-    U, Z, P = run(method='numerical', Z0=(0.1, 0.1, 0.1, 0.1), dataset_config=dataset_config, img_save_path='./misc')
+    dataset_config = DatasetConfig(delay=0.5, duration=8, dt=0.05)
+    z = 1.5
+    U, Z, P = run(method='numerical', Z0=(z, z), dataset_config=dataset_config, img_save_path='./misc')
     # classify_sample()
     # dataset_config = DatasetConfig(delay=1, duration=16)
     # U, Z, P = run(method='numerical', Z0=(2, 2, 2), dataset_config=dataset_config, img_save_path='./misc')

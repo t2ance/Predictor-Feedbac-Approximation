@@ -208,10 +208,48 @@ class InvertedPendulum(DynamicSystem):
         return u
 
     def dynamic_tensor_batched1(self, Z_t, t, U_delay):
-        pass
+        raise NotImplementedError()
 
     def dynamic_tensor_batched2(self, Z_t, t, U_delay):
-        pass
+        raise NotImplementedError()
+
+
+class VanDerPolOscillator(DynamicSystem):
+    def name(self):
+        return 's4'
+
+    @property
+    def n_state(self):
+        return 2
+
+    def __init__(self, delay: float, mu=1.0, desired_poles=[-2, -3]):
+        super().__init__(delay)
+        self.mu = mu
+        self.desired_poles = desired_poles
+        self.A = np.array([[0, 1], [0, -1]])
+        self.B = np.array([[0], [1]])
+        self.K = self.calculate_feedback_gain()
+
+    def calculate_feedback_gain(self):
+        result = place_poles(self.A, self.B, self.desired_poles)
+        K = result.gain_matrix[0]
+        return K
+
+    def dynamic(self, Z_t, t, U_delay):
+        x1, x2 = Z_t
+        x1_dot = x2
+        x2_dot = self.mu * (1 - x1 ** 2) * x2 - x1 + U_delay
+        return np.array([x1_dot, x2_dot])
+
+    def kappa(self, Z_t):
+        u = -np.dot(self.K, Z_t)
+        return u
+
+    def dynamic_tensor_batched1(self, Z_t, t, U_delay):
+        raise NotImplementedError()
+
+    def dynamic_tensor_batched2(self, Z_t, t, U_delay):
+        raise NotImplementedError()
 
 
 def solve_integral_equation_neural_operator(model, U_D, Z_t, t):
