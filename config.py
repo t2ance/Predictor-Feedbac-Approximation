@@ -6,7 +6,7 @@ import numpy as np
 
 import dynamic_systems
 
-system = 's4'
+system = 's3'
 
 
 @dataclass
@@ -55,6 +55,7 @@ class DatasetConfig:
     delay: Optional[float] = field(default=3.)
     duration: Optional[int] = field(default=8)
     dt: Optional[float] = field(default=0.125)
+    integral_method: Optional[Literal['rectangle', 'trapezoidal', 'simpson']] = field(default='rectangle')
 
     ic_lower_bound: Optional[float] = field(default=-2)
     ic_upper_bound: Optional[float] = field(default=2)
@@ -193,9 +194,36 @@ class DatasetConfig:
 
 def get_default_config():
     if system == 's1':
-        return (
-
-        )
+        return (DatasetConfig(
+            recreate_training_dataset=True,
+            data_generation_strategy='trajectory',
+            delay=0.5,
+            duration=8,
+            dt=0.001,
+            n_dataset=100,
+            n_sample_per_dataset=5,
+            n_plot_sample=20,
+            ic_lower_bound=-1,
+            ic_upper_bound=1
+        ), ModelConfig(
+            model_name='FNO',
+            fno_n_layers=2,
+            fno_n_modes_height=8,
+            fno_hidden_channels=16
+        ), TrainConfig(
+            learning_rate=1e-3,
+            training_ratio=0.8,
+            n_epoch=500,
+            batch_size=128,
+            weight_decay=1e-2,
+            log_step=-1,
+            lr_scheduler_type='exponential',
+            scheduler_gamma=0.97,
+            scheduler_step_size=1,
+            scheduler_min_lr=1e-5,
+            debug=False,
+            do_test=True
+        ))
     elif system == 's2':
         return (DatasetConfig(
             recreate_training_dataset=True,
@@ -233,27 +261,27 @@ def get_default_config():
             recreate_training_dataset=True,
             data_generation_strategy='trajectory',
             delay=0.2,
-            duration=16,
+            duration=8,
             dt=0.01,
-            n_dataset=100,
-            n_sample_per_dataset=50,
+            n_dataset=50,
+            n_sample_per_dataset=-1,
             n_plot_sample=20,
-            ic_lower_bound=-0.5,
-            ic_upper_bound=0.5
+            ic_lower_bound=-1,
+            ic_upper_bound=1
         ), ModelConfig(
             model_name='FNO',
-            fno_n_layers=10,
-            fno_n_modes_height=32,
-            fno_hidden_channels=64
+            fno_n_layers=3,
+            fno_n_modes_height=16,
+            fno_hidden_channels=32
         ), TrainConfig(
             learning_rate=1e-3,
             training_ratio=0.8,
-            n_epoch=500,
+            n_epoch=200,
             batch_size=128,
             weight_decay=1e-2,
             log_step=-1,
             lr_scheduler_type='exponential',
-            scheduler_gamma=0.97,
+            scheduler_gamma=0.99,
             scheduler_step_size=1,
             scheduler_min_lr=1e-5,
             debug=False,
@@ -264,18 +292,18 @@ def get_default_config():
             recreate_training_dataset=True,
             data_generation_strategy='trajectory',
             delay=0.5,
-            duration=8,
-            dt=0.05,
-            n_dataset=100,
-            n_sample_per_dataset=50,
+            duration=16,
+            dt=0.001,
+            n_dataset=10,
+            n_sample_per_dataset=500,
             n_plot_sample=20,
-            ic_lower_bound=-1.5,
-            ic_upper_bound=1.5
+            ic_lower_bound=-1,
+            ic_upper_bound=1
         ), ModelConfig(
             model_name='FNO',
-            fno_n_layers=10,
-            fno_n_modes_height=32,
-            fno_hidden_channels=64
+            fno_n_layers=2,
+            fno_n_modes_height=8,
+            fno_hidden_channels=16
         ), TrainConfig(
             learning_rate=1e-3,
             training_ratio=0.8,

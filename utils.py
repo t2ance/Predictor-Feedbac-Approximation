@@ -390,5 +390,13 @@ def set_seed(seed: int):
         torch.cuda.manual_seed_all(seed)
 
 
+def print_result(result, dataset_config):
+    print(
+        f'Relative L2 error: {result[0]}'
+        f' || L2 error: {result[1]}'
+        f' || Runtime: {result[2]}'
+        f' || Successful cases: [{result[3]}/{len(dataset_config.test_points)}]')
+
+
 if __name__ == '__main__':
     ...

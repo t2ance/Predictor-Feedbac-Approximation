@@ -14,10 +14,12 @@ def initialize_weights(m):
             init.zeros_(m.bias)
 
 
+# Generation Models
+
 class BSplineNet(nn.Module):
     def __init__(self, n_state: int, n_knot: int, degree: int, points):
         super(BSplineNet, self).__init__()
-        self.points = torch.tensor(points)  # points where we want to evaluate the function
+        self.points = torch.tensor(points)
         self.n_knot = n_knot
         self.degree = degree
         self.net = nn.Sequential(
@@ -133,6 +135,8 @@ class FullyConnectedNet(torch.nn.Module):
         return self.net(x)
 
 
+# Prediction Models
+
 class PIFNO(torch.nn.Module):
     def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, dt: float, n_state: int,
                  dynamic: Callable, *args, **kwargs):
@@ -166,13 +170,12 @@ class FNOProjection(torch.nn.Module):
                          in_channels=1, out_channels=1)
         in_features = n_state + n_point_delay
         out_features = n_state
-        self.projection = torch.nn.Sequential(
-            torch.nn.Linear(in_features=in_features, out_features=4 * in_features),
-            torch.nn.ReLU(),
-            torch.nn.Linear(in_features=4 * in_features, out_features=in_features),
-            torch.nn.ReLU(),
-            torch.nn.Linear(in_features=in_features, out_features=out_features),
-        )
+        # self.projection = torch.nn.Sequential(
+        #     torch.nn.Linear(in_features=in_features, out_features=in_features),
+        #     torch.nn.ReLU(),
+        #     torch.nn.Linear(in_features=in_features, out_features=out_features)
+        # )
+        self.projection = torch.nn.Linear(in_features=in_features, out_features=out_features)
 
     def forward(self, x: torch.Tensor, label: torch.Tensor = None):
         x = x.unsqueeze(-2)

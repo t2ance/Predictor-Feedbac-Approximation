@@ -3,6 +3,7 @@ from abc import abstractmethod
 import numpy as np
 import torch
 from deepxde.nn.pytorch import DeepONet
+from scipy.integrate import simps
 from scipy.signal import place_poles
 
 
@@ -200,9 +201,12 @@ class InvertedPendulum(DynamicSystem):
         return K
 
     def dynamic(self, Z_t, t, U_delay):
-        Z_dot = np.dot(self.A, Z_t) + self.B.flatten() * U_delay
-        return Z_dot
-
+        if len(Z_t.shape) < 2:
+            Z_dot = np.dot(self.A, Z_t) + self.B.flatten() * U_delay
+            return Z_dot
+        else:
+            Z_dot = np.dot(self.A, Z_t.T) + self.B * U_delay
+            return Z_dot.T
     def kappa(self, Z_t):
         u = -np.dot(self.K, Z_t)
         return u
@@ -236,10 +240,16 @@ class VanDerPolOscillator(DynamicSystem):
         return K
 
     def dynamic(self, Z_t, t, U_delay):
-        x1, x2 = Z_t
-        x1_dot = x2
-        x2_dot = self.mu * (1 - x1 ** 2) * x2 - x1 + U_delay
-        return np.array([x1_dot, x2_dot])
+        if len(Z_t.shape) < 2:
+            x1, x2 = Z_t
+            x1_dot = x2
+            x2_dot = self.mu * (1 - x1 ** 2) * x2 - x1 + U_delay
+            return np.array([x1_dot, x2_dot])
+        else:
+            x1, x2 = Z_t[:, 0], Z_t[:, 1]
+            x1_dot = x2
+            x2_dot = self.mu * (1 - x1 ** 2) * x2 - x1 + U_delay
+            return np.hstack([x1_dot, x2_dot])
 
     def kappa(self, Z_t):
         u = -np.dot(self.K, Z_t)
@@ -269,13 +279,36 @@ def solve_integral_equation(Z_t, n_point_delay: int, n_state: int, dt: float, U_
     P_D[0, :] = Z_t
     for j in range(n_point_delay - 1):
         P_D[j + 1, :] = P_D[j, :] + dt * dynamic(P_D[j, :], j * dt, U_D[j])
-    p = solve_integral_equation_(f=dynamic, Z_t=Z_t, P_D=P_D, U_D=U_D, dt=dt, t=dt * n_point_delay)
+    p = solve_integral_equation_rectangle(f=dynamic, Z_t=Z_t, P_D=P_D, U_D=U_D, dt=dt, t=dt * n_point_delay)
     return p
 
 
-def solve_integral_equation_(f, Z_t, P_D, U_D, dt: float, t: float):
+def solve_integral_equation_rectangle(f, Z_t, P_D, U_D, dt: float, t: float):
     assert len(P_D) == len(U_D)
-    integral = sum([f(p, t, u) for p, u in zip(P_D, U_D)]) * dt
+    if len(P_D) == 0:
+        return 0
+    integrand_values = f(np.array(P_D), t, np.array(U_D))
+    integral = integrand_values.sum(0) * dt
+    return integral + Z_t
+
+
+def solve_integral_equation_trapezoidal(f, Z_t, P_D, U_D, dt: float, t: float):
+    assert len(P_D) == len(U_D)
+    if len(P_D) == 0:
+        return 0
+    integrand_values = f(np.array(P_D), t, np.array(U_D))
+    t_values = np.arange(0, len(integrand_values)) * dt
+    integral = np.trapz(integrand_values, t_values)
+    return integral + Z_t
+
+
+def solve_integral_equation_simpson(f, Z_t, P_D, U_D, dt: float, t: float):
+    assert len(P_D) == len(U_D)
+    if len(P_D) == 0:
+        return 0
+    integrand_values = f(np.array(P_D), t, np.array(U_D))
+    t_values = np.arange(0, len(integrand_values)) * dt
+    integral = simps(integrand_values, t_values)
     return integral + Z_t
 
 

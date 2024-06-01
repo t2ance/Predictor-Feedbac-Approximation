@@ -1,2 +1,9 @@
 /dataset/
 /result/
+/misc
+/s1/
+/s2/
+/s3/
+/s4/
+/main_wandb.py
+/test.py

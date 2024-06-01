@@ -2,14 +2,12 @@ import os
 import pickle
 import random
 import time
-from dataclasses import asdict
 from typing import Literal, Tuple, List
 
 import deepxde as dde
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import wandb
 from scipy.integrate import odeint
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
@@ -17,11 +15,12 @@ from tqdm import tqdm
 import config
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ImplicitDataset, ExplictDataset, PredictionDataset, sample_to_tensor
-from dynamic_systems import solve_integral_equation, solve_integral_equation_, solve_integral_equation_neural_operator
+from dynamic_systems import solve_integral_equation, solve_integral_equation_rectangle, \
+    solve_integral_equation_neural_operator, solve_integral_equation_trapezoidal, solve_integral_equation_simpson
 from model import FNOProjection, FNOTwoStage, PIFNO, FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
-from utils import count_params, get_time_str, set_size, pad_leading_zeros, plot_comparison, plot_difference, \
+from utils import count_params, set_size, pad_leading_zeros, plot_comparison, plot_difference, \
     metric, check_dir, plot_sample, no_predict_and_loss, get_lr_scheduler, prepare_datasets, postprocess, \
-    draw_distribution, set_seed, plot_single
+    draw_distribution, set_seed, plot_single, print_result
 
 
 def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'numerical', 'no', 'numerical_no'] = None,
@@ -34,6 +33,14 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'nu
     n_point = dataset_config.n_point
     U = np.zeros(n_point)
     Z = np.zeros((n_point, system.n_state))
+    if dataset_config.integral_method == 'rectangle':
+        integral_method = solve_integral_equation_rectangle
+    elif dataset_config.integral_method == 'trapezoidal':
+        integral_method = solve_integral_equation_trapezoidal
+    elif dataset_config.integral_method == 'simpson':
+        integral_method = solve_integral_equation_simpson
+    else:
+        raise NotImplementedError()
     if method == 'explicit':
         P_explicit = np.zeros((n_point, system.n_state))
     else:
@@ -60,7 +67,8 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'nu
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0
-            P_numerical[t_i, :] = solve_integral_equation_(
+
+            P_numerical[t_i, :] = integral_method(
                 f=system.dynamic, Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], dt=dt, t=t)
             if t_i > n_point_delay:
                 U[t_i] = system.kappa(P_numerical[t_i, :])
@@ -81,7 +89,7 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'nu
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0
-            P_numerical[t_i, :] = solve_integral_equation_(
+            P_numerical[t_i, :] = integral_method(
                 f=system.dynamic, Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], dt=dt, t=t)
             P_no[t_i, :] = solve_integral_equation_neural_operator(
                 model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t, t=t)
@@ -122,9 +130,9 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'nu
 
     if method == 'explict':
         return U, Z, P_explicit
-    elif method == 'no':
+    elif method == 'no' or method == 'numerical_no':
         return U, Z, P_no
-    elif method == 'numerical' or method == 'numerical_no':
+    elif method == 'numerical':
         return U, Z, P_numerical
     else:
         raise NotImplementedError()
@@ -254,36 +262,36 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
                 testing_loss_arr.append(testing_loss_t)
             lr = scheduler.get_last_lr()[-1]
             desc = f'Epoch [{epoch + 1}/{n_epoch}] || Lr: {lr:6f} || Training loss: {training_loss_t:.6f}'
-            wandb.log({
-                'train/training loss': training_loss_t,
-                'train/lr': lr,
-                'train/epoch': epoch + 1
-            })
+            # wandb.log({
+            #     'train/training loss': training_loss_t,
+            #     'train/lr': lr,
+            #     'train/epoch': epoch + 1
+            # })
             if do_validation:
                 desc += f' || Validation loss: {validating_loss_t:.6f}'
-                wandb.log({
-                    'train/validation loss': validating_loss_t,
-                    'train/epoch': epoch + 1
-                })
+                # wandb.log({
+                #     'train/validation loss': validating_loss_t,
+                #     'train/epoch': epoch + 1
+                # })
             if do_testing:
                 desc += f' || Test loss: {testing_loss_t:.6f}'
-                wandb.log({
-                    'train/test loss': testing_loss_t,
-                    'train/epoch': epoch + 1
-                })
+                # wandb.log({
+                #     'train/test loss': testing_loss_t,
+                #     'train/epoch': epoch + 1
+                # })
             bar.set_description(desc)
 
             if (train_config.log_step > 0 and epoch % train_config.log_step == 0) or epoch == n_epoch - 1:
-                rl2, l2, n_success = run_test(model, dataset_config, base_path=model_config.base_path, silence=True,
-                                              debug=train_config.debug)
+                rl2, l2, _, n_success = run_test(model, dataset_config, method='no', base_path=model_config.base_path,
+                                                 silence=True)
                 rl2_list.append(rl2)
                 l2_list.append(l2)
-                wandb.log({
-                    'train/Relative L2 error': rl2,
-                    'train/L2 error': l2,
-                    'train/n_success': n_success,
-                    'train/epoch': epoch + 1
-                })
+                # wandb.log({
+                #     'train/Relative L2 error': rl2,
+                #     'train/L2 error': l2,
+                #     'train/n_success': n_success,
+                #     'train/epoch': epoch + 1
+                # })
             scheduler.step()
             for param_group in optimizer.param_groups:
                 param_group['lr'] = max(param_group['lr'], train_config.scheduler_min_lr)
@@ -293,13 +301,15 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
     return model
 
 
-def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: bool = False, silence: bool = False,
+def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = None, silence: bool = False,
              test_points: List = None, plot: bool = False):
+    base_path = f'{base_path}/{method}'
     if test_points is None:
         test_points = dataset_config.test_points
     bar = test_points if silence else tqdm(test_points)
-    metric_rl2_list = []
-    metric_l2_list = []
+    rl2_list = []
+    l2_list = []
+    runtime_list = []
     for test_point in bar:
         if not silence:
             bar.set_description(f'Solving system with initial point {np.round(test_point, decimals=2)}.')
@@ -309,27 +319,26 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: boo
         else:
             img_save_path = None
 
-        if debug:
-            U, Z, P = run(dataset_config=dataset_config, model=m, Z0=test_point, method='numerical_no',
-                          img_save_path=img_save_path)
-        else:
-            U, Z, P = run(dataset_config=dataset_config, model=m, Z0=test_point, method='no',
-                          img_save_path=img_save_path)
+        begin = time.time()
+        U, Z, P = run(dataset_config=dataset_config, model=m, Z0=test_point, method=method, img_save_path=img_save_path)
+        end = time.time()
+        runtime = end - begin
         plt.close()
         delay = dataset_config.n_point_delay
         rl2, l2 = metric(P[delay:-delay], Z[2 * delay:])
 
         if np.isinf(rl2) or np.isnan(rl2):
             if not silence:
-                print(f'[WARNING] Running with initial condition Z = {test_point} failed.')
+                print(f'[WARNING] Running with initial condition Z = {test_point} with method [{method}] failed.')
             continue
-        metric_rl2_list.append(rl2)
-        metric_l2_list.append(l2)
-
         if base_path is not None:
-            np.savetxt(f'{img_save_path}/metric.txt', np.array([rl2, l2]))
-    rl2 = np.nanmean(metric_rl2_list).item()
-    l2 = np.nanmean(metric_l2_list).item()
+            np.savetxt(f'{img_save_path}/metric.txt', np.array([rl2, l2, runtime]))
+        rl2_list.append(rl2)
+        l2_list.append(l2)
+        runtime_list.append(runtime)
+    rl2 = np.nanmean(rl2_list).item()
+    l2 = np.nanmean(l2_list).item()
+    runtime = np.nanmean(runtime_list).item()
     if plot or base_path is not None:
         def plot_result(data, label, title, xlabel, path):
             fig = plt.figure(figsize=set_size())
@@ -345,11 +354,11 @@ def run_test(m, dataset_config: DatasetConfig, base_path: str = None, debug: boo
                 fig.clear()
                 plt.close(fig)
 
-        plot_result(data=metric_rl2_list, label=f'Relative L2 error', title='Relative L2 error',
+        plot_result(data=rl2_list, label=f'Relative L2 error', title='Relative L2 error',
                     xlabel='Relative L2 error', path=f'{base_path}/rl2.png')
-        plot_result(data=metric_l2_list, label=f'L2 error', title='L2 error', xlabel='L2 error',
+        plot_result(data=l2_list, label=f'L2 error', title='L2 error', xlabel='L2 error',
                     path=f'{base_path}/l2.png')
-    return rl2, l2, len(metric_rl2_list)
+    return rl2, l2, runtime, len(rl2_list)
 
 
 def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_config: TrainConfig):
@@ -684,13 +693,13 @@ def create_nn_dataset(dataset_config: DatasetConfig):
             lr = scheduler.get_last_lr()[-1]
             bar.set_description(f'Epoch [{epoch + 1}/{n_epoch}] || Total loss {total_loss_avg:.6f} '
                                 f'|| Smooth loss {smooth_loss_avg:.6f} || IE loss {ie_loss_avg:.6f} || Lr {lr:.6f}')
-            wandb.log({
-                "generation/total loss": total_loss_avg,
-                "generation/integral equation loss": ie_loss_avg,
-                "generation/smoothness loss": smooth_loss_avg,
-                "generation/lr": lr,
-                "generation/epoch": epoch
-            })
+            # wandb.log({
+            #     "generation/total loss": total_loss_avg,
+            #     "generation/integral equation loss": ie_loss_avg,
+            #     "generation/smoothness loss": smooth_loss_avg,
+            #     "generation/lr": lr,
+            #     "generation/epoch": epoch
+            # })
 
         plt.title('training loss')
         plt.plot(training_total_loss_list, label='Total loss')
@@ -714,27 +723,15 @@ def create_nn_dataset(dataset_config: DatasetConfig):
         p_true = solve_integral_equation_batched(n_sample, u, z)
         loss = (p - p_true).norm(dim=1).mean()
         print(f'L2 error in generated dataset: {loss}')
-        # all_samples = list(zip(torch.hstack([torch.zeros_like(z)[:, 0:1], z, u]), p))
         all_samples = list(zip(torch.hstack([torch.zeros_like(z)[:, 0:1], z, u]).clone(), p_true.clone()))
         create_dataset_end = time.time()
         print(f'{create_dataset_end - create_dataset_begin} seconds used for creating dataset.')
-    # retain_samples = []
-    # for sample in all_samples:
-    #     feature, p = sample
-    #     feature = feature.cpu().numpy()
-    #     z = feature[1:3]
-    #     p = p.cpu().numpy()
-    #     ratio = np.linalg.norm(p) / np.linalg.norm(z)
-    #     if ratio <= dataset_config.ood_sample_bound:
-    #         retain_samples.append(sample)
-    # print(f'Generated {len(all_samples)} samples, {len(retain_samples)} retained')
+
     random.shuffle(all_samples)
     return all_samples
-    # random.shuffle(retain_samples)
-    # return retain_samples
 
 
-def main_(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
+def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
     training_dataloader, validating_dataloader = get_training_and_validation_datasets(dataset_config, train_config)
     testing_dataloader = get_test_datasets(dataset_config, train_config)
 
@@ -743,78 +740,22 @@ def main_(dataset_config: DatasetConfig, model_config: ModelConfig, train_config
     model = run_train(dataset_config=dataset_config, model_config=model_config, train_config=train_config,
                       training_dataloader=training_dataloader, validating_dataloader=validating_dataloader,
                       testing_dataloader=testing_dataloader, img_save_path=model_config.base_path)
-    metric_rd, metric_mse, n_success = run_test(m=model, dataset_config=dataset_config,
-                                                base_path=model_config.base_path)
-    return metric_rd, metric_mse, n_success
-
-
-def main(sweep: bool = True):
-    set_seed(0)
-    # setup_plt()
-    dataset_config, model_config, train_config = config.get_default_config()
-    wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
-    if sweep:
-        sweep_config = {
-            'name': get_time_str(),
-            'method': 'random',
-            'metric': {
-                'name': 'metric',
-                'goal': 'minimize'
-            },
-            'parameters': {
-                'fno_n_layers': {
-                    'values': list(range(1, 5))
-                },
-                'fno_n_modes_height': {
-                    'values': [4, 8, 16, 32, 64]
-                },
-                'fno_hidden_channels': {
-                    'values': [4, 8, 16, 32, 64]
-                },
-                'learning_rate': {
-                    'distribution': 'log_uniform_values',
-                    'min': 1e-5,
-                    'max': 1e-2
-                },
-                'weight_decay': {
-                    'distribution': 'log_uniform_values',
-                    'min': 1e-5,
-                    'max': 1e-1
-                }
-            }
-        }
-        sweep_id = wandb.sweep(sweep_config, project='no-sweep')
-
-        def sweep_main(config=None):
-            with wandb.init(config=config):
-                config = wandb.config
-                train_config.learning_rate = config.learning_rate
-                model_config.fno_hidden_channels = config.fno_hidden_channels
-                model_config.fno_n_layers = config.fno_n_layers
-                model_config.fno_n_modes_height = config.fno_n_modes_height
-                train_config.weight_decay = config.weight_decay
-                metric_rd, metric_mse, n_success = main_(dataset_config, model_config, train_config)
-                wandb.log({
-                    "metric": np.nan if n_success != len(dataset_config.test_points) or metric_mse > 5 else metric_mse,
-                    "n_success": n_success
-                })
-
-        wandb.agent(sweep_id, sweep_main)
-    else:
-        wandb.init(
-            project="no",
-            name=get_time_str(),
-            config={
-                **asdict(dataset_config),
-                **asdict(model_config),
-                **asdict(train_config)
-            }
-        )
-        metric_rd, metric_mse, n_success = main_(dataset_config, model_config, train_config)
-        print(f'Relative L2 error: {metric_rd}')
-        print(f'L2 error: {metric_mse}')
-        print(f'Successful cases: [{n_success}/{len(dataset_config.test_points)}]')
+    return (
+        run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='no'),
+        run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='numerical'),
+        run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='numerical_no')
+    )
 
 
 if __name__ == '__main__':
-    main(sweep=False)
+    set_seed(0)
+    # setup_plt()
+    dataset_config, model_config, train_config = config.get_default_config()
+    print(f'Running with system {config.system}')
+    result_no, result_numerical, result_numerical_no = main(dataset_config, model_config, train_config)
+    print('NO Result')
+    print_result(result_no, dataset_config)
+    print('Numerical Result')
+    print_result(result_numerical, dataset_config)
+    print('Numerical-NO Result')
+    print_result(result_numerical_no, dataset_config)
