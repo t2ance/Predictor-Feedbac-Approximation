@@ -1,0 +1,1 @@
+Run `main.py` and set the configurations in `config.py`
