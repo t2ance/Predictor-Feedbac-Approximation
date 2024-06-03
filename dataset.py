@@ -11,7 +11,7 @@ def sample_to_tensor(z_features, u_features, time_step_position):
     return features
 
 
-class ImplicitDataset(Dataset):
+class ZUZDataset(Dataset):
     def __init__(self, Z, U, D_steps, dt):
         self.Z = Z
         self.U = U
@@ -30,7 +30,7 @@ class ImplicitDataset(Dataset):
         return features, label
 
 
-class ExplictDataset(Dataset):
+class ZUPDataset(Dataset):
     def __init__(self, Z, U, P, n_point_delay, dt):
         self.Z = Z
         self.U = U

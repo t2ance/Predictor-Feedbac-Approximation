@@ -56,11 +56,16 @@ class DynamicSystem1(DynamicSystem):
         self.n = n
 
     def dynamic(self, Z_t, t, U_delay):
-        Z1_t = Z_t[0]
-        Z2_t = Z_t[1]
-        Z1_t_dot = Z2_t - self.c * Z2_t ** self.n * U_delay
-        Z2_t_dot = U_delay
-        return np.array([Z1_t_dot, Z2_t_dot])
+        if len(Z_t.shape) < 2:
+            Z1_t, Z2_t = Z_t
+            Z1_t_dot = Z2_t - self.c * Z2_t ** self.n * U_delay
+            Z2_t_dot = U_delay
+            return np.array([Z1_t_dot, Z2_t_dot])
+        else:
+            Z1_t, Z2_t = Z_t[:, 0], Z_t[:, 1]
+            Z1_t_dot = Z2_t - self.c * Z2_t ** self.n * U_delay
+            Z2_t_dot = U_delay
+            return np.vstack([Z1_t_dot, Z2_t_dot]).T
 
     def dynamic_tensor_batched1(self, Z_t, t, U_delay):
         Z1_t = Z_t[:, 0]
@@ -128,13 +133,18 @@ class DynamicSystem2(DynamicSystem):
         super().__init__(delay)
 
     def dynamic(self, Z_t, t, U_delay):
-        Z1_t = Z_t[0]
-        Z2_t = Z_t[1]
-        Z3_t = Z_t[2]
-        Z1_t_dot = Z2_t + Z3_t ** 2
-        Z2_t_dot = Z3_t + Z3_t * U_delay
-        Z3_t_dot = U_delay
-        return np.array([Z1_t_dot, Z2_t_dot, Z3_t_dot])
+        if len(Z_t.shape) < 2:
+            Z1_t, Z2_t, Z3_t = Z_t
+            Z1_t_dot = Z2_t + Z3_t ** 2
+            Z2_t_dot = Z3_t + Z3_t * U_delay
+            Z3_t_dot = U_delay
+            return np.array([Z1_t_dot, Z2_t_dot, Z3_t_dot])
+        else:
+            Z1_t, Z2_t, Z3_t = Z_t[:, 0], Z_t[:, 1], Z_t[:, 2]
+            Z1_t_dot = Z2_t + Z3_t ** 2
+            Z2_t_dot = Z3_t + Z3_t * U_delay
+            Z3_t_dot = U_delay
+            return np.vstack([Z1_t_dot, Z2_t_dot, Z3_t_dot]).T
 
     def dynamic_tensor_batched1(self, Z_t, t, U_delay):
         Z1_t = Z_t[:, 0]
@@ -207,6 +217,7 @@ class InvertedPendulum(DynamicSystem):
         else:
             Z_dot = np.dot(self.A, Z_t.T) + self.B * U_delay
             return Z_dot.T
+
     def kappa(self, Z_t):
         u = -np.dot(self.K, Z_t)
         return u
@@ -249,7 +260,7 @@ class VanDerPolOscillator(DynamicSystem):
             x1, x2 = Z_t[:, 0], Z_t[:, 1]
             x1_dot = x2
             x2_dot = self.mu * (1 - x1 ** 2) * x2 - x1 + U_delay
-            return np.hstack([x1_dot, x2_dot])
+            return np.vstack([x1_dot, x2_dot]).T
 
     def kappa(self, Z_t):
         u = -np.dot(self.K, Z_t)

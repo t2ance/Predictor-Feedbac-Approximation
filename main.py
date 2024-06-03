@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 import config
 from config import DatasetConfig, ModelConfig, TrainConfig
-from dataset import ImplicitDataset, ExplictDataset, PredictionDataset, sample_to_tensor
+from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import solve_integral_equation, solve_integral_equation_rectangle, \
     solve_integral_equation_neural_operator, solve_integral_equation_trapezoidal, solve_integral_equation_simpson
 from model import FNOProjection, FNOTwoStage, PIFNO, FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
@@ -399,8 +399,6 @@ def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_co
         torch.save(training_samples, path)
         print(f'{len(training_samples)} samples saved')
 
-    if dataset_config.data_generation_strategy == 'trajectory' and dataset_config.postprocess:
-        training_samples = postprocess(training_samples, dataset_config)
     for i, (feature, label) in enumerate(training_samples[:dataset_config.n_plot_sample]):
         plot_sample(feature, label, dataset_config, f'{str(i)}.png')
     draw_distribution(training_samples, dataset_config.n_state, dataset_config.dataset_base_path)
@@ -428,10 +426,10 @@ def get_test_datasets(dataset_config, train_config):
 
 def create_trajectory_dataset(dataset_config: DatasetConfig, test_points: List = None):
     all_samples = []
-    if dataset_config.explicit:
-        print('creating implicit datasets (Use Z(t+D) as P(t))')
+    if dataset_config.z_u_p_pair:
+        print('creating datasets of Z(t), U(t-D~t), P(t) pairs')
     else:
-        print('creating explicit datasets (Calculate P(t))')
+        print('creating datasets of Z(t), U(t-D~t), Z(t+D) pairs')
     if test_points is None:
         bar = tqdm(list(
             np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
@@ -441,16 +439,16 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, test_points: List =
     for i, Z0 in enumerate(bar):
         img_save_path = f'{dataset_config.dataset_base_path}/example/{str(i)}'
         check_dir(img_save_path)
-        if dataset_config.explicit:
-            U, Z, _ = run(method='explict', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
-            dataset = ImplicitDataset(
-                torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
-                dataset_config.n_point_delay, dataset_config.dt)
-        else:
+        if dataset_config.z_u_p_pair:
             U, Z, P = run(method='numerical', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
-            dataset = ExplictDataset(
+            dataset = ZUPDataset(
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
                 torch.tensor(P, dtype=torch.float32), dataset_config.n_point_delay, dataset_config.dt)
+        else:
+            U, Z, _ = run(method='explict', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
+            dataset = ZUZDataset(
+                torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
+                dataset_config.n_point_delay, dataset_config.dt)
         dataset = list(dataset)
         random.shuffle(dataset)
         if dataset_config.n_sample_per_dataset >= 0:

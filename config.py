@@ -6,7 +6,7 @@ import numpy as np
 
 import dynamic_systems
 
-system = 's3'
+system = 's4'
 
 
 @dataclass
@@ -66,7 +66,7 @@ class DatasetConfig:
     base_path: Optional[str] = field(default=f'./{system}/datasets')
 
     data_generation_strategy: Optional[Literal['trajectory', 'random', 'nn']] = field(default='trajectory')
-    explicit: Optional[bool] = field(default=False)
+    z_u_p_pair: Optional[bool] = field(default=True)
     noise_sigma_numerical: Optional[float] = field(default=0.)
     ood_sample_bound: Optional[float] = field(default=0.1)
     system_c: Optional[float] = field(default=1.)
@@ -197,14 +197,16 @@ def get_default_config():
         return (DatasetConfig(
             recreate_training_dataset=True,
             data_generation_strategy='trajectory',
-            delay=0.5,
+            delay=3,
             duration=8,
-            dt=0.001,
+            dt=0.01,
             n_dataset=100,
-            n_sample_per_dataset=5,
+            n_sample_per_dataset=10,
             n_plot_sample=20,
-            ic_lower_bound=-1,
-            ic_upper_bound=1
+            system_n=2,
+            system_c=1,
+            ic_lower_bound=-2,
+            ic_upper_bound=2
         ), ModelConfig(
             model_name='FNO',
             fno_n_layers=2,
@@ -292,10 +294,10 @@ def get_default_config():
             recreate_training_dataset=True,
             data_generation_strategy='trajectory',
             delay=0.5,
-            duration=16,
-            dt=0.001,
-            n_dataset=10,
-            n_sample_per_dataset=500,
+            duration=8,
+            dt=0.125,
+            n_dataset=500,
+            n_sample_per_dataset=10,
             n_plot_sample=20,
             ic_lower_bound=-1,
             ic_upper_bound=1
