@@ -11,6 +11,7 @@ import torch
 from scipy.integrate import odeint
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
+import argparse
 
 import config
 import dynamic_systems
@@ -738,7 +739,10 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 
 if __name__ == '__main__':
     set_seed(0)
-    dataset_config, model_config, train_config = config.get_config()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-s", type=str, default="s1")
+    args = parser.parse_args()
+    dataset_config, model_config, train_config = config.get_config(args.s)
     print(f'Running with system {config.system}')
     result_no, result_numerical, result_numerical_no = main(dataset_config, model_config, train_config)
     print('NO Result')
