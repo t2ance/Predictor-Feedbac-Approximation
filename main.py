@@ -729,9 +729,12 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 
     check_dir(model_config.base_path)
     check_dir(train_config.model_save_path)
+    begin = time.time()
     model = run_train(dataset_config=dataset_config, model_config=model_config, train_config=train_config,
                       training_dataloader=training_dataloader, validating_dataloader=validating_dataloader,
                       testing_dataloader=testing_dataloader, img_save_path=model_config.base_path)
+    end = time.time()
+    np.savetxt(f'{model_config.base_path}/time.txt', np.array([end - begin]))
     return (
         run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='no'),
         run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='numerical'),
