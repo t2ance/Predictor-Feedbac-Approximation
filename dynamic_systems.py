@@ -2,7 +2,6 @@ from abc import abstractmethod
 
 import numpy as np
 import torch
-from deepxde.nn.pytorch import DeepONet
 from scipy.integrate import simps
 
 
@@ -284,10 +283,11 @@ def solve_integral_equation_neural_operator(model, U_D, Z_t, t):
     u_tensor = torch.tensor(U_D, dtype=torch.float32, device=device).view(1, -1)
     z_tensor = torch.tensor(Z_t, dtype=torch.float32, device=device).view(1, -1)
     inputs = [torch.cat([z_tensor, u_tensor], dim=1), torch.tensor(t, dtype=torch.float32).view(1, -1)]
-    if isinstance(model, DeepONet):
-        outputs = model(inputs)
-    else:
-        outputs = model(inputs[0])
+    # if isinstance(model, DeepONet):
+    #     outputs = model(inputs)
+    # else:
+    # TODO:
+    outputs = model(inputs[0])
     return outputs.to('cpu').detach().numpy()[0]
 
 
