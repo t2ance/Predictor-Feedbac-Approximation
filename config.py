@@ -112,7 +112,7 @@ class DatasetConfig:
 
     @property
     def base_path(self):
-        return f'./{self.system}/datasets'
+        return f'./{self.system_}/datasets'
 
     @property
     def test_points(self) -> List[Tuple]:
@@ -210,7 +210,7 @@ def get_config(system_=None, n_iteration=None):
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=1,
                                        duration=8, dt=0.05, n_dataset=200, n_sample_per_dataset=-1, n_plot_sample=20,
                                        system_n=2, system_c=1, ic_lower_bound=-2, ic_upper_bound=2,
-                                       successive_approximation_n_iteration=100)
+                                       successive_approximation_n_iteration=30)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=250, batch_size=64,
                                    weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5, debug=False,
