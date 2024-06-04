@@ -4,7 +4,6 @@ import random
 import time
 from typing import Literal, Tuple, List
 
-import deepxde as dde
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -148,6 +147,7 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
     if model_name == 'DeepONet':
         layer_size_branch = [n_point_delay + n_state] + [hidden_size] * n_hidden + [merge_size]
         layer_size_trunk = [1] + [hidden_size] * n_hidden + [merge_size]
+        import deepxde as dde
         model = dde.nn.DeepONet(
             layer_size_branch,
             layer_size_trunk,
