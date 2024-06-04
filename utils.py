@@ -147,8 +147,9 @@ def metric(preds, trues):
     N = trues.shape[0]
     preds = np.atleast_2d(preds)
     trues = np.atleast_2d(trues)
-    return np.sum(np.linalg.norm(preds - trues, axis=1) / np.linalg.norm(trues, axis=1)) / N, \
-           np.sum(np.linalg.norm(preds - trues, axis=1)) / N
+    l2 = np.sum(np.linalg.norm(preds - trues, axis=1)) / N
+    rl2 = np.sum(np.linalg.norm(preds - trues, axis=1) / np.linalg.norm(trues, axis=1)) / N
+    return rl2, l2
 
 
 def check_dir(path):
@@ -241,6 +242,7 @@ def plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, 
 
 def plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, save_path, n_state: int, ylim=None):
     fig = plt.figure(figsize=set_size())
+    plt.title('Difference')
 
     def p_safe(p):
         if n_point_delay == 0:

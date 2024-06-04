@@ -16,12 +16,11 @@ import config
 import dynamic_systems
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
-from dynamic_systems import solve_integral_eular, solve_integral_rectangle, \
-    solve_integral_equation_neural_operator, solve_integral_trapezoidal, solve_integral_simpson
+from dynamic_systems import solve_integral_eular, solve_integral_equation_neural_operator
 from model import FNOProjection, FNOTwoStage, PIFNO, FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
 from utils import count_params, set_size, pad_leading_zeros, plot_comparison, plot_difference, \
-    metric, check_dir, plot_sample, no_predict_and_loss, get_lr_scheduler, prepare_datasets, postprocess, \
-    draw_distribution, set_seed, plot_single, print_result
+    metric, check_dir, plot_sample, no_predict_and_loss, get_lr_scheduler, prepare_datasets, draw_distribution, \
+    set_seed, plot_single, print_result
 
 
 def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explicit', 'numerical', 'no', 'numerical_no'] = None,
@@ -170,7 +169,9 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
             n_state=dataset_config.n_state, dynamic=dataset_config.system.dynamic_tensor_batched2).to(device)
     else:
         raise NotImplementedError()
-    print(f'#parameters: {count_params(model)}')
+    n_params = count_params(model)
+    print(f'#parameters: {n_params}')
+    np.savetxt(f'{train_config.model_save_path}/{model_config.model_name}.txt', np.array([n_params]))
     pth = f'{train_config.model_save_path}/{model_config.model_name}.pth'
     if train_config.load_model and os.path.exists(pth):
         model.load_state_dict(torch.load(f'{train_config.model_save_path}/{model_name}.pth'))
@@ -305,32 +306,29 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
     for test_point in bar:
         if not silence:
             bar.set_description(f'Solving system with initial point {np.round(test_point, decimals=2)}.')
-        if base_path is not None:
-            img_save_path = f'{base_path}/{np.round(test_point, decimals=2)}'
-            check_dir(img_save_path)
-        else:
-            img_save_path = None
 
+        img_save_path = f'{base_path}/{np.round(test_point, decimals=2)}'
+        check_dir(img_save_path)
         begin = time.time()
         U, Z, P = run(dataset_config=dataset_config, model=m, Z0=test_point, method=method, img_save_path=img_save_path)
         end = time.time()
         runtime = end - begin
         plt.close()
-        delay = dataset_config.n_point_delay
-        rl2, l2 = metric(P[delay:-delay], Z[2 * delay:])
+        n_point_delay = dataset_config.n_point_delay
+        rl2, l2 = metric(P[n_point_delay:-n_point_delay], Z[2 * n_point_delay:])
 
         if np.isinf(rl2) or np.isnan(rl2):
             if not silence:
                 print(f'[WARNING] Running with initial condition Z = {test_point} with method [{method}] failed.')
             continue
-        if base_path is not None:
-            np.savetxt(f'{img_save_path}/metric.txt', np.array([rl2, l2, runtime]))
+        np.savetxt(f'{img_save_path}/metric.txt', np.array([rl2, l2, runtime]))
         rl2_list.append(rl2)
         l2_list.append(l2)
         runtime_list.append(runtime)
     rl2 = np.nanmean(rl2_list).item()
     l2 = np.nanmean(l2_list).item()
     runtime = np.nanmean(runtime_list).item()
+    np.savetxt(f'{base_path}/metric.txt', np.array([rl2, l2, runtime]))
     if plot or base_path is not None:
         def plot_result(data, label, title, xlabel, path):
             fig = plt.figure(figsize=set_size())
@@ -386,10 +384,6 @@ def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_co
             print(f'Samples merged! {len(training_samples)} in total')
     else:
         training_samples = load()
-    path = dataset_config.training_dataset_file
-    if dataset_config.recreate_training_dataset:
-        torch.save(training_samples, path)
-        print(f'{len(training_samples)} samples saved')
 
     for i, (feature, label) in enumerate(training_samples[:dataset_config.n_plot_sample]):
         plot_sample(feature, label, dataset_config, f'{str(i)}.png')
@@ -398,6 +392,12 @@ def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_co
         training_samples, train_config.training_ratio, train_config.batch_size, train_config.device)
     print(f'#Training sample: {int(len(training_samples) * train_config.training_ratio)}')
     print(f'#Validating sample: {int(len(training_samples) * (1 - train_config.training_ratio))}')
+    path = dataset_config.training_dataset_file
+    if dataset_config.recreate_training_dataset:
+        torch.save(training_samples, path)
+        np.savetxt(f'{dataset_config.dataset_base_path}/n_sample.txt',
+                   np.array([len(training_samples), train_config.training_ratio]))
+        print(f'{len(training_samples)} samples saved')
     return training_dataloader, validating_dataloader
 
 
@@ -639,7 +639,6 @@ def create_nn_dataset(dataset_config: DatasetConfig):
             diff_f = u[1:] - u[:-1]
             gradients = diff_f / dataset_config.dt
             return (gradients ** 2).sum()
-            # return gradients.norm()
         else:
             raise NotImplementedError()
 
@@ -739,8 +738,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 
 if __name__ == '__main__':
     set_seed(0)
-    # setup_plt()
-    dataset_config, model_config, train_config = config.get_default_config()
+    dataset_config, model_config, train_config = config.get_config()
     print(f'Running with system {config.system}')
     result_no, result_numerical, result_numerical_no = main(dataset_config, model_config, train_config)
     print('NO Result')
