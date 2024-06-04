@@ -6,7 +6,8 @@ import numpy as np
 
 import dynamic_systems
 
-system = 's3'
+
+# system = 's3'
 
 
 @dataclass
@@ -19,10 +20,11 @@ class ModelConfig:
     fno_n_layers: Optional[int] = field(default=4)
     fno_end_to_end: Optional[bool] = field(default=True)
     model_name: Optional[Literal['FNO', 'DeepONet', 'FNOTwoStage', 'PIFNO', 'FNOTwoStage2']] = field(default='FNO')
+    system: Optional[str] = field(default='s1')
 
     @property
     def base_path(self):
-        return f'./{system}/result/{self.model_name}'
+        return f'./{self.system}/result/{self.model_name}'
 
 
 @dataclass
@@ -38,7 +40,6 @@ class TrainConfig:
     log_step: Optional[int] = field(default=10)
     n_epoch: Optional[int] = field(default=100)
     device: Optional[str] = field(default='cuda:0')
-    model_save_path: Optional[str] = field(default=f'./{system}/checkpoint')
     load_model: Optional[bool] = field(default=False)
 
     scheduler_step_size: Optional[int] = field(default=1)
@@ -46,6 +47,12 @@ class TrainConfig:
     scheduler_min_lr: Optional[float] = field(default=0.)
     scheduler_ratio_warmup: Optional[float] = field(default=0.02)
     lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential']] = field(default='linear_with_warmup')
+
+    system: Optional[str] = field(default='s1')
+
+    @property
+    def model_save_path(self):
+        return f'./{self.system}/checkpoint'
 
 
 @dataclass
@@ -64,7 +71,6 @@ class DatasetConfig:
     n_dataset: Optional[int] = field(default=200)
     recreate_training_dataset: Optional[bool] = field(default=True)
     recreate_testing_dataset: Optional[bool] = field(default=True)
-    base_path: Optional[str] = field(default=f'./{system}/datasets')
 
     data_generation_strategy: Optional[Literal['trajectory', 'random', 'nn']] = field(default='trajectory')
     z_u_p_pair: Optional[bool] = field(default=True)
@@ -102,27 +108,33 @@ class DatasetConfig:
     scheduler_ratio_warmup: Optional[float] = field(default=0.1)
     lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential']] = field(default='linear_with_warmup')
 
+    system_: Optional[str] = field(default='s1')
+
+    @property
+    def base_path(self):
+        return f'./{self.system}/datasets'
+
     @property
     def test_points(self) -> List[Tuple]:
-        if system == 's1':
+        if self.system_ == 's1':
             return [(x, y) for x, y in itertools.product(
                 np.linspace(-1, 1, 6),
                 np.linspace(-1, 1, 6)
             )]
-        elif system == 's2':
+        elif self.system_ == 's2':
             return [(x, y, z) for x, y, z in itertools.product(
                 np.linspace(-0.3, 0.3, 3),
                 np.linspace(-0.3, 0.3, 3),
                 np.linspace(-0.3, 0.3, 3)
             )]
-        elif system == 's3':
+        elif self.system_ == 's3':
             return [(x, y, z, w) for x, y, z, w in itertools.product(
                 np.linspace(-0.2, 0.2, 2),
                 np.linspace(-0.2, 0.2, 2),
                 np.linspace(-0.2, 0.2, 2),
                 np.linspace(-0.2, 0.2, 2)
             )]
-        elif system == 's4':
+        elif self.system_ == 's4':
             return [(x, y) for x, y in itertools.product(
                 np.linspace(-1, 1, 6),
                 np.linspace(-1, 1, 6),
@@ -160,13 +172,13 @@ class DatasetConfig:
 
     @property
     def system(self):
-        if system == 's1':
+        if self.system_ == 's1':
             return dynamic_systems.DynamicSystem1(c=self.system_c, n=self.system_n, delay=self.delay)
-        elif system == 's2':
+        elif self.system_ == 's2':
             return dynamic_systems.DynamicSystem2(delay=self.delay)
-        elif system == 's3':
+        elif self.system_ == 's3':
             return dynamic_systems.InvertedPendulum(delay=self.delay)
-        elif system == 's4':
+        elif self.system_ == 's4':
             return dynamic_systems.VanDerPolOscillator(delay=self.delay)
         else:
             raise NotImplementedError()
@@ -194,8 +206,6 @@ class DatasetConfig:
 
 
 def get_config(system_=None, n_iteration=None):
-    if system_ is None:
-        system_ = system
     if system_ == 's1':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=1,
                                        duration=8, dt=0.05, n_dataset=200, n_sample_per_dataset=-1, n_plot_sample=20,
@@ -217,7 +227,7 @@ def get_config(system_=None, n_iteration=None):
         model_config = ModelConfig(model_name='FNO', fno_n_layers=5, fno_n_modes_height=32, fno_hidden_channels=32)
     elif system_ == 's3':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=1,
-                                       duration=8, dt=0.125, n_dataset=400, n_sample_per_dataset=-1, n_plot_sample=20,
+                                       duration=8, dt=0.05, n_dataset=400, n_sample_per_dataset=-1, n_plot_sample=20,
                                        ic_lower_bound=-1, ic_upper_bound=1, successive_approximation_n_iteration=10)
         model_config = ModelConfig(model_name='FNO', fno_n_layers=3, fno_n_modes_height=16, fno_hidden_channels=32)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=250, batch_size=128,
@@ -237,6 +247,10 @@ def get_config(system_=None, n_iteration=None):
         raise NotImplementedError()
     if n_iteration is not None:
         dataset_config.successive_approximation_n_iteration = n_iteration
+    if system_ is not None:
+        dataset_config.system_ = system_
+        model_config.system = system_
+        train_config.system = system_
     return dataset_config, model_config, train_config
 
 
