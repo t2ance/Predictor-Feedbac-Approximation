@@ -30,7 +30,6 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explicit', 'n
     n_point_delay = dataset_config.n_point_delay
     ts = dataset_config.ts
     Z0 = np.array(Z0)
-    dt = dataset_config.dt
     n_point = dataset_config.n_point
     U = np.zeros(n_point)
     Z = np.zeros((n_point, system.n_state))

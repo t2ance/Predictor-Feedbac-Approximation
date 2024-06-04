@@ -323,11 +323,9 @@ def solve_integral_eular(Z_t, n_points: int, n_state: int, dt: float, U_D: np.nd
 
 
 def solve_integral_successive(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f, n_iterations: int):
+    assert n_iterations >= 0
     P_D = np.zeros((n_iterations + 1, n_points + 1, n_state))
-    P_D[0, 0, :] = Z_t
-
-    for j in range(n_points):
-        P_D[0, j + 1, :] = P_D[0, j, :] + dt * f(P_D[0, j, :], j * dt, U_D[j])
+    P_D[0, :, :] = Z_t
 
     for n in range(n_iterations):
         for j in range(n_points):
