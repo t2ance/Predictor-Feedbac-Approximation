@@ -448,6 +448,8 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, test_points: List =
             all_samples += dataset[:dataset_config.n_sample_per_dataset]
         else:
             all_samples += dataset
+        if i % 10 == 0:
+            print(f'{i}-th dataset')
     random.shuffle(all_samples)
     return all_samples
 
