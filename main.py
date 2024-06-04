@@ -745,6 +745,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', type=str, default=None)
     parser.add_argument('-n', type=int, default=None)
     args = parser.parse_args()
+    print(args)
     dataset_config, model_config, train_config = config.get_config(args.s, args.n)
     print(f'Running with system {config.system}')
     result_no, result_numerical, result_numerical_no = main(dataset_config, model_config, train_config)
