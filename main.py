@@ -740,7 +740,8 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_seed(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", type=str, default="s1")
+    parser.add_argument('-s', type=str, default="s1")
+    parser.add_argument('-n', type=int, default=10)
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s)
     print(f'Running with system {config.system}')
