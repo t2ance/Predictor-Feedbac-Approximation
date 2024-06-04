@@ -7,7 +7,6 @@ import numpy as np
 import torch
 from matplotlib import pyplot as plt
 
-import deepxde as dde
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 
@@ -160,11 +159,12 @@ def check_dir(path):
 def no_predict_and_loss(inputs, labels, model):
     z_u = inputs[:, 1:]
 
-    if not isinstance(model, dde.nn.DeepONet):
-        return model(z_u, labels)
-    else:
-        outputs = model([z_u, inputs[:, :1]])
-        return outputs, torch.nn.MSELoss()(outputs, labels)
+    # if not isinstance(model, dde.nn.DeepONet):
+    # FIXME:
+    return model(z_u, labels)
+    # else:
+    #     outputs = model([z_u, inputs[:, :1]])
+    #     return outputs, torch.nn.MSELoss()(outputs, labels)
 
 
 def plot_system(title, ts, Z, U, P, img_save_path):
