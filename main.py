@@ -724,7 +724,10 @@ def create_nn_dataset(dataset_config: DatasetConfig):
 
 
 def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
+    begin = time.time()
     training_dataloader, validating_dataloader = get_training_and_validation_datasets(dataset_config, train_config)
+    end = time.time()
+    dataset_generation_time = end - begin
     testing_dataloader = get_test_datasets(dataset_config, train_config)
 
     check_dir(model_config.base_path)
@@ -734,7 +737,8 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
                       training_dataloader=training_dataloader, validating_dataloader=validating_dataloader,
                       testing_dataloader=testing_dataloader, img_save_path=model_config.base_path)
     end = time.time()
-    np.savetxt(f'{model_config.base_path}/time.txt', np.array([end - begin]))
+    training_time = end - begin
+    np.savetxt(f'{model_config.base_path}/time.txt', np.array([dataset_generation_time, training_time]))
     return (
         run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='no'),
         run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='numerical'),
