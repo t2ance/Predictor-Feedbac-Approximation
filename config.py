@@ -218,9 +218,9 @@ def get_config(system_=None, n_iteration=None):
         model_config = ModelConfig(model_name='FNO', fno_n_layers=5, fno_n_modes_height=32, fno_hidden_channels=32)
     elif system_ == 's2':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=1,
-                                       duration=6, dt=0.05, n_dataset=400, n_sample_per_dataset=-1, n_plot_sample=20,
-                                       ic_lower_bound=-2, ic_upper_bound=2, successive_approximation_n_iteration=10)
-        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=200, batch_size=64,
+                                       duration=8, dt=0.01, n_dataset=400, n_sample_per_dataset=-1, n_plot_sample=20,
+                                       ic_lower_bound=-1, ic_upper_bound=1, successive_approximation_n_iteration=10)
+        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=200, batch_size=128,
                                    weight_decay=1e-1, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5, debug=False,
                                    do_test=True)
