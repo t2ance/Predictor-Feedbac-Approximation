@@ -4,7 +4,6 @@ import numpy as np
 import torch
 from deepxde.nn.pytorch import DeepONet
 from scipy.integrate import simps
-from scipy.signal import place_poles
 
 
 class DynamicSystem:
@@ -211,6 +210,7 @@ class InvertedPendulum(DynamicSystem):
         return 's3'
 
     def calculate_feedback_gain(self):
+        from scipy.signal import place_poles
         result = place_poles(self.A, self.B, self.desired_poles)
         K = result.gain_matrix[0]
         return K
@@ -251,6 +251,7 @@ class VanDerPolOscillator(DynamicSystem):
         self.K = self.calculate_feedback_gain()
 
     def calculate_feedback_gain(self):
+        from scipy.signal import place_poles
         result = place_poles(self.A, self.B, self.desired_poles)
         K = result.gain_matrix[0]
         return K
