@@ -3,7 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from config import DatasetConfig
-from dynamic_systems import solve_integral_equation
+from dynamic_systems import solve_integral_eular
 from main import create_trajectory_dataset, create_random_dataset, run
 
 
@@ -111,9 +111,9 @@ def draw_difference(dataset_config):
         p = p.cpu().numpy()
         p0 = p[0:1]
         p1 = p[1:2]
-        P_t = solve_integral_equation(Z_t=Z_t, U_D=U_D, dt=dataset_config.dt, n_state=dataset_config.n_state,
-                                      n_point_delay=dataset_config.n_point_delay,
-                                      dynamic=None)
+        P_t = solve_integral_eular(Z_t=Z_t, U_D=U_D, dt=dataset_config.dt, n_state=dataset_config.n_state,
+                                   n_points=dataset_config.n_point_delay,
+                                   f=None)
         l = (P_t - p) ** 2
         loss += l
     print(loss / len(samples))
@@ -270,9 +270,56 @@ def classify_sample():
         plot_sample(trajectory_sample, 'trajectory')
 
 
+def successive_approximation_test():
+    # 定义逐次逼近方法
+    def successive_approximation(f_values, y0, x_values, n_iterations):
+        num_points = len(x_values)
+        y = np.zeros((n_iterations + 1, num_points))
+
+        # 初始函数
+        y[0, :] = y0
+
+        # 逐次逼近
+        for n in range(n_iterations):
+            y[n + 1, 0] = y0  # 初值
+            for i in range(1, num_points):
+                dx = x_values[i] - x_values[i - 1]
+                y[n + 1, i] = y[n + 1, i - 1] + f_values[n, i - 1] * dx
+
+        return y
+
+    # 初值
+    y0 = 1
+    x_values = np.linspace(0, 1, 1000)
+    f_values = np.array([np.exp(x) for x in x_values])  # 用于测试的 f 值，这里用 e^x 代替
+    f_values = np.tile(f_values, (5, 1))  # 模拟逐次逼近的 f 值序列
+
+    n_iterations = 5
+
+    # 计算逐次逼近
+    y = successive_approximation(f_values, y0, x_values, n_iterations)
+
+    # 解析解
+    y_exact = np.exp(x_values)
+
+    # 绘制结果
+    plt.figure(figsize=(10, 6))
+    for n in range(n_iterations + 1):
+        plt.plot(x_values, y[n], label=f'Iteration {n}')
+    plt.plot(x_values, y_exact, 'k--', label='Exact solution')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.legend()
+    plt.title('Successive Approximation Method')
+    plt.grid(True)
+    plt.show()
+
+
 if __name__ == '__main__':
-    dataset_config = DatasetConfig(delay=0.5, duration=8, dt=0.05)
-    z = 1.5
+    # successive_approximation_test()
+    # dataset_config = DatasetConfig(delay=0.5, duration=8, dt=0.05, integral_method='successive')
+    dataset_config = DatasetConfig(delay=0.5, duration=8, dt=0.05, integral_method='successive')
+    z = 0.5
     U, Z, P = run(method='numerical', Z0=(z, z), dataset_config=dataset_config, img_save_path='./misc')
     # classify_sample()
     # dataset_config = DatasetConfig(delay=1, duration=16)

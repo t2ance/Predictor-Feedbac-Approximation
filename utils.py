@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 
 from config import DatasetConfig, TrainConfig
 from dataset import PredictionDataset
-from dynamic_systems import solve_integral_equation
+from dynamic_systems import solve_integral_eular
 
 p_z_colors = ['red', 'green', 'blue', 'yellow', 'black']
 legend_loc = 'upper right'
@@ -71,8 +71,8 @@ def postprocess(samples, dataset_config: DatasetConfig):
         z = feature[1:3]
         u = feature[3:]
         p = sample[1].cpu().numpy()
-        p = solve_integral_equation(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=dataset_config.system.n_state,
-                                    n_point_delay=dataset_config.n_point_delay, dynamic=dataset_config.system.dynamic)
+        p = solve_integral_eular(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=dataset_config.system.n_state,
+                                 n_points=dataset_config.n_point_delay, f=dataset_config.system.dynamic)
         new_samples.append((torch.from_numpy(np.concatenate([t, z, u])), torch.tensor(p)))
     print(f'[WARNING] {len(new_samples)} samples replaced by numerical solutions')
     all_samples = new_samples

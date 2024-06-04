@@ -12,11 +12,16 @@ class DynamicSystem:
         super().__init__()
         self.delay = delay
 
+    def U_explicit(self, t, Z0):
+        raise NotImplementedError()
+
+    def Z_explicit(self, t, Z0):
+        raise NotImplementedError()
+
     @abstractmethod
     def name(self):
         ...
 
-    @abstractmethod
     def n_state(self):
         raise NotImplementedError()
 
@@ -86,7 +91,7 @@ class DynamicSystem1(DynamicSystem):
         Z2 = Z_t[1]
         return -Z1 - 2 * Z2 - self.c / (self.n + 1) * Z2 ** (self.n + 1)
 
-    def U_explict(self, t, Z0):
+    def U_explicit(self, t, Z0):
         assert self.c == 1
         assert self.n == 2
         z1_0, z2_0 = Z0
@@ -285,39 +290,75 @@ def solve_integral_equation_neural_operator(model, U_D, Z_t, t):
     return outputs.to('cpu').detach().numpy()[0]
 
 
-def solve_integral_equation(Z_t, n_point_delay: int, n_state: int, dt: float, U_D: np.ndarray, dynamic):
-    P_D = np.zeros((n_point_delay, n_state))
+def solve_integral(Z_t, P_D, U_D, t: float, dataset_config):
+    assert len(P_D) == len(U_D)
+    system = dataset_config.system
+    dt = dataset_config.dt
+    f = system.dynamic
+    n_state = system.n_state
+    n_points = len(P_D)
+    assert n_points <= dataset_config.n_point_delay
+    ts = np.linspace(t - n_points * dt, t - dt, n_points)
+    if dataset_config.integral_method == 'rectangle':
+        return solve_integral_rectangle(f=f, Z_t=Z_t, P_D=P_D, U_D=U_D, ts=ts, dt=dt)
+    elif dataset_config.integral_method == 'trapezoidal':
+        return solve_integral_trapezoidal(f=f, Z_t=Z_t, P_D=P_D, U_D=U_D, ts=ts, dt=dt)
+    elif dataset_config.integral_method == 'simpson':
+        return solve_integral_simpson(f=f, Z_t=Z_t, P_D=P_D, U_D=U_D, ts=ts, dt=dt)
+    elif dataset_config.integral_method == 'eular':
+        return solve_integral_eular(Z_t=Z_t, n_points=n_points, n_state=n_state, dt=dt, U_D=U_D, f=f)
+    elif dataset_config.integral_method == 'successive':
+        return solve_integral_successive(Z_t=Z_t, n_points=n_points, n_state=n_state, dt=dt, U_D=U_D, f=f,
+                                         n_iterations=dataset_config.successive_approximation_n_iteration)
+    else:
+        raise NotImplementedError()
+
+
+def solve_integral_eular(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f):
+    P_D = np.zeros((n_points + 1, n_state))
     P_D[0, :] = Z_t
-    for j in range(n_point_delay - 1):
-        P_D[j + 1, :] = P_D[j, :] + dt * dynamic(P_D[j, :], j * dt, U_D[j])
-    p = solve_integral_equation_rectangle(f=dynamic, Z_t=Z_t, P_D=P_D, U_D=U_D, dt=dt, t=dt * n_point_delay)
-    return p
+    for j in range(n_points):
+        P_D[j + 1, :] = P_D[j, :] + dt * f(P_D[j, :], j * dt, U_D[j])
+    return P_D[-1]
 
 
-def solve_integral_equation_rectangle(f, Z_t, P_D, U_D, dt: float, t: float):
+def solve_integral_successive(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f, n_iterations: int):
+    P_D = np.zeros((n_iterations + 1, n_points + 1, n_state))
+    P_D[0, 0, :] = Z_t
+
+    for j in range(n_points):
+        P_D[0, j + 1, :] = P_D[0, j, :] + dt * f(P_D[0, j, :], j * dt, U_D[j])
+
+    for n in range(n_iterations):
+        for j in range(n_points):
+            P_D[n + 1, j + 1, :] = Z_t + np.sum([dt * f(P_D[n, k, :], k * dt, U_D[k]) for k in range(j + 1)], axis=0)
+    return P_D[-1, -1, :]
+
+
+def solve_integral_rectangle(f, Z_t, P_D, U_D, ts, dt: float):
     assert len(P_D) == len(U_D)
     if len(P_D) == 0:
         return 0
-    integrand_values = f(np.array(P_D), t, np.array(U_D))
+    integrand_values = f(np.array(P_D), np.array(ts), np.array(U_D))
     integral = integrand_values.sum(0) * dt
     return integral + Z_t
 
 
-def solve_integral_equation_trapezoidal(f, Z_t, P_D, U_D, dt: float, t: float):
+def solve_integral_trapezoidal(f, Z_t, P_D, U_D, ts, dt: float):
     assert len(P_D) == len(U_D)
     if len(P_D) == 0:
         return 0
-    integrand_values = f(np.array(P_D), t, np.array(U_D))
+    integrand_values = f(np.array(P_D), np.array(ts), np.array(U_D))
     t_values = np.arange(0, len(integrand_values)) * dt
     integral = np.trapz(integrand_values, t_values)
     return integral + Z_t
 
 
-def solve_integral_equation_simpson(f, Z_t, P_D, U_D, dt: float, t: float):
+def solve_integral_simpson(f, Z_t, P_D, U_D, ts, dt: float):
     assert len(P_D) == len(U_D)
     if len(P_D) == 0:
         return 0
-    integrand_values = f(np.array(P_D), t, np.array(U_D))
+    integrand_values = f(np.array(P_D), np.array(ts), np.array(U_D))
     t_values = np.arange(0, len(integrand_values)) * dt
     integral = simps(integrand_values, t_values)
     return integral + Z_t
@@ -327,7 +368,7 @@ def ode_forward(Z_t, Z_t_dot, dt):
     return Z_t + Z_t_dot * dt
 
 
-def solve_integral_equation_explict(t, delay, Z1_t, Z2_t, U_D, ts_D, dt):
+def solve_integral_equation_explicit(t, delay, Z1_t, Z2_t, U_D, ts_D, dt):
     assert len(ts_D) == len(U_D)
     term1 = sum(U_D) * dt
     term2 = sum([(t - theta) * u * dt for u, theta in zip(U_D, ts_D)])
@@ -340,7 +381,7 @@ if __name__ == '__main__':
     from config import DatasetConfig
 
     dataset_config = DatasetConfig()
-    solve_integral_equation(np.array([0, 1]), dataset_config.n_point_delay, dataset_config.n_state, dataset_config.dt,
-                            np.random.randn(dataset_config.n_point_delay),
-                            dynamic=dataset_config.system.dynamic)
+    solve_integral_eular(np.array([0, 1]), dataset_config.n_point_delay, dataset_config.n_state, dataset_config.dt,
+                         np.random.randn(dataset_config.n_point_delay),
+                         f=dataset_config.system.dynamic)
     ...

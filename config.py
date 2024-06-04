@@ -55,8 +55,9 @@ class DatasetConfig:
     delay: Optional[float] = field(default=3.)
     duration: Optional[int] = field(default=8)
     dt: Optional[float] = field(default=0.125)
-    integral_method: Optional[Literal['rectangle', 'trapezoidal', 'simpson']] = field(default='rectangle')
-
+    integral_method: Optional[Literal['rectangle', 'trapezoidal', 'simpson', 'eular', 'successive']] = field(
+        default='successive')
+    successive_approximation_n_iteration: Optional[int] = field(default=5)
     ic_lower_bound: Optional[float] = field(default=-2)
     ic_upper_bound: Optional[float] = field(default=2)
     n_sample_per_dataset: Optional[int] = field(default=100)
@@ -158,7 +159,7 @@ class DatasetConfig:
         return self.net_n_epoch
 
     @property
-    def system(self) -> dynamic_systems.DynamicSystem:
+    def system(self):
         if system == 's1':
             return dynamic_systems.DynamicSystem1(c=self.system_c, n=self.system_n, delay=self.delay)
         elif system == 's2':
@@ -297,20 +298,20 @@ def get_default_config():
             duration=8,
             dt=0.125,
             n_dataset=500,
-            n_sample_per_dataset=10,
+            n_sample_per_dataset=40,
             n_plot_sample=20,
-            ic_lower_bound=-1,
-            ic_upper_bound=1
+            ic_lower_bound=-2,
+            ic_upper_bound=2
         ), ModelConfig(
             model_name='FNO',
-            fno_n_layers=2,
-            fno_n_modes_height=8,
-            fno_hidden_channels=16
+            fno_n_layers=5,
+            fno_n_modes_height=32,
+            fno_hidden_channels=64
         ), TrainConfig(
             learning_rate=1e-3,
             training_ratio=0.8,
             n_epoch=500,
-            batch_size=128,
+            batch_size=64,
             weight_decay=1e-2,
             log_step=-1,
             lr_scheduler_type='exponential',

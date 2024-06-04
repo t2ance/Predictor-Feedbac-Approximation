@@ -13,19 +13,20 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 import config
+import dynamic_systems
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
-from dynamic_systems import solve_integral_equation, solve_integral_equation_rectangle, \
-    solve_integral_equation_neural_operator, solve_integral_equation_trapezoidal, solve_integral_equation_simpson
+from dynamic_systems import solve_integral_eular, solve_integral_rectangle, \
+    solve_integral_equation_neural_operator, solve_integral_trapezoidal, solve_integral_simpson
 from model import FNOProjection, FNOTwoStage, PIFNO, FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
 from utils import count_params, set_size, pad_leading_zeros, plot_comparison, plot_difference, \
     metric, check_dir, plot_sample, no_predict_and_loss, get_lr_scheduler, prepare_datasets, postprocess, \
     draw_distribution, set_seed, plot_single, print_result
 
 
-def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'numerical', 'no', 'numerical_no'] = None,
+def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explicit', 'numerical', 'no', 'numerical_no'] = None,
         model=None, save_path: str = None, img_save_path: str = None):
-    system = dataset_config.system
+    system: dynamic_systems.DynamicSystem = dataset_config.system
     n_point_delay = dataset_config.n_point_delay
     ts = dataset_config.ts
     Z0 = np.array(Z0)
@@ -33,14 +34,7 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'nu
     n_point = dataset_config.n_point
     U = np.zeros(n_point)
     Z = np.zeros((n_point, system.n_state))
-    if dataset_config.integral_method == 'rectangle':
-        integral_method = solve_integral_equation_rectangle
-    elif dataset_config.integral_method == 'trapezoidal':
-        integral_method = solve_integral_equation_trapezoidal
-    elif dataset_config.integral_method == 'simpson':
-        integral_method = solve_integral_equation_simpson
-    else:
-        raise NotImplementedError()
+
     if method == 'explicit':
         P_explicit = np.zeros((n_point, system.n_state))
     else:
@@ -57,8 +51,8 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'nu
     for t_i in range(dataset_config.n_point):
         t_minus_D_i = max(t_i - n_point_delay, 0)
         t = ts[t_i]
-        if method == 'explict':
-            U[t_i] = system.U_explict(t, Z0)
+        if method == 'explicit':
+            U[t_i] = system.U_explicit(t, Z0)
             if t_i > n_point_delay:
                 Z[t_i, :] = system.Z_explicit(t, Z0)
         elif method == 'numerical':
@@ -67,9 +61,8 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'nu
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0
-
-            P_numerical[t_i, :] = integral_method(
-                f=system.dynamic, Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], dt=dt, t=t)
+            P_numerical[t_i, :] = dynamic_systems.solve_integral(
+                Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t, dataset_config=dataset_config)
             if t_i > n_point_delay:
                 U[t_i] = system.kappa(P_numerical[t_i, :])
         elif method == 'no':
@@ -89,8 +82,8 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'nu
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0
-            P_numerical[t_i, :] = integral_method(
-                f=system.dynamic, Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], dt=dt, t=t)
+            P_numerical[t_i, :] = dynamic_systems.solve_integral(
+                Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t, dataset_config=dataset_config)
             P_no[t_i, :] = solve_integral_equation_neural_operator(
                 model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t, t=t)
             if t_i > n_point_delay:
@@ -128,7 +121,7 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explict', 'nu
                         [-5, 5])
         plot_single(ts, U, '$U(t)$', u_path)
 
-    if method == 'explict':
+    if method == 'explicit':
         return U, Z, P_explicit
     elif method == 'no' or method == 'numerical_no':
         return U, Z, P_no
@@ -445,7 +438,7 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, test_points: List =
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
                 torch.tensor(P, dtype=torch.float32), dataset_config.n_point_delay, dataset_config.dt)
         else:
-            U, Z, _ = run(method='explict', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
+            U, Z, _ = run(method='explicit', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
             dataset = ZUZDataset(
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
                 dataset_config.n_point_delay, dataset_config.dt)
@@ -529,8 +522,8 @@ def create_random_dataset(dataset_config: DatasetConfig):
         # Z_t = np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound, 2)
         Z_t = np.random.randn(2) * max(abs(dataset_config.ic_lower_bound), abs(dataset_config.ic_upper_bound))
         U_D = func(np.linspace(0, 1, n_point_delay))
-        P_t = solve_integral_equation(Z_t=Z_t, U_D=U_D, dt=dt, n_state=n_state, n_point_delay=n_point_delay,
-                                      dynamic=dataset_config.system.dynamic)
+        P_t = solve_integral_eular(Z_t=Z_t, U_D=U_D, dt=dt, n_state=n_state, n_points=n_point_delay,
+                                   f=dataset_config.system.dynamic)
         features = sample_to_tensor(Z_t, U_D, dt * n_point_delay)
         sample = (features, torch.from_numpy(P_t))
         return sample, features, Z_t, U_D, P_t
