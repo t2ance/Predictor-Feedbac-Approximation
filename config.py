@@ -226,7 +226,7 @@ def get_config(system_=None, n_iteration=None):
                                    do_test=True)
         model_config = ModelConfig(model_name='FNO', fno_n_layers=5, fno_n_modes_height=32, fno_hidden_channels=64)
     elif system_ == 's3':
-        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=1,
+        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=0.3,
                                        duration=8, dt=0.01, n_dataset=500, n_sample_per_dataset=-1, n_plot_sample=20,
                                        ic_lower_bound=-1, ic_upper_bound=1, successive_approximation_n_iteration=10)
         model_config = ModelConfig(model_name='FNO', fno_n_layers=6, fno_n_modes_height=32, fno_hidden_channels=64)
