@@ -209,7 +209,9 @@ def plot_system(title, ts, Z, U, P, img_save_path):
 
 def plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, save_path, n_state: int, ylim=None):
     fig = plt.figure(figsize=set_size())
-    plt.title('Comparison')
+
+    # FIXME:
+    # plt.title('Comparison')
 
     def p_safe(p, t_i):
         if n_point_delay == 0:
@@ -217,18 +219,26 @@ def plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, 
         else:
             return p[:-n_point_delay, t_i]
 
+    # FIXME:
     for t_i in range(n_state):
         if P_numerical is not None:
+            # plt.plot(ts[n_point_delay:], p_safe(P_numerical, t_i), linestyle=':', color=p_z_colors[t_i],
+            #          label=f'$P^{{numerical}}_{t_i + 1}(t-{delay})$')
             plt.plot(ts[n_point_delay:], p_safe(P_numerical, t_i), linestyle=':', color=p_z_colors[t_i],
-                     label=f'$P^{{numerical}}_{t_i + 1}(t-{delay})$')
+                     label=f'$\hat{{P}}_{t_i + 1}(t)$')
         if P_no is not None:
+            # plt.plot(ts[n_point_delay:], p_safe(P_no, t_i), linestyle='--', color=p_z_colors[t_i],
+            #          label=f'$P^{{no}}_{t_i + 1}(t-{delay})$')
             plt.plot(ts[n_point_delay:], p_safe(P_no, t_i), linestyle='--', color=p_z_colors[t_i],
-                     label=f'$P^{{no}}_{t_i + 1}(t-{delay})$')
+                     label=f'$\hat{{P}}_{t_i + 1}(t)$')
         if P_explicit is not None:
+            # plt.plot(ts[n_point_delay:], p_safe(P_explicit, t_i), linestyle='-.', color=p_z_colors[t_i],
+            #          label=f'$P^{{explicit}}_{t_i + 1}(t-{delay})$')
             plt.plot(ts[n_point_delay:], p_safe(P_explicit, t_i), linestyle='-.', color=p_z_colors[t_i],
-                     label=f'$P^{{explicit}}_{t_i + 1}(t-{delay})$')
-        plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$', color=p_z_colors[t_i])
-    plt.xlabel('t')
+                     label=f'$\hat{{P}}_{t_i + 1}(t)$')
+        # plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$', color=p_z_colors[t_i])
+        plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$X_{t_i + 1}(t+D)$', color=p_z_colors[t_i])
+    plt.xlabel('Time t')
     if ylim is not None:
         plt.ylim(ylim)
     plt.legend(loc=legend_loc, fontsize=legend_fontsize)
@@ -262,7 +272,7 @@ def plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, save_pa
         difference = p_safe(P_explicit) - Z[n_point_delay:]
         for i in range(n_state):
             plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{explicit}}_{i + 1}$')
-    plt.xlabel('t')
+    plt.xlabel('Time t')
     if ylim is not None:
         plt.ylim(ylim)
     plt.legend(loc=legend_loc, fontsize=legend_fontsize)
@@ -277,7 +287,7 @@ def plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, save_pa
 def plot_single(ts, data, label, save_path, ylim=None):
     fig = plt.figure(figsize=set_size())
     plt.plot(ts, data, label=label)
-    plt.xlabel('t')
+    plt.xlabel('Time t')
     if ylim is not None:
         plt.ylim(ylim)
     plt.legend(loc=legend_loc, fontsize=legend_fontsize)
@@ -289,7 +299,7 @@ def plot_single(ts, data, label, save_path, ylim=None):
         plt.show()
 
 
-def set_size(width='thesis', fraction=1, subplots=(1, 1), height_add=0):
+def set_size(width='thesis', fraction=1, subplots=(1, 1), height_add=0.1):
     """Set figure dimensions to avoid scaling in LaTeX.
 
     Parameters

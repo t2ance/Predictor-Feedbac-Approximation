@@ -407,7 +407,7 @@ def get_test_datasets(dataset_config, train_config):
         return None
     if not os.path.exists(dataset_config.testing_dataset_file) or dataset_config.recreate_testing_dataset:
         print('Creating testing dataset')
-        testing_samples = create_trajectory_dataset(dataset_config, test_points=dataset_config.test_points)
+        testing_samples = create_trajectory_dataset(dataset_config, initial_conditions=dataset_config.test_points)
     else:
         print('Loading testing dataset')
         testing_samples = torch.load(dataset_config.testing_dataset_file)
@@ -417,18 +417,17 @@ def get_test_datasets(dataset_config, train_config):
     return testing_dataloader
 
 
-def create_trajectory_dataset(dataset_config: DatasetConfig, test_points: List = None):
+def create_trajectory_dataset(dataset_config: DatasetConfig, initial_conditions: List = None):
     all_samples = []
     if dataset_config.z_u_p_pair:
         print('creating datasets of Z(t), U(t-D~t), P(t) pairs')
     else:
         print('creating datasets of Z(t), U(t-D~t), Z(t+D) pairs')
-    if test_points is None:
-        bar = tqdm(list(
-            np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
-                              (dataset_config.n_dataset, dataset_config.n_state))))
+    if initial_conditions is None:
+        bar = tqdm(list(np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
+                                     (dataset_config.n_dataset, dataset_config.n_state))))
     else:
-        bar = tqdm(test_points)
+        bar = initial_conditions
     for i, Z0 in enumerate(bar):
         img_save_path = f'{dataset_config.dataset_base_path}/example/{str(i)}'
         check_dir(img_save_path)
@@ -448,8 +447,8 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, test_points: List =
             all_samples += dataset[:dataset_config.n_sample_per_dataset]
         else:
             all_samples += dataset
-        if i % 10 == 0:
-            print(f'{i}-th dataset')
+        # if i % 10 == 0:
+        #     print(f'{i}-th dataset')
     random.shuffle(all_samples)
     return all_samples
 
@@ -747,10 +746,15 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 
 
 if __name__ == '__main__':
+    #            s1      s4
+    # Train:    30mins   12mins
+    # Generate: 6mins   9mins
+    # #data:   32000    25600
     set_seed(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s2')
+    parser.add_argument('-s', type=str, default='s4')
     parser.add_argument('-n', type=int, default=None)
+    parser.add_argument('-fl', type=int, default=None)
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n)
     print(f'Running with system {args.s}')

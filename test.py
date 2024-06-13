@@ -2,10 +2,9 @@ import matplotlib.patches as mpatches
 import numpy as np
 from matplotlib import pyplot as plt
 
-from config import DatasetConfig, get_config
+from config import get_config
 from dynamic_systems import solve_integral_eular
 from main import create_trajectory_dataset, create_random_dataset, run
-from utils import count_params
 
 
 def draw_distribution2(dataset_config):
@@ -122,18 +121,24 @@ def draw_difference(dataset_config):
 
 
 if __name__ == '__main__':
-    import torch
-    from model import FNOProjection
+    dataset_config, model_config, train_config = get_config(system_='s4')
+    # for Z0 in tqdm.tqdm(dataset_config.test_points):
+    # Z0 = (0.6, -0.2)
+    Z0 = (-1, -0.2)
+    U, Z, P = run(method='numerical', Z0=Z0, dataset_config=dataset_config, img_save_path='./misc')
+
+    # import torch
+    # from model import FNOProjection
 
     # training_samples_loaded = torch.load('./s1/datasets/trajectory/train.pt')
     # print(len(training_samples_loaded))
-    dataset_config, model_config, train_config = get_config()
-    model = FNOProjection(
-        n_modes_height=32, hidden_channels=32, n_state=2,
-        n_point_delay=dataset_config.n_point_delay, n_layers=model_config.fno_n_layers).to('cuda')
-    model.load_state_dict(torch.load(f'./s1/checkpoint/FNO.pth'))
-    n_params = count_params(model)
-    print(n_params)
+    # dataset_config, model_config, train_config = get_config()
+    # model = FNOProjection(
+    #     n_modes_height=32, hidden_channels=32, n_state=2,
+    #     n_point_delay=dataset_config.n_point_delay, n_layers=model_config.fno_n_layers).to('cuda')
+    # model.load_state_dict(torch.load(f'./s1/checkpoint/FNO.pth'))
+    # n_params = count_params(model)
+    # print(n_params)
 
     # successive_approximation_test()
     # dataset_config = DatasetConfig(delay=0.5, duration=8, dt=0.05, integral_method='successive')
