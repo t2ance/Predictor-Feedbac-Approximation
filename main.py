@@ -20,7 +20,7 @@ from dynamic_systems import solve_integral_eular, solve_integral_equation_neural
 from model import FNOProjection, FNOTwoStage, PIFNO, FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
 from utils import count_params, set_size, pad_leading_zeros, plot_comparison, plot_difference, \
     metric, check_dir, plot_sample, no_predict_and_loss, get_lr_scheduler, prepare_datasets, draw_distribution, \
-    set_seed, plot_single, print_result
+    set_seed, plot_single, print_result, postprocess
 
 
 def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explicit', 'numerical', 'no', 'numerical_no'] = None,
@@ -375,6 +375,8 @@ def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_co
             raise NotImplementedError()
 
         print(f'Created {len(training_samples)} samples')
+        if dataset_config.postprocess:
+            training_samples = postprocess(training_samples, dataset_config)
         if dataset_config.append_training_dataset:
             training_samples_loaded = load()
             if len(training_samples_loaded) > 0:
@@ -425,7 +427,7 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, initial_conditions:
         print('creating datasets of Z(t), U(t-D~t), Z(t+D) pairs')
     if initial_conditions is None:
         bar = tqdm(list(np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
-                                     (dataset_config.n_dataset, dataset_config.n_state))))
+                                          (dataset_config.n_dataset, dataset_config.n_state))))
     else:
         bar = initial_conditions
     for i, Z0 in enumerate(bar):
@@ -746,10 +748,6 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 
 
 if __name__ == '__main__':
-    #            s1      s4
-    # Train:    30mins   12mins
-    # Generate: 6mins   9mins
-    # #data:   32000    25600
     set_seed(0)
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', type=str, default='s4')

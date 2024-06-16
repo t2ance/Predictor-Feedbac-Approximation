@@ -61,21 +61,30 @@ def draw_distribution(samples, n_state: int, img_save_path: str = None):
 
 
 def postprocess(samples, dataset_config: DatasetConfig):
+    def add_noise(tensor, std):
+        noise = torch.randn_like(tensor) * std
+        return tensor + noise
+
     print('[DEBUG] postprocessing')
     new_samples = []
     random.shuffle(samples)
-    for sample in samples:
-        feature = sample[0].cpu().numpy()
-        t = feature[:1]
-        z = feature[1:3]
-        u = feature[3:]
-        p = sample[1].cpu().numpy()
-        p = solve_integral_eular(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=dataset_config.system.n_state,
-                                 n_points=dataset_config.n_point_delay, f=dataset_config.system.dynamic)
-        new_samples.append((torch.from_numpy(np.concatenate([t, z, u])), torch.tensor(p)))
-    print(f'[WARNING] {len(new_samples)} samples replaced by numerical solutions')
-    all_samples = new_samples
-    return all_samples
+    for _ in range(dataset_config.n_augment):
+        for feature, p in samples:
+            t = feature[:1]
+            z = feature[1:3]
+            u = feature[3:]
+            z = add_noise(z, dataset_config.epsilon)
+            new_samples.append((torch.concatenate([t, z, u]), p))
+            # u = add_noise(u, dataset_config.epsilon)
+            # feature = sample[0].cpu().numpy()
+            # p = sample[1].cpu().numpy()
+            # p = solve_integral_eular(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=dataset_config.system.n_state,
+            #                          n_points=dataset_config.n_point_delay, f=dataset_config.system.dynamic)
+            # new_samples.append((torch.from_numpy(np.concatenate([t, z, u])), torch.tensor(p)))
+        # print(f'[WARNING] {len(new_samples)} samples replaced by numerical solutions')
+    # all_samples = new_samples
+    return [*samples, *new_samples]
+    # return new_samples
 
 
 def prepare_datasets(samples, training_ratio: float, batch_size: int, device: str):
