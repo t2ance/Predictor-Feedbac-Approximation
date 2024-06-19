@@ -1,3 +1,4 @@
+import argparse
 import os
 import pickle
 import random
@@ -10,21 +11,21 @@ import torch
 from scipy.integrate import odeint
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
-import argparse
 
 import config
 import dynamic_systems
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import solve_integral_eular, solve_integral_equation_neural_operator
-from model import FNOProjection, FNOTwoStage, PIFNO, FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
-from utils import count_params, set_size, pad_leading_zeros, plot_comparison, plot_difference, \
-    metric, check_dir, plot_sample, no_predict_and_loss, get_lr_scheduler, prepare_datasets, draw_distribution, \
-    set_seed, plot_single, print_result, postprocess
+from model import FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
+from utils import set_size, pad_leading_zeros, plot_comparison, plot_difference, \
+    metric, check_dir, plot_sample, no_predict_and_loss, load_lr_scheduler, prepare_datasets, draw_distribution, \
+    set_seed, plot_single, print_result, postprocess, load_model, load_optimizer
 
 
-def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explicit', 'numerical', 'no', 'numerical_no'] = None,
-        model=None, save_path: str = None, img_save_path: str = None):
+def simulation(dataset_config: DatasetConfig, Z0: Tuple,
+               method: Literal['explicit', 'numerical', 'no', 'numerical_no'] = None,
+               model=None, save_path: str = None, img_save_path: str = None):
     system: dynamic_systems.DynamicSystem = dataset_config.system
     n_point_delay = dataset_config.n_point_delay
     ts = dataset_config.ts
@@ -129,58 +130,26 @@ def run(dataset_config: DatasetConfig, Z0: Tuple, method: Literal['explicit', 'n
         raise NotImplementedError()
 
 
-def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig,
-              training_dataloader, validating_dataloader=None, testing_dataloader=None, img_save_path: str = None):
+def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
     model_name = model_config.model_name
-    n_state = dataset_config.n_state
     device = train_config.device
-    hidden_size = model_config.deeponet_n_hidden_size
-    n_hidden = model_config.deeponet_n_hidden
-    merge_size = model_config.deeponet_merge_size
-    lr = train_config.learning_rate
     n_epoch = train_config.n_epoch
-    weight_decay = train_config.weight_decay
-    n_point_delay = dataset_config.n_point_delay
-    n_modes_height = model_config.fno_n_modes_height
-    hidden_channels = model_config.fno_hidden_channels
-    n_layers = model_config.fno_n_layers
-    if model_name == 'DeepONet':
-        layer_size_branch = [n_point_delay + n_state] + [hidden_size] * n_hidden + [merge_size]
-        layer_size_trunk = [1] + [hidden_size] * n_hidden + [merge_size]
-        import deepxde as dde
-        model = dde.nn.DeepONet(
-            layer_size_branch,
-            layer_size_trunk,
-            activation="tanh",
-            kernel_initializer="Glorot uniform",
-            multi_output_strategy='independent',
-            num_outputs=n_state
-        ).to(device)
-    elif model_name == 'FNO':
-        model = FNOProjection(
-            n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
-            n_point_delay=n_point_delay, n_layers=n_layers).to(device)
-    elif model_name == 'FNOTwoStage':
-        model = FNOTwoStage(
-            n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_layers=n_layers, dt=dataset_config.dt,
-            n_state=dataset_config.n_state).to(device)
-    elif model_name == 'PIFNO':
-        model = PIFNO(
-            n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_layers=n_layers, dt=dataset_config.dt,
-            n_state=dataset_config.n_state, dynamic=dataset_config.system.dynamic_tensor_batched2).to(device)
-    else:
-        raise NotImplementedError()
-    n_params = count_params(model)
-    print(f'#parameters: {n_params}')
-    np.savetxt(f'{train_config.model_save_path}/{model_config.model_name}.txt', np.array([n_params]))
+    img_save_path = model_config.base_path
+
+    model = load_model(train_config, model_config, dataset_config)
+    optimizer = load_optimizer(model.parameters(), train_config)
+    scheduler = load_lr_scheduler(optimizer, train_config)
+
+    training_dataloader, validating_dataloader = load_training_and_validation_datasets(dataset_config, train_config)
+    testing_dataloader = load_test_datasets(dataset_config, train_config)
+    check_dir(model_config.base_path)
+    check_dir(train_config.model_save_path)
+
     pth = f'{train_config.model_save_path}/{model_config.model_name}.pth'
     if train_config.load_model and os.path.exists(pth):
         model.load_state_dict(torch.load(f'{train_config.model_save_path}/{model_name}.pth'))
         print(f'Model loaded from {pth}, skip training!')
     else:
-        optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
-
-        scheduler = get_lr_scheduler(optimizer, train_config)
         training_loss_arr = []
         validating_loss_arr = []
         testing_loss_arr = []
@@ -294,6 +263,15 @@ def run_train(dataset_config: DatasetConfig, model_config: ModelConfig, train_co
     print('Finished Training')
     return model
 
+def run_active_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
+    model = load_model(train_config, model_config, dataset_config)
+    optimizer = load_optimizer(model.parameters(), train_config)
+    scheduler = load_lr_scheduler(optimizer, train_config)
+    while True:
+        simulation()
+        ...
+
+    return model
 
 def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = None, silence: bool = False,
              test_points: List = None, plot: bool = False):
@@ -311,7 +289,8 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
         img_save_path = f'{base_path}/{np.round(test_point, decimals=2)}'
         check_dir(img_save_path)
         begin = time.time()
-        U, Z, P = run(dataset_config=dataset_config, model=m, Z0=test_point, method=method, img_save_path=img_save_path)
+        U, Z, P = simulation(dataset_config=dataset_config, model=m, Z0=test_point, method=method,
+                             img_save_path=img_save_path)
         end = time.time()
         runtime = end - begin
         plt.close()
@@ -352,7 +331,7 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
     return rl2, l2, runtime, len(rl2_list)
 
 
-def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_config: TrainConfig):
+def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_config: TrainConfig):
     create_dataset = not os.path.exists(
         dataset_config.training_dataset_file) or dataset_config.recreate_training_dataset
 
@@ -404,7 +383,7 @@ def get_training_and_validation_datasets(dataset_config: DatasetConfig, train_co
     return training_dataloader, validating_dataloader
 
 
-def get_test_datasets(dataset_config, train_config):
+def load_test_datasets(dataset_config, train_config):
     if not train_config.do_test:
         return None
     if not os.path.exists(dataset_config.testing_dataset_file) or dataset_config.recreate_testing_dataset:
@@ -434,12 +413,12 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, initial_conditions:
         img_save_path = f'{dataset_config.dataset_base_path}/example/{str(i)}'
         check_dir(img_save_path)
         if dataset_config.z_u_p_pair:
-            U, Z, P = run(method='numerical', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
+            U, Z, P = simulation(method='numerical', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
             dataset = ZUPDataset(
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
                 torch.tensor(P, dtype=torch.float32), dataset_config.n_point_delay, dataset_config.dt)
         else:
-            U, Z, _ = run(method='explicit', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
+            U, Z, _ = simulation(method='explicit', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
             dataset = ZUZDataset(
                 torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
                 dataset_config.n_point_delay, dataset_config.dt)
@@ -653,7 +632,7 @@ def create_nn_dataset(dataset_config: DatasetConfig):
 
         optimizer = torch.optim.AdamW(model.parameters(), lr=dataset_config.net_lr,
                                       weight_decay=dataset_config.net_weight_decay)
-        scheduler = get_lr_scheduler(optimizer, dataset_config)
+        scheduler = load_lr_scheduler(optimizer, dataset_config)
         model.train()
         training_total_loss_list = []
         training_smooth_loss_list = []
@@ -725,21 +704,7 @@ def create_nn_dataset(dataset_config: DatasetConfig):
 
 
 def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
-    begin = time.time()
-    training_dataloader, validating_dataloader = get_training_and_validation_datasets(dataset_config, train_config)
-    end = time.time()
-    dataset_generation_time = end - begin
-    testing_dataloader = get_test_datasets(dataset_config, train_config)
-
-    check_dir(model_config.base_path)
-    check_dir(train_config.model_save_path)
-    begin = time.time()
-    model = run_train(dataset_config=dataset_config, model_config=model_config, train_config=train_config,
-                      training_dataloader=training_dataloader, validating_dataloader=validating_dataloader,
-                      testing_dataloader=testing_dataloader, img_save_path=model_config.base_path)
-    end = time.time()
-    training_time = end - begin
-    np.savetxt(f'{model_config.base_path}/time.txt', np.array([dataset_generation_time, training_time]))
+    model = run_offline_training(dataset_config=dataset_config, model_config=model_config, train_config=train_config)
     return (
         run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='no'),
         run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='numerical'),
@@ -750,7 +715,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_seed(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s4')
+    parser.add_argument('-s', type=str, default='s3')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-fl', type=int, default=None)
     args = parser.parse_args()

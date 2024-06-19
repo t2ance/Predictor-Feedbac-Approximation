@@ -9,10 +9,12 @@ from matplotlib import pyplot as plt
 
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from config import DatasetConfig, TrainConfig
 from dataset import PredictionDataset
-from dynamic_systems import solve_integral_eular
+from dynamic_systems import solve_integral_eular, solve_integral_successive
+from model import FNOProjection, FNOTwoStage, PIFNO, FNN
 
 p_z_colors = ['red', 'green', 'blue', 'yellow', 'black']
 legend_loc = 'upper right'
@@ -67,23 +69,26 @@ def postprocess(samples, dataset_config: DatasetConfig):
 
     print('[DEBUG] postprocessing')
     new_samples = []
-    random.shuffle(samples)
-    for _ in range(dataset_config.n_augment):
+    for _ in tqdm(range(dataset_config.n_augment)):
         for feature, p in samples:
             t = feature[:1]
             z = feature[1:3]
             u = feature[3:]
             z = add_noise(z, dataset_config.epsilon)
+            u = add_noise(u, dataset_config.epsilon)
+            # p = solve_integral_successive(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=dataset_config.system.n_state,
+            #                               n_points=dataset_config.n_point_delay, f=dataset_config.system.dynamic,
+            #                               n_iterations=dataset_config.successive_approximation_n_iteration)
             new_samples.append((torch.concatenate([t, z, u]), p))
             # u = add_noise(u, dataset_config.epsilon)
             # feature = sample[0].cpu().numpy()
             # p = sample[1].cpu().numpy()
-            # p = solve_integral_eular(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=dataset_config.system.n_state,
-            #                          n_points=dataset_config.n_point_delay, f=dataset_config.system.dynamic)
             # new_samples.append((torch.from_numpy(np.concatenate([t, z, u])), torch.tensor(p)))
         # print(f'[WARNING] {len(new_samples)} samples replaced by numerical solutions')
     # all_samples = new_samples
-    return [*samples, *new_samples]
+    samples_ = [*samples, *new_samples]
+    random.shuffle(samples_)
+    return samples_
     # return new_samples
 
 
@@ -107,7 +112,56 @@ def prepare_datasets(samples, training_ratio: float, batch_size: int, device: st
     return training_dataloader, validating_dataloader
 
 
-def get_lr_scheduler(optimizer: torch.optim.Optimizer, config):
+def load_model(train_config, model_config, dataset_config):
+    model_name = model_config.model_name
+    device = train_config.device
+    n_state = dataset_config.n_state
+    hidden_size = model_config.deeponet_n_hidden_size
+    n_hidden = model_config.deeponet_n_hidden
+    merge_size = model_config.deeponet_merge_size
+    n_point_delay = dataset_config.n_point_delay
+    n_modes_height = model_config.fno_n_modes_height
+    hidden_channels = model_config.fno_hidden_channels
+    n_layers = model_config.fno_n_layers
+    if model_name == 'DeepONet':
+        layer_size_branch = [n_point_delay + n_state] + [hidden_size] * n_hidden + [merge_size]
+        layer_size_trunk = [1] + [hidden_size] * n_hidden + [merge_size]
+        import deepxde as dde
+        model = dde.nn.DeepONet(
+            layer_size_branch,
+            layer_size_trunk,
+            activation="tanh",
+            kernel_initializer="Glorot uniform",
+            multi_output_strategy='independent',
+            num_outputs=n_state
+        )
+    elif model_name == 'FNO':
+        model = FNOProjection(
+            n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
+            n_point_delay=n_point_delay, n_layers=n_layers)
+    elif model_name == 'FNOTwoStage':
+        model = FNOTwoStage(
+            n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_layers=n_layers, dt=dataset_config.dt,
+            n_state=dataset_config.n_state)
+    elif model_name == 'PIFNO':
+        model = PIFNO(
+            n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_layers=n_layers, dt=dataset_config.dt,
+            n_state=dataset_config.n_state, dynamic=dataset_config.system.dynamic_tensor_batched2)
+    elif model_name == 'FFN':
+        model = FNN(n_state=n_state, n_point_delay=n_point_delay)
+    else:
+        raise NotImplementedError()
+    n_params = count_params(model)
+    print(f'Loading {model_name} model, with {n_params} parameters')
+    np.savetxt(f'{train_config.model_save_path}/{model_config.model_name}.txt', np.array([n_params]))
+    return model.to(device)
+
+
+def load_optimizer(parameters, train_config):
+    return torch.optim.AdamW(parameters, lr=train_config.learning_rate, weight_decay=train_config.weight_decay)
+
+
+def load_lr_scheduler(optimizer: torch.optim.Optimizer, config):
     assert isinstance(config, TrainConfig) or isinstance(config, DatasetConfig)
     """ Create a schedule with a learning rate that decreases linearly after
     linearly increasing during a warmup period.

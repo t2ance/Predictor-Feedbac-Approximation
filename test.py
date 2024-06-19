@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 
 from config import get_config
 from dynamic_systems import solve_integral_eular
-from main import create_trajectory_dataset, create_random_dataset, run
+from main import create_trajectory_dataset, create_random_dataset, simulation
 
 
 def draw_distribution2(dataset_config):
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     # for Z0 in tqdm.tqdm(dataset_config.test_points):
     # Z0 = (0.6, -0.2)
     Z0 = (-1, -0.2)
-    U, Z, P = run(method='numerical', Z0=Z0, dataset_config=dataset_config, img_save_path='./misc')
+    U, Z, P = simulation(method='numerical', Z0=Z0, dataset_config=dataset_config, img_save_path='./misc')
 
     # import torch
     # from model import FNOProjection

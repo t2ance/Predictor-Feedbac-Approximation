@@ -283,10 +283,6 @@ def solve_integral_equation_neural_operator(model, U_D, Z_t, t):
     u_tensor = torch.tensor(U_D, dtype=torch.float32, device=device).view(1, -1)
     z_tensor = torch.tensor(Z_t, dtype=torch.float32, device=device).view(1, -1)
     inputs = [torch.cat([z_tensor, u_tensor], dim=1), torch.tensor(t, dtype=torch.float32).view(1, -1)]
-    # if isinstance(model, DeepONet):
-    #     outputs = model(inputs)
-    # else:
-    # TODO:
     outputs = model(inputs[0])
     return outputs.to('cpu').detach().numpy()[0]
 
@@ -316,7 +312,12 @@ def solve_integral(Z_t, P_D, U_D, t: float, dataset_config):
 
 
 def solve_integral_eular(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f):
-    P_D = np.zeros((n_points + 1, n_state))
+    if isinstance(Z_t, np.ndarray):
+        P_D = np.zeros((n_points + 1, n_state))
+    elif isinstance(Z_t, torch.Tensor):
+        P_D = torch.zeros((n_points + 1, n_state))
+    else:
+        raise NotImplementedError()
     P_D[0, :] = Z_t
     for j in range(n_points):
         P_D[j + 1, :] = P_D[j, :] + dt * f(P_D[j, :], j * dt, U_D[j])
@@ -325,7 +326,12 @@ def solve_integral_eular(Z_t, n_points: int, n_state: int, dt: float, U_D: np.nd
 
 def solve_integral_successive(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f, n_iterations: int):
     assert n_iterations >= 0
-    P_D = np.zeros((n_iterations + 1, n_points + 1, n_state))
+    if isinstance(Z_t, np.ndarray):
+        P_D = np.zeros((n_iterations + 1, n_points + 1, n_state))
+    elif isinstance(Z_t, torch.Tensor):
+        P_D = torch.zeros((n_iterations + 1, n_points + 1, n_state))
+    else:
+        raise NotImplementedError()
     P_D[0, :, :] = Z_t
 
     for n in range(n_iterations):
