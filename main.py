@@ -23,13 +23,13 @@ from utils import set_size, pad_leading_zeros, plot_comparison, plot_difference,
     split_dataset, quantile_predict_and_loss
 
 
-def odeint(func, y0, t, args=()):
-    y = np.zeros((len(t), len(y0)))
-    y[0] = y0
-    for i in range(1, len(t)):
-        h = t[i] - t[i - 1]
-        y[i] = y[i - 1] + h * func(y[i - 1], t[i - 1], *args)
-    return y
+# def odeint(func, y0, t, args=()):
+#     y = np.zeros((len(t), len(y0)))
+#     y[0] = y0
+#     for i in range(1, len(t)):
+#         h = t[i] - t[i - 1]
+#         y[i] = y[i - 1] + h * func(y[i - 1], t[i - 1], *args)
+#     return y
 
 
 def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
