@@ -214,13 +214,11 @@ class FNN(torch.nn.Module):
         in_features = n_state + n_point_delay
         out_features = n_state
         self.projection = torch.nn.Sequential(
-            torch.nn.Linear(in_features=in_features, out_features=16 * in_features),
+            torch.nn.Linear(in_features=in_features, out_features=8 * in_features),
             torch.nn.ReLU(),
-            torch.nn.Linear(in_features=16 * in_features, out_features=32 * in_features),
+            torch.nn.Linear(in_features=8 * in_features, out_features=4 * in_features),
             torch.nn.ReLU(),
-            torch.nn.Linear(in_features=32 * in_features, out_features=8 * in_features),
-            torch.nn.ReLU(),
-            torch.nn.Linear(in_features=8 * in_features, out_features=in_features),
+            torch.nn.Linear(in_features=4 * in_features, out_features=in_features),
             torch.nn.ReLU(),
             torch.nn.Linear(in_features=in_features, out_features=out_features)
         )

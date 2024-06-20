@@ -1,19 +1,17 @@
-import os
-import time
 import datetime
+import os
 import random
+import time
 
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
-
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config import DatasetConfig, TrainConfig
 from dataset import PredictionDataset
-from dynamic_systems import solve_integral_eular, solve_integral_successive
 from model import FNOProjection, FNOTwoStage, PIFNO, FNN
 
 colors = ['red', 'green', 'blue', 'yellow', 'black']
@@ -154,8 +152,8 @@ def load_model(train_config, model_config, dataset_config):
         raise NotImplementedError()
     n_params = count_params(model)
     print(f'Loading {model_name} model from sketch, with {n_params} parameters')
+    check_dir(train_config.model_save_path)
     np.savetxt(f'{train_config.model_save_path}/{model_config.model_name}.txt', np.array([n_params]))
-
     pth = f'{train_config.model_save_path}/{model_config.model_name}.pth'
     loaded = False
     if train_config.load_model and os.path.exists(pth):
