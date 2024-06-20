@@ -16,7 +16,7 @@ from dataset import PredictionDataset
 from dynamic_systems import solve_integral_eular, solve_integral_successive
 from model import FNOProjection, FNOTwoStage, PIFNO, FNN
 
-p_z_colors = ['red', 'green', 'blue', 'yellow', 'black']
+colors = ['red', 'green', 'blue', 'yellow', 'black']
 legend_loc = 'upper right'
 legend_fontsize = 8
 
@@ -92,13 +92,14 @@ def postprocess(samples, dataset_config: DatasetConfig):
     # return new_samples
 
 
-def prepare_datasets(samples, training_ratio: float, batch_size: int, device: str):
-    def split_dataset(dataset, ratio):
-        n_total = len(dataset)
-        n_sample = int(n_total * ratio)
-        random.shuffle(dataset)
-        return dataset[:n_sample], dataset[n_sample:]
+def split_dataset(dataset, ratio):
+    n_total = len(dataset)
+    n_sample = int(n_total * ratio)
+    random.shuffle(dataset)
+    return dataset[:n_sample], dataset[n_sample:]
 
+
+def prepare_datasets(samples, training_ratio: float, batch_size: int, device: str):
     train_dataset, validate_dataset = split_dataset(samples, training_ratio)
     training_dataloader = DataLoader(PredictionDataset(train_dataset), batch_size=batch_size, shuffle=False,
                                      # generator=torch.Generator(device=device)
@@ -152,9 +153,17 @@ def load_model(train_config, model_config, dataset_config):
     else:
         raise NotImplementedError()
     n_params = count_params(model)
-    print(f'Loading {model_name} model, with {n_params} parameters')
+    print(f'Loading {model_name} model from sketch, with {n_params} parameters')
     np.savetxt(f'{train_config.model_save_path}/{model_config.model_name}.txt', np.array([n_params]))
-    return model.to(device)
+
+    pth = f'{train_config.model_save_path}/{model_config.model_name}.pth'
+    loaded = False
+    if train_config.load_model and os.path.exists(pth):
+        model.load_state_dict(torch.load(f'{train_config.model_save_path}/{model_name}.pth'))
+        print(f'Model loaded from {pth}')
+        loaded = True
+
+    return model.to(device), loaded
 
 
 def load_optimizer(parameters, train_config):
@@ -196,8 +205,8 @@ def plot_sample(feature, label, dataset_config: DatasetConfig, name: str = '1.pn
     ts = np.linspace(t - dataset_config.delay, t, dataset_config.n_point_delay)
     plt.plot(ts, u, label='U')
     for i in range(n_state):
-        plt.scatter(ts[-1], z[i], label=f'$Z_t({i})$', c=p_z_colors[i])
-        plt.scatter(ts[-1], p[i], label=f'$P_t({i})$', c=p_z_colors[i], marker='^')
+        plt.scatter(ts[-1], z[i], label=f'$Z_t({i})$', c=colors[i])
+        plt.scatter(ts[-1], p[i], label=f'$P_t({i})$', c=colors[i], marker='^')
     plt.legend(loc='upper left')
     out_dir = f'{dataset_config.dataset_base_path}/sample'
     check_dir(out_dir)
@@ -220,14 +229,26 @@ def check_dir(path):
 
 
 def no_predict_and_loss(inputs, labels, model):
-    z_u = inputs[:, 1:]
+    return model(inputs[:, 1:], labels)
 
-    # if not isinstance(model, dde.nn.DeepONet):
-    # FIXME:
-    return model(z_u, labels)
-    # else:
-    #     outputs = model([z_u, inputs[:, :1]])
-    #     return outputs, torch.nn.MSELoss()(outputs, labels)
+
+def quantile_predict_and_loss(inputs, labels, model):
+    outputs = model(inputs[:, 1:])
+    loss = quantile_loss(outputs, labels, model.quantiles)
+    return outputs, loss
+
+
+def quantile_loss(predictions, targets, quantiles):
+    losses = []
+    for i, quantile in enumerate(quantiles):
+        lower_pred = predictions[:, i, 0]
+        upper_pred = predictions[:, i, 1]
+        errors_lower = targets[:, i] - lower_pred
+        errors_upper = targets[:, i] - upper_pred
+        loss_lower = torch.max((quantile[0] - 1) * errors_lower, quantile[0] * errors_lower).mean()
+        loss_upper = torch.max((quantile[1] - 1) * errors_upper, quantile[1] * errors_upper).mean()
+        losses.append(loss_lower + loss_upper)
+    return torch.stack(losses).mean()
 
 
 def plot_system(title, ts, Z, U, P, img_save_path):
@@ -270,37 +291,59 @@ def plot_system(title, ts, Z, U, P, img_save_path):
     plt.close(fig)
 
 
+def shift(p, n_point_delay):
+    if n_point_delay == 0:
+        return p
+    else:
+        return p[:-n_point_delay]
+
+
+def plot_uncertainty(ts, P, P_ci, Z, delay, n_point_delay, save_path, n_state: int, ylim=None):
+    fig = plt.figure(figsize=set_size())
+    plt.title('Uncertainty')
+
+    for state in range(n_state):
+        plt.plot(ts[n_point_delay:], shift(P, n_point_delay)[:, state], linestyle='--', color=colors[state],
+                 label=f'$\hat{{P}}_{state + 1}(t-{delay})$')
+        plt.plot(ts[n_point_delay:], Z[n_point_delay:, state], label=f'$Z_{state + 1}(t)$', color=colors[state])
+        plt.fill_between(ts[n_point_delay:], shift(P_ci, n_point_delay)[:, state, 0],
+                         shift(P_ci, n_point_delay)[:, state, 1], color=colors[state], alpha=0.3,
+                         label=f"$C(\hat{{P}}_{state + 1})$")
+    plt.xlabel('Time t')
+    if ylim is not None:
+        plt.ylim(ylim)
+    plt.legend(loc=legend_loc, fontsize=legend_fontsize)
+    if save_path is not None:
+        plt.savefig(save_path)
+        fig.clear()
+        plt.close(fig)
+    else:
+        plt.show()
+
+
 def plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, save_path, n_state: int, ylim=None):
     fig = plt.figure(figsize=set_size())
 
-    # FIXME:
-    # plt.title('Comparison')
+    plt.title('Comparison')
 
-    def p_safe(p, t_i):
-        if n_point_delay == 0:
-            return p[:, t_i]
-        else:
-            return p[:-n_point_delay, t_i]
-
-    # FIXME:
     for t_i in range(n_state):
         if P_numerical is not None:
+            plt.plot(ts[n_point_delay:], shift(P_numerical, n_point_delay)[:, t_i], linestyle=':', color=colors[t_i],
+                     label=f'$P^{{numerical}}_{t_i + 1}(t-{delay})$')
             # plt.plot(ts[n_point_delay:], p_safe(P_numerical, t_i), linestyle=':', color=p_z_colors[t_i],
-            #          label=f'$P^{{numerical}}_{t_i + 1}(t-{delay})$')
-            plt.plot(ts[n_point_delay:], p_safe(P_numerical, t_i), linestyle=':', color=p_z_colors[t_i],
-                     label=f'$\hat{{P}}_{t_i + 1}(t)$')
+            #          label=f'$\hat{{P}}_{t_i + 1}(t)$')
         if P_no is not None:
+            plt.plot(ts[n_point_delay:], shift(P_no, n_point_delay)[:, t_i], linestyle='--', color=colors[t_i],
+                     label=f'$P^{{no}}_{t_i + 1}(t-{delay})$')
             # plt.plot(ts[n_point_delay:], p_safe(P_no, t_i), linestyle='--', color=p_z_colors[t_i],
-            #          label=f'$P^{{no}}_{t_i + 1}(t-{delay})$')
-            plt.plot(ts[n_point_delay:], p_safe(P_no, t_i), linestyle='--', color=p_z_colors[t_i],
-                     label=f'$\hat{{P}}_{t_i + 1}(t)$')
+            #          label=f'$\hat{{P}}_{t_i + 1}(t)$')
         if P_explicit is not None:
+            plt.plot(ts[n_point_delay:], shift(P_explicit, n_point_delay)[:, t_i], linestyle='-.', color=colors[t_i],
+                     label=f'$P^{{explicit}}_{t_i + 1}(t-{delay})$')
             # plt.plot(ts[n_point_delay:], p_safe(P_explicit, t_i), linestyle='-.', color=p_z_colors[t_i],
-            #          label=f'$P^{{explicit}}_{t_i + 1}(t-{delay})$')
-            plt.plot(ts[n_point_delay:], p_safe(P_explicit, t_i), linestyle='-.', color=p_z_colors[t_i],
-                     label=f'$\hat{{P}}_{t_i + 1}(t)$')
-        # plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$', color=p_z_colors[t_i])
-        plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$X_{t_i + 1}(t+D)$', color=p_z_colors[t_i])
+            #          label=f'$\hat{{P}}_{t_i + 1}(t)$')
+        plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$', color=colors[t_i])
+        # plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$X_{t_i + 1}(t+D)$', color=p_z_colors[t_i])
     plt.xlabel('Time t')
     if ylim is not None:
         plt.ylim(ylim)
@@ -317,22 +360,16 @@ def plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, save_pa
     fig = plt.figure(figsize=set_size())
     plt.title('Difference')
 
-    def p_safe(p):
-        if n_point_delay == 0:
-            return p
-        else:
-            return p[:-n_point_delay]
-
     if P_no is not None:
-        difference = p_safe(P_no) - Z[n_point_delay:]
+        difference = shift(P_no, n_point_delay) - Z[n_point_delay:]
         for i in range(n_state):
             plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{no}}_{i + 1}$')
     if P_numerical is not None:
-        difference = p_safe(P_numerical) - Z[n_point_delay:]
+        difference = shift(P_numerical, n_point_delay) - Z[n_point_delay:]
         for i in range(n_state):
             plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{numerical}}_{i + 1}$')
     if P_explicit is not None:
-        difference = p_safe(P_explicit) - Z[n_point_delay:]
+        difference = shift(P_explicit, n_point_delay) - Z[n_point_delay:]
         for i in range(n_state):
             plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{explicit}}_{i + 1}$')
     plt.xlabel('Time t')

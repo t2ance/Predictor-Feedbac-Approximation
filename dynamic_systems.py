@@ -278,13 +278,20 @@ class VanDerPolOscillator(DynamicSystem):
         raise NotImplementedError()
 
 
-def solve_integral_equation_neural_operator(model, U_D, Z_t, t):
+def solve_integral_nn(model, U_D, Z_t):
     device = next(model.parameters()).device
     u_tensor = torch.tensor(U_D, dtype=torch.float32, device=device).view(1, -1)
     z_tensor = torch.tensor(Z_t, dtype=torch.float32, device=device).view(1, -1)
-    inputs = [torch.cat([z_tensor, u_tensor], dim=1), torch.tensor(t, dtype=torch.float32).view(1, -1)]
-    outputs = model(inputs[0])
+    outputs = model(torch.cat([z_tensor, u_tensor], dim=1))
     return outputs.to('cpu').detach().numpy()[0]
+
+
+def solve_integral_ci_nn(mapie_regressors, U_D, Z_t):
+    device = mapie_regressors.device
+    u_tensor = torch.tensor(U_D, dtype=torch.float32, device=device).view(1, -1)
+    z_tensor = torch.tensor(Z_t, dtype=torch.float32, device=device).view(1, -1)
+    inputs = torch.cat([z_tensor, u_tensor], dim=1)
+    return mapie_regressors.predict(inputs)
 
 
 def solve_integral(Z_t, P_D, U_D, t: float, dataset_config):

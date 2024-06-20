@@ -1,7 +1,10 @@
 from typing import Callable
 
+import numpy as np
 import torch
+from mapie.regression import MapieRegressor
 from neuralop.models import FNO1d
+from sklearn.base import RegressorMixin
 from torch import nn
 from torch.nn import init
 
@@ -11,6 +14,59 @@ def initialize_weights(m):
         init.xavier_normal_(m.weight)
         if m.bias is not None:
             init.zeros_(m.bias)
+
+
+# Wrapper Models
+class MapieRegressors:
+    def __init__(self, model, n_output: int, device, alpha=0.1):
+        self.model = model
+        self.n_output = n_output
+        self.mapie_regressors = []
+        self.device = device
+        self.alpha = alpha
+        for output_dim in range(self.n_output):
+            self.mapie_regressors.append(
+                MapieRegressor(estimator=ConformalPredictionWrapper(model, device=device, output_dim=output_dim),
+                               cv='prefit')
+            )
+
+    def fit(self, X, y):
+        for output_dim in range(self.n_output):
+            self.mapie_regressors[output_dim].fit(X[:, 1:], y[:, output_dim])
+        return self
+
+    def predict(self, X, alpha: float = None):
+        if alpha is None:
+            alpha = self.alpha
+        y_pis_list = []
+        y_pred_list = []
+        for output_dim in range(self.n_output):
+            y_pred, y_pis = self.mapie_regressors[output_dim].predict(X, alpha=alpha)
+            y_pis_list.append(y_pis[0, :, 0])
+            y_pred_list.append(y_pred)
+        return np.array(y_pis_list), np.array(y_pred_list)
+
+
+class ConformalPredictionWrapper(RegressorMixin):
+    def __init__(self, model, device, output_dim: int = -1):
+        self.model = model
+        self.device = device
+        self.output_dim = output_dim
+
+    def fit(self, X, y):
+        return self
+
+    def predict(self, X):
+        self.model.eval()
+        with torch.no_grad():
+            predictions = self.model(torch.Tensor(X).to(self.device)).detach().cpu().numpy()
+        if self.output_dim == -1:
+            return predictions
+        else:
+            return predictions[:, self.output_dim]
+
+    def __sklearn_is_fitted__(self):
+        return True
 
 
 # Generation Models
@@ -135,6 +191,22 @@ class FullyConnectedNet(torch.nn.Module):
 
 
 # Prediction Models
+class QuantileRegressionModel(nn.Module):
+    def __init__(self, input_dim: int, output_dim: int, alpha: float):
+        super(QuantileRegressionModel, self).__init__()
+        self.fc1 = nn.Linear(input_dim, 64)
+        self.fc2 = nn.Linear(64, 32)
+        self.fc3 = nn.Linear(32, output_dim * 2)  # Output two values per dimension
+        self.alpha = alpha
+        self.quantiles = [(alpha / 2, 1 - alpha / 2)] * output_dim
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x.view(x.size(0), -1, 2)  # Reshape to (batch_size, output_dim, 2)
+
+
 class FNN(torch.nn.Module):
     def __init__(self, n_state: int, n_point_delay: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -144,9 +216,11 @@ class FNN(torch.nn.Module):
         self.projection = torch.nn.Sequential(
             torch.nn.Linear(in_features=in_features, out_features=16 * in_features),
             torch.nn.ReLU(),
-            torch.nn.Linear(in_features=16 * in_features, out_features=4 * in_features),
+            torch.nn.Linear(in_features=16 * in_features, out_features=32 * in_features),
             torch.nn.ReLU(),
-            torch.nn.Linear(in_features=4 * in_features, out_features=in_features),
+            torch.nn.Linear(in_features=32 * in_features, out_features=8 * in_features),
+            torch.nn.ReLU(),
+            torch.nn.Linear(in_features=8 * in_features, out_features=in_features),
             torch.nn.ReLU(),
             torch.nn.Linear(in_features=in_features, out_features=out_features)
         )
