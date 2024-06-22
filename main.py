@@ -33,7 +33,7 @@ from utils import set_size, pad_leading_zeros, plot_comparison, plot_difference,
 
 
 def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
-               method: Literal['explicit', 'numerical', 'no', 'numerical_no'] = None,
+               method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'alternative'] = None,
                model=None, mapie_regressors=None,
                img_save_path: str = None, uncertainty_out: bool = False):
     system: dynamic_systems.DynamicSystem = dataset_config.system
@@ -49,11 +49,12 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
         P_explicit = np.zeros((n_point, system.n_state))
     else:
         P_explicit = None
-    if method == 'numerical' or method == 'numerical_no':
+    if method == 'numerical' or method == 'numerical_no' or method == 'alternative':
         P_numerical = np.zeros((n_point, system.n_state))
     else:
         P_numerical = None
-    if method == 'no' or method == 'numerical_no':
+
+    if method == 'no' or method == 'numerical_no' or method == 'alternative':
         # upper bound and lower bound
         P_no = np.zeros((n_point, system.n_state))
         if mapie_regressors is not None:
@@ -63,7 +64,8 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
     else:
         P_no = None
         P_no_ci = None
-
+    p_numerical_count = 0
+    p_no_count = 0
     Z[n_point_delay, :] = Z0
     for t_i in range(dataset_config.n_point):
         t_minus_D_i = max(t_i - n_point_delay, 0)
@@ -109,9 +111,29 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
                 P_no_ci[t_i, :, :], _ = solve_integral_ci_nn(mapie_regressors, U_D, Z_t)
             if t_i > n_point_delay:
                 U[t_i] = system.kappa(P_numerical[t_i, :])
+        elif method == 'alternative':
+            if t_i > n_point_delay:
+                Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]],
+                                   args=(U[t_minus_D_i - 1],))[1]
+                Z_t = Z[t_i, :]
+            else:
+                Z_t = Z0
+            P_numerical[t_i, :] = dynamic_systems.solve_integral(
+                Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t, dataset_config=dataset_config)
+            U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
+            P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
+            P_no_ci[t_i, :, :], _ = solve_integral_ci_nn(mapie_regressors, U_D, Z_t)
+            if t_i > n_point_delay:
+                if ((Z_t > P_no_ci[t_i - n_point_delay, :, 0]) & (
+                        Z_t < P_no_ci[t_i - n_point_delay, :, 1])).all():
+                    U[t_i] = system.kappa(P_no[t_i, :])
+                    p_no_count += 1
+                else:
+                    U[t_i] = system.kappa(P_numerical[t_i, :])
+                    p_numerical_count += 1
         else:
             raise NotImplementedError()
-
+    print(p_no_count, '/', p_numerical_count)
     ts = dataset_config.ts
     delay = dataset_config.delay
     n_point_delay = dataset_config.n_point_delay
@@ -138,7 +160,7 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
 
     if method == 'explicit':
         return U, Z, P_explicit
-    elif method == 'no' or method == 'numerical_no':
+    elif method == 'no' or method == 'numerical_no' or method == 'alternative':
         if uncertainty_out:
             return U, Z, P_no, P_no_ci
         else:
@@ -290,9 +312,12 @@ def run_active_training(dataset_config: DatasetConfig, model_config: ModelConfig
                                    size=(dataset_config.n_state,))
             # U, Z, P_no, P_no_ci = simulation(dataset_config, Z0, 'no', model, mapie_regressors=mapie_regressors,
             #                                  img_save_path='./misc/test1', uncertainty_out=True)
-            U, Z, P_no, P_no_ci = simulation(dataset_config, Z0, 'numerical_no', model,
+            # U, Z, P_no, P_no_ci = simulation(dataset_config, Z0, 'numerical_no', model,
+            #                                  mapie_regressors=mapie_regressors,
+            #                                  img_save_path='./misc/test2', uncertainty_out=True)
+            U, Z, P_no, P_no_ci = simulation(dataset_config, Z0, 'alternative', model,
                                              mapie_regressors=mapie_regressors,
-                                             img_save_path='./misc/test2', uncertainty_out=True)
+                                             img_save_path='./misc/test3', uncertainty_out=True)
             predictions = shift(P_no, dataset_config.n_point_delay)
             conf_intervals = shift(P_no_ci, dataset_config.n_point_delay)
             true_values = Z[dataset_config.n_point_delay:]
@@ -355,51 +380,6 @@ def run_quantile_training(dataset_config: DatasetConfig, model_config: ModelConf
         training_loss_t, _ = model_train(quantile_model, no_optimizer, no_scheduler, device, training_dataloader,
                                          quantile_predict_and_loss)
         bar.set_description(f'Quantile NN Epoch [{epoch + 1}/{n_epoch}] || Training loss: {training_loss_t:.6f}')
-    while True:
-        samples = []
-        print('Collecting incremental data')
-        while len(samples) < dataset_config.n_sample:
-            Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
-                                   size=(dataset_config.n_state,))
-            # U, Z, P_no, P_no_ci = simulation(dataset_config, Z0, 'no', model, mapie_regressors=mapie_regressors,
-            #                                  img_save_path='./misc/test1', uncertainty_out=True)
-            U, Z, P_no, P_no_ci = simulation(dataset_config, Z0, 'numerical_no', model,
-                                             mapie_regressors=mapie_regressors,
-                                             img_save_path='./misc/test2', uncertainty_out=True)
-            predictions = shift(P_no, dataset_config.n_point_delay)
-            conf_intervals = shift(P_no_ci, dataset_config.n_point_delay)
-            true_values = Z[dataset_config.n_point_delay:]
-            conf_intervals.sort(axis=-1)
-            out_of_interval = (true_values < conf_intervals[:, :, 0]) | (true_values > conf_intervals[:, :, 1])
-            out_of_interval_indices = np.where(out_of_interval.all(axis=1))[0]
-            for t_i, (p, z, t) in enumerate(
-                    zip(list(predictions), list(true_values), list(dataset_config.ts[dataset_config.n_point_delay:]))):
-                if t_i not in out_of_interval_indices:
-                    continue
-
-                u = U[t_i: t_i + dataset_config.n_point_delay]
-                P = dynamic_systems.solve_integral_successive(
-                    Z_t=z, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state, dt=dataset_config.dt,
-                    U_D=u, f=dataset_config.system.dynamic,
-                    n_iterations=dataset_config.successive_approximation_n_iteration)
-                samples.append((torch.from_numpy(np.concatenate([t.reshape(-1), z, u])), torch.from_numpy(P)))
-            print(f'{len(samples)}/{dataset_config.n_sample}')
-        print(f'Incremental training use {len(samples)} samples')
-        train_dataset, validate_dataset = split_dataset(samples, train_config.training_ratio)
-        training_dataloader = DataLoader(PredictionDataset(train_dataset), batch_size=train_config.batch_size,
-                                         shuffle=False)
-        validating_dataloader = DataLoader(PredictionDataset(validate_dataset), batch_size=train_config.batch_size,
-                                           shuffle=False)
-        bar1 = tqdm(list(range(train_config.n_epoch)))
-        for epoch in bar1:
-            training_loss_t, _ = model_train(model, no_optimizer, no_scheduler, device, training_dataloader,
-                                             no_predict_and_loss)
-            bar1.set_description(f'Epoch [{epoch + 1}/{n_epoch}] || Training loss: {training_loss_t:.6f}')
-        result_no = run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='no')
-        print_result(result_no, dataset_config)
-        X, y = zip(*[[batch[0].numpy(), batch[1].numpy()] for batch in validating_dataloader])
-        X, y = np.vstack(X), np.vstack(y)
-        mapie_regressors.fit(X, y)
     return model
 
 
@@ -815,8 +795,6 @@ def create_nn_dataset(dataset_config: DatasetConfig):
 def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
     if train_config.active:
         model = run_active_training(dataset_config=dataset_config, model_config=model_config, train_config=train_config)
-        # model = run_quantile_training(dataset_config=dataset_config, model_config=model_config,
-        #                               train_config=train_config)
     else:
         model = run_offline_training(dataset_config=dataset_config, model_config=model_config,
                                      train_config=train_config)
@@ -830,7 +808,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_seed(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s1')
+    parser.add_argument('-s', type=str, default='s4')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-fl', type=int, default=None)
     args = parser.parse_args()
