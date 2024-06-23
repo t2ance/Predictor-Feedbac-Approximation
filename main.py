@@ -176,7 +176,13 @@ def model_train(model, optimizer, scheduler, device, training_dataloader, predic
             outputs, loss = predict_and_loss(inputs, labels, model)
             model.zero_grad()
             loss.backward()
+
             inputs_grad = inputs.grad.data
+            # only adversarial the state part
+            mask = torch.zeros_like(inputs_grad, dtype=torch.bool)
+            mask[:, 1:1 + n_state] = 1
+            inputs_grad[~mask] = 0
+
             adversarial_inputs = inputs + adversarial_epsilon * inputs_grad.sign()
             adversarial_labels = dynamic_systems.solve_integral_successive_batched(
                 Z_t=np.array(adversarial_inputs[:, 1:1 + n_state].detach().cpu().numpy()),
@@ -237,7 +243,7 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
         bar = tqdm(list(range(n_epoch)))
         do_validation = validating_dataloader is not None
         do_testing = testing_dataloader is not None
-        do_adversarial = train_config.adversarial_epsilon == 0
+        do_adversarial = train_config.adversarial_epsilon > 0
 
         def draw():
             fig = plt.figure(figsize=set_size())
@@ -824,7 +830,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_seed(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s3')
+    parser.add_argument('-s', type=str, default='s2')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-fl', type=int, default=None)
     args = parser.parse_args()

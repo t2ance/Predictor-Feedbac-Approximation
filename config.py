@@ -235,18 +235,19 @@ def get_config(system_=None, n_iteration=None, fno_n_layers=None, fno_n_modes_he
         model_config = ModelConfig(model_name='FFN', fno_n_layers=5, fno_n_modes_height=32, fno_hidden_channels=32)
     elif system_ == 's2':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=1,
-                                       duration=8, dt=0.01, n_dataset=250, n_sample_per_dataset=-1, n_plot_sample=20,
-                                       ic_lower_bound=-1, ic_upper_bound=1, successive_approximation_n_iteration=5)
-        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=250, batch_size=512,
-                                   weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential',
-                                   scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5, debug=False,
-                                   do_test=True)
-        model_config = ModelConfig(model_name='FFN', fno_n_layers=5, fno_n_modes_height=32, fno_hidden_channels=64)
-    elif system_ == 's3':
-        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory', delay=0.3,
                                        duration=8, dt=0.02, n_dataset=100, n_sample_per_dataset=-1, n_plot_sample=20,
                                        ic_lower_bound=-1, ic_upper_bound=1, successive_approximation_n_iteration=5)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=250, batch_size=128,
+                                   weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential',
+                                   scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5, debug=False,
+                                   do_test=True, adversarial_epsilon=0.01)
+        model_config = ModelConfig(model_name='FFN', fno_n_layers=5, fno_n_modes_height=32, fno_hidden_channels=64)
+    elif system_ == 's3':
+        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
+                                       delay=0.3, duration=8, dt=0.02, n_dataset=250, n_sample_per_dataset=-1,
+                                       n_plot_sample=20, ic_lower_bound=-1, ic_upper_bound=1,
+                                       successive_approximation_n_iteration=5)
+        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=200, batch_size=128,
                                    weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5, debug=False,
                                    do_test=True, adversarial_epsilon=0.01)
