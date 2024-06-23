@@ -183,7 +183,7 @@ def model_train(model, optimizer, scheduler, device, training_dataloader, predic
             mask[:, 1:1 + n_state] = 1
             inputs_grad[~mask] = 0
 
-            adversarial_inputs = inputs + torch.rand((1,)) * adversarial_epsilon * inputs_grad.sign()
+            adversarial_inputs = inputs + torch.rand((1,), device=device) * adversarial_epsilon * inputs_grad.sign()
             adversarial_labels = dynamic_systems.solve_integral_successive_batched(
                 Z_t=np.array(adversarial_inputs[:, 1:1 + n_state].detach().cpu().numpy()),
                 U_D=np.array(adversarial_inputs[:, 1 + n_state:].detach().cpu().numpy()),
