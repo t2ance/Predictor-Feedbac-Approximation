@@ -19,6 +19,14 @@ legend_loc = 'upper right'
 legend_fontsize = 8
 
 
+def print_args(args):
+    print('=' * 100)
+    print(args.__class__.__name__)
+    for k, v in args.__dict__.items():
+        print(f'        - {k} : {v}')
+    print('=' * 100)
+
+
 def draw_distribution(samples, n_state: int, img_save_path: str = None):
     u_list = []
     z_list = []
@@ -58,6 +66,10 @@ def draw_distribution(samples, n_state: int, img_save_path: str = None):
     for i in range(n_state):
         draw_1d(zs[:, i], f'$Z_{i}$', f'z{i}.png')
         draw_1d(ps[:, i], f'$P_{i}$', f'p{i}.png', xlim=[-1, 1])
+
+
+def generate_adversarial_sample(model, x, y, epsilon):
+    ...
 
 
 def postprocess(samples, dataset_config: DatasetConfig):
@@ -226,7 +238,7 @@ def check_dir(path):
         os.makedirs(path)
 
 
-def no_predict_and_loss(inputs, labels, model):
+def predict_and_loss(inputs, labels, model):
     return model(inputs[:, 1:], labels)
 
 

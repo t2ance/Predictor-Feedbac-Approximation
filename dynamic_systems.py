@@ -333,18 +333,35 @@ def solve_integral_eular(Z_t, n_points: int, n_state: int, dt: float, U_D: np.nd
 
 def solve_integral_successive(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f, n_iterations: int):
     assert n_iterations >= 0
-    if isinstance(Z_t, np.ndarray):
-        P_D = np.zeros((n_iterations + 1, n_points + 1, n_state))
-    elif isinstance(Z_t, torch.Tensor):
-        P_D = torch.zeros((n_iterations + 1, n_points + 1, n_state))
-    else:
-        raise NotImplementedError()
+    assert isinstance(Z_t, np.ndarray)
+    P_D = np.zeros((n_iterations + 1, n_points + 1, n_state))
     P_D[0, :, :] = Z_t
+    for n in range(n_iterations):
+        for j in range(n_points):
+            if j == 0:
+                P_D[n + 1, j + 1, :] = Z_t + dt * f(P_D[n, 0, :], 0 * dt, U_D[0])
+            else:
+                P_D[n + 1, j + 1, :] = P_D[n + 1, j, :] + dt * f(P_D[n, j, :], j * dt, U_D[j])
+    return P_D[-1, -1, :]
+
+
+def solve_integral_successive_batched(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f,
+                                      n_iterations: int):
+    assert n_iterations >= 0
+    assert isinstance(Z_t, np.ndarray)
+    batch_size = Z_t.shape[0]
+
+    P_D = np.zeros((n_iterations + 1, batch_size, n_points + 1, n_state))
+    P_D[0, :, :, :] = Z_t[:, np.newaxis, :]
 
     for n in range(n_iterations):
         for j in range(n_points):
-            P_D[n + 1, j + 1, :] = Z_t + np.sum([dt * f(P_D[n, k, :], k * dt, U_D[k]) for k in range(j + 1)], axis=0)
-    return P_D[-1, -1, :]
+            if j == 0:
+                P_D[n + 1, :, j + 1, :] = Z_t + dt * f(P_D[n, :, 0, :], 0 * dt, U_D[:, 0])
+            else:
+                P_D[n + 1, :, j + 1, :] = P_D[n + 1, :, j, :] + dt * f(P_D[n, :, j, :], j * dt, U_D[:, j])
+
+    return P_D[-1, :, -1, :]
 
 
 def solve_integral_rectangle(f, Z_t, P_D, U_D, ts, dt: float):

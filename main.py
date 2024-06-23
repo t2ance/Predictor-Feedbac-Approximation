@@ -18,9 +18,9 @@ from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import solve_integral_eular, solve_integral_nn, solve_integral_ci_nn
 from model import FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet, MapieRegressors, QuantileRegressionModel
 from utils import set_size, pad_leading_zeros, plot_comparison, plot_difference, \
-    metric, check_dir, plot_sample, no_predict_and_loss, load_lr_scheduler, prepare_datasets, draw_distribution, \
+    metric, check_dir, plot_sample, predict_and_loss, load_lr_scheduler, prepare_datasets, draw_distribution, \
     set_seed, plot_single, print_result, postprocess, load_model, load_optimizer, plot_uncertainty, shift, \
-    split_dataset, quantile_predict_and_loss
+    split_dataset, quantile_predict_and_loss, print_args
 
 
 # def odeint(func, y0, t, args=()):
@@ -34,8 +34,7 @@ from utils import set_size, pad_leading_zeros, plot_comparison, plot_difference,
 
 def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
                method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'alternative'] = None,
-               model=None, mapie_regressors=None,
-               img_save_path: str = None, uncertainty_out: bool = False):
+               model=None, mapie_regressors=None, img_save_path: str = None, uncertainty_out: bool = False):
     system: dynamic_systems.DynamicSystem = dataset_config.system
     n_point_delay = dataset_config.n_point_delay
     n_state = dataset_config.n_state
@@ -55,7 +54,6 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
         P_numerical = None
 
     if method == 'no' or method == 'numerical_no' or method == 'alternative':
-        # upper bound and lower bound
         P_no = np.zeros((n_point, system.n_state))
         if mapie_regressors is not None:
             P_no_ci = np.zeros((n_point, system.n_state, 2))
@@ -74,66 +72,56 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
             U[t_i] = system.U_explicit(t, Z0)
             if t_i > n_point_delay:
                 Z[t_i, :] = system.Z_explicit(t, Z0)
-        elif method == 'numerical':
-            if t_i > n_point_delay:
-                Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
-                Z_t = Z[t_i, :]
-            else:
-                Z_t = Z0
-            P_numerical[t_i, :] = dynamic_systems.solve_integral(
-                Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t, dataset_config=dataset_config)
-            if t_i > n_point_delay:
-                U[t_i] = system.kappa(P_numerical[t_i, :])
-        elif method == 'no':
-            if t_i > n_point_delay:
-                Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
-                Z_t = Z[t_i, :]
-            else:
-                Z_t = Z0
-            U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
-            P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
-            if mapie_regressors is not None:
-                P_no_ci[t_i, :, :], _ = solve_integral_ci_nn(mapie_regressors, U_D, Z_t)
-            if t_i > n_point_delay:
-                U[t_i] = system.kappa(P_no[t_i, :])
-        elif method == 'numerical_no':
-            if t_i > n_point_delay:
-                Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]],
-                                   args=(U[t_minus_D_i - 1],))[1]
-                Z_t = Z[t_i, :]
-            else:
-                Z_t = Z0
-            P_numerical[t_i, :] = dynamic_systems.solve_integral(
-                Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t, dataset_config=dataset_config)
-            U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
-            P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
-            if mapie_regressors is not None:
-                P_no_ci[t_i, :, :], _ = solve_integral_ci_nn(mapie_regressors, U_D, Z_t)
-            if t_i > n_point_delay:
-                U[t_i] = system.kappa(P_numerical[t_i, :])
-        elif method == 'alternative':
-            if t_i > n_point_delay:
-                Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]],
-                                   args=(U[t_minus_D_i - 1],))[1]
-                Z_t = Z[t_i, :]
-            else:
-                Z_t = Z0
-            P_numerical[t_i, :] = dynamic_systems.solve_integral(
-                Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t, dataset_config=dataset_config)
-            U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
-            P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
-            P_no_ci[t_i, :, :], _ = solve_integral_ci_nn(mapie_regressors, U_D, Z_t)
-            if t_i > n_point_delay:
-                if ((Z_t > P_no_ci[t_i - n_point_delay, :, 0]) & (
-                        Z_t < P_no_ci[t_i - n_point_delay, :, 1])).all():
-                    U[t_i] = system.kappa(P_no[t_i, :])
-                    p_no_count += 1
-                else:
-                    U[t_i] = system.kappa(P_numerical[t_i, :])
-                    p_numerical_count += 1
         else:
-            raise NotImplementedError()
-    print(p_no_count, '/', p_numerical_count)
+            # estimate system state
+            if t_i > n_point_delay:
+                Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[
+                                1] + dataset_config.noise()
+                Z_t = Z[t_i, :]
+            else:
+                Z_t = Z0 + dataset_config.noise()
+            # estimate prediction and control signal
+            if method == 'numerical':
+                P_numerical[t_i, :] = dynamic_systems.solve_integral(
+                    Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
+                    dataset_config=dataset_config)
+                if t_i > n_point_delay:
+                    U[t_i] = system.kappa(P_numerical[t_i, :])
+            elif method == 'no':
+                U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
+                P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
+                if mapie_regressors is not None:
+                    P_no_ci[t_i, :, :], _ = solve_integral_ci_nn(mapie_regressors, U_D, Z_t)
+                if t_i > n_point_delay:
+                    U[t_i] = system.kappa(P_no[t_i, :])
+            elif method == 'numerical_no':
+                P_numerical[t_i, :] = dynamic_systems.solve_integral(
+                    Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
+                    dataset_config=dataset_config)
+                U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
+                P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
+                if mapie_regressors is not None:
+                    P_no_ci[t_i, :, :], _ = solve_integral_ci_nn(mapie_regressors, U_D, Z_t)
+                if t_i > n_point_delay:
+                    U[t_i] = system.kappa(P_numerical[t_i, :])
+            elif method == 'alternative':
+                P_numerical[t_i, :] = dynamic_systems.solve_integral(
+                    Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
+                    dataset_config=dataset_config)
+                U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
+                P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
+                P_no_ci[t_i, :, :], _ = solve_integral_ci_nn(mapie_regressors, U_D, Z_t)
+                if t_i > n_point_delay:
+                    if ((Z_t > P_no_ci[t_i - n_point_delay, :, 0]) & (
+                            Z_t < P_no_ci[t_i - n_point_delay, :, 1])).all():
+                        U[t_i] = system.kappa(P_no[t_i, :])
+                        p_no_count += 1
+                    else:
+                        U[t_i] = system.kappa(P_numerical[t_i, :])
+                        p_numerical_count += 1
+            else:
+                raise NotImplementedError()
+    # print(p_no_count, '/', p_numerical_count)
     ts = dataset_config.ts
     delay = dataset_config.delay
     n_point_delay = dataset_config.n_point_delay
@@ -146,13 +134,10 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
         uncertainty_zoom = f'{img_save_path}/uncertainty_zoom.png'
         uncertainty_full = f'{img_save_path}/uncertainty_full.png'
         u_path = f'{img_save_path}/u.png'
-        plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, comparison_full,
-                        n_state)
-        plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, comparison_zoom,
-                        n_state, [-5, 5])
+        plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, comparison_full, n_state)
+        plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, comparison_zoom, n_state, [-5, 5])
         plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, difference_full, n_state)
-        plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, difference_zoom, n_state,
-                        [-5, 5])
+        plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, difference_zoom, n_state, [-5, 5])
         plot_single(ts, U, '$U(t)$', u_path)
         if P_no_ci is not None:
             plot_uncertainty(ts, P_no, P_no_ci, Z, delay, n_point_delay, uncertainty_full, n_state)
@@ -171,24 +156,48 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
         raise NotImplementedError()
 
 
-def model_train(model, optimizer, scheduler, device, training_dataloader, predict_and_loss):
+def model_train(model, optimizer, scheduler, device, training_dataloader, predict_and_loss,
+                adversarial_epsilon: float = 0., n_state: int = None):
     model.train()
     training_loss = 0.0
+    adversarial_loss = 0.0
     for inputs, labels in training_dataloader:
+        # normal training
         inputs, labels = inputs.to(device), labels.to(device)
         outputs, loss = predict_and_loss(inputs, labels, model)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         training_loss += loss.item()
-    model.eval()
 
-    training_loss_t = training_loss / len(training_dataloader)
+        # adversarial training
+        if adversarial_epsilon > 0:
+            inputs.requires_grad = True
+            outputs, loss = predict_and_loss(inputs, labels, model)
+            model.zero_grad()
+            loss.backward()
+            inputs_grad = inputs.grad.data
+            adversarial_inputs = inputs + adversarial_epsilon * inputs_grad.sign()
+            adversarial_labels = dynamic_systems.solve_integral_successive_batched(
+                Z_t=np.array(adversarial_inputs[:, 1:1 + n_state].detach().cpu().numpy()),
+                U_D=np.array(adversarial_inputs[:, 1 + n_state:].detach().cpu().numpy()),
+                dt=dataset_config.dt, n_state=dataset_config.system.n_state, n_points=dataset_config.n_point_delay,
+                f=dataset_config.system.dynamic, n_iterations=dataset_config.successive_approximation_n_iteration)
+            adversarial_labels = torch.from_numpy(adversarial_labels)
+            outputs, loss = predict_and_loss(adversarial_inputs.to(device, dtype=torch.float32),
+                                             adversarial_labels.to(device, dtype=torch.float32), model)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            adversarial_loss += loss.item()
+    model.eval()
     lr = scheduler.get_last_lr()[-1]
     scheduler.step()
     for param_group in optimizer.param_groups:
         param_group['lr'] = max(param_group['lr'], train_config.scheduler_min_lr)
-    return training_loss_t, lr
+    avg_training_loss = training_loss / len(training_dataloader)
+    avg_adversarial_loss = adversarial_loss / len(training_dataloader)
+    return avg_training_loss, avg_adversarial_loss, lr
 
 
 def model_validate(model, device, validating_dataloader):
@@ -196,13 +205,14 @@ def model_validate(model, device, validating_dataloader):
         validating_loss = 0.0
         for inputs, labels in validating_dataloader:
             inputs, labels = inputs.to(device), labels.to(device)
-            outputs, loss = no_predict_and_loss(inputs, labels, model)
+            outputs, loss = predict_and_loss(inputs, labels, model)
             validating_loss += loss.item()
         return validating_loss / len(validating_dataloader)
 
 
 def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
     device = train_config.device
+    adversarial_epsilon = train_config.adversarial_epsilon
     n_epoch = train_config.n_epoch
     img_save_path = model_config.base_path
 
@@ -221,11 +231,13 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
         training_loss_arr = []
         validating_loss_arr = []
         testing_loss_arr = []
+        adversarial_loss_arr = []
         rl2_list = []
         l2_list = []
         bar = tqdm(list(range(n_epoch)))
         do_validation = validating_dataloader is not None
         do_testing = testing_dataloader is not None
+        do_adversarial = train_config.adversarial_epsilon == 0
 
         def draw():
             fig = plt.figure(figsize=set_size())
@@ -258,8 +270,9 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
                 plt.show()
 
         for epoch in bar:
-            training_loss_t, lr = model_train(model, optimizer, scheduler, device, training_dataloader,
-                                              no_predict_and_loss)
+            training_loss_t, adversarial_loss_t, lr = model_train(
+                model, optimizer, scheduler, device, training_dataloader, predict_and_loss, adversarial_epsilon,
+                dataset_config.n_state)
             training_loss_arr.append(training_loss_t)
             desc = f'Epoch [{epoch + 1}/{n_epoch}] || Lr: {lr:6f} || Training loss: {training_loss_t:.6f}'
             if do_validation:
@@ -270,6 +283,9 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
                 testing_loss_t = model_validate(model, device, testing_dataloader)
                 testing_loss_arr.append(testing_loss_t)
                 desc += f' || Test loss: {testing_loss_t:.6f}'
+            if do_adversarial:
+                adversarial_loss_arr.append(adversarial_loss_t)
+                desc += f' || Adversarial loss: {adversarial_loss_t:.6f}'
             bar.set_description(desc)
 
             if (train_config.log_step > 0 and epoch % train_config.log_step == 0) or epoch == n_epoch - 1:
@@ -297,8 +313,8 @@ def run_active_training(dataset_config: DatasetConfig, model_config: ModelConfig
     if not model_loaded:
         print('Start training')
         for epoch in bar:
-            training_loss_t, _ = model_train(model, optimizer, scheduler, device, training_dataloader,
-                                             no_predict_and_loss)
+            training_loss_t, _, _ = model_train(model, optimizer, scheduler, device, training_dataloader,
+                                                predict_and_loss)
             bar.set_description(f'Epoch [{epoch + 1}/{n_epoch}] || Training loss: {training_loss_t:.6f}')
     # calibrate
     X, y = zip(*[[batch[0].numpy(), batch[1].numpy()] for batch in validating_dataloader])
@@ -344,8 +360,8 @@ def run_active_training(dataset_config: DatasetConfig, model_config: ModelConfig
                                            shuffle=False)
         bar1 = tqdm(list(range(train_config.n_epoch)))
         for epoch in bar1:
-            training_loss_t, _ = model_train(model, optimizer, scheduler, device, training_dataloader,
-                                             no_predict_and_loss)
+            training_loss_t, _, _ = model_train(model, optimizer, scheduler, device, training_dataloader,
+                                                predict_and_loss)
             bar1.set_description(f'Epoch [{epoch + 1}/{n_epoch}] || Training loss: {training_loss_t:.6f}')
         result_no = run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='no')
         print_result(result_no, dataset_config)
@@ -367,8 +383,8 @@ def run_quantile_training(dataset_config: DatasetConfig, model_config: ModelConf
     print('Start training NO')
     if not model_loaded:
         for epoch in bar:
-            training_loss_t, _ = model_train(model, no_optimizer, no_scheduler, device, training_dataloader,
-                                             no_predict_and_loss)
+            training_loss_t, _, _ = model_train(model, no_optimizer, no_scheduler, device, training_dataloader,
+                                                predict_and_loss)
             bar.set_description(f'NO Epoch [{epoch + 1}/{n_epoch}] || Training loss: {training_loss_t:.6f}')
     # train quantile nn
     print('Start training quantile NN')
@@ -377,8 +393,8 @@ def run_quantile_training(dataset_config: DatasetConfig, model_config: ModelConf
         dataset_config.n_state, train_config.alpha).to(train_config.device)
     bar = tqdm(list(range(train_config.n_epoch)))
     for epoch in bar:
-        training_loss_t, _ = model_train(quantile_model, no_optimizer, no_scheduler, device, training_dataloader,
-                                         quantile_predict_and_loss)
+        training_loss_t, _, _ = model_train(quantile_model, no_optimizer, no_scheduler, device, training_dataloader,
+                                            quantile_predict_and_loss)
         bar.set_description(f'Quantile NN Epoch [{epoch + 1}/{n_epoch}] || Training loss: {training_loss_t:.6f}')
     return model
 
@@ -808,12 +824,14 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_seed(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s4')
+    parser.add_argument('-s', type=str, default='s3')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-fl', type=int, default=None)
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n)
-    print(f'Running with system {args.s}')
+    print_args(dataset_config)
+    print_args(model_config)
+    print_args(train_config)
     result_no, result_numerical, result_numerical_no = main(dataset_config, model_config, train_config)
     print('NO Result')
     print_result(result_no, dataset_config)

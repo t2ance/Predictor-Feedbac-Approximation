@@ -48,8 +48,12 @@ class TrainConfig:
     scheduler_ratio_warmup: Optional[float] = field(default=0.02)
     lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential']] = field(default='linear_with_warmup')
 
+    # active learning
     active: Optional[bool] = field(default=False)
+    # conformal prediction
     alpha: Optional[float] = field(default=0.1)
+    # adversarial training
+    adversarial_epsilon: Optional[float] = field(default=0.0)
 
     system: Optional[str] = field(default='s1')
 
@@ -77,7 +81,7 @@ class DatasetConfig:
 
     data_generation_strategy: Optional[Literal['trajectory', 'random', 'nn']] = field(default='trajectory')
     z_u_p_pair: Optional[bool] = field(default=True)
-    noise_sigma_numerical: Optional[float] = field(default=0.)
+    noise_epsilon: Optional[float] = field(default=0.)
     ood_sample_bound: Optional[float] = field(default=0.1)
     system_c: Optional[float] = field(default=1.)
     system_n: Optional[float] = field(default=2.)
@@ -212,9 +216,9 @@ class DatasetConfig:
         return int(round(self.duration / self.dt))
 
     def noise(self):
-        if self.noise_sigma_numerical == 0:
+        if self.noise_epsilon == 0:
             return 0
-        return np.random.randn() * self.noise_sigma_numerical
+        return np.random.randn() * self.noise_epsilon
 
 
 def get_config(system_=None, n_iteration=None, fno_n_layers=None, fno_n_modes_height=None, fno_hidden_channels=None):
@@ -232,20 +236,20 @@ def get_config(system_=None, n_iteration=None, fno_n_layers=None, fno_n_modes_he
     elif system_ == 's2':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=1,
                                        duration=8, dt=0.01, n_dataset=250, n_sample_per_dataset=-1, n_plot_sample=20,
-                                       ic_lower_bound=-1, ic_upper_bound=1, successive_approximation_n_iteration=3)
+                                       ic_lower_bound=-1, ic_upper_bound=1, successive_approximation_n_iteration=5)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=250, batch_size=512,
                                    weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5, debug=False,
                                    do_test=True)
         model_config = ModelConfig(model_name='FFN', fno_n_layers=5, fno_n_modes_height=32, fno_hidden_channels=64)
     elif system_ == 's3':
-        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=0.3,
-                                       duration=8, dt=0.01, n_dataset=250, n_sample_per_dataset=-1, n_plot_sample=20,
-                                       ic_lower_bound=-1, ic_upper_bound=1, successive_approximation_n_iteration=3)
-        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=250, batch_size=512,
+        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory', delay=0.3,
+                                       duration=8, dt=0.02, n_dataset=100, n_sample_per_dataset=-1, n_plot_sample=20,
+                                       ic_lower_bound=-1, ic_upper_bound=1, successive_approximation_n_iteration=5)
+        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=250, batch_size=128,
                                    weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5, debug=False,
-                                   do_test=True)
+                                   do_test=True, adversarial_epsilon=0.01)
         model_config = ModelConfig(model_name='FFN', fno_n_layers=6, fno_n_modes_height=32, fno_hidden_channels=64)
     elif system_ == 's4':
         # dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory', delay=1,
@@ -257,12 +261,14 @@ def get_config(system_=None, n_iteration=None, fno_n_layers=None, fno_n_modes_he
         #                            scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5, debug=False,
         #                            do_test=False)
         dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory', delay=1,
-                                       duration=8, dt=0.05, n_dataset=100, n_sample_per_dataset=-1, n_plot_sample=20,
-                                       ic_lower_bound=-2, ic_upper_bound=2, successive_approximation_n_iteration=10)
-        model_config = ModelConfig(model_name='FNO', fno_n_layers=4, fno_n_modes_height=32, fno_hidden_channels=64)
+                                       duration=8, dt=0.05, n_dataset=200, n_sample_per_dataset=-1, n_plot_sample=20,
+                                       ic_lower_bound=-2, ic_upper_bound=2, successive_approximation_n_iteration=10,
+                                       noise_epsilon=1e-1)
+        model_config = ModelConfig(model_name='FFN', fno_n_layers=3, fno_n_modes_height=8, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=300, batch_size=128,
                                    weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential',
-                                   scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5, alpha=0.01)
+                                   scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5, alpha=0.01,
+                                   load_model=True, do_test=False)
     else:
         raise NotImplementedError()
     if n_iteration is not None:
