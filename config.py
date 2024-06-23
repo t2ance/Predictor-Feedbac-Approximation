@@ -250,7 +250,7 @@ def get_config(system_=None, n_iteration=None, fno_n_layers=None, fno_n_modes_he
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=200, batch_size=512,
                                    weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5, debug=False,
-                                   do_test=True, adversarial_epsilon=0.01)
+                                   do_test=True, adversarial_epsilon=0.05)
         model_config = ModelConfig(model_name='FFN', fno_n_layers=6, fno_n_modes_height=32, fno_hidden_channels=64)
     elif system_ == 's4':
         # dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory', delay=1,
