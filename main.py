@@ -32,9 +32,10 @@ from utils import set_size, pad_leading_zeros, plot_comparison, plot_difference,
 #     return y
 
 
-def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
-               method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'alternative'] = None,
-               model=None, mapie_regressors=None, img_save_path: str = None, uncertainty_out: bool = False):
+def simulation(
+        dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
+        method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'alternative', 'scheduled_sampling'] = None,
+        model=None, mapie_regressors=None, img_save_path: str = None, uncertainty_out: bool = False):
     system: dynamic_systems.DynamicSystem = dataset_config.system
     n_point_delay = dataset_config.n_point_delay
     n_state = dataset_config.n_state
@@ -48,12 +49,12 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
         P_explicit = np.zeros((n_point, system.n_state))
     else:
         P_explicit = None
-    if method == 'numerical' or method == 'numerical_no' or method == 'alternative':
+    if method == 'numerical' or method == 'numerical_no' or method == 'alternative' or method == 'scheduled_sampling':
         P_numerical = np.zeros((n_point, system.n_state))
     else:
         P_numerical = None
 
-    if method == 'no' or method == 'numerical_no' or method == 'alternative':
+    if method == 'no' or method == 'numerical_no' or method == 'alternative' or method == 'scheduled_sampling':
         P_no = np.zeros((n_point, system.n_state))
         if mapie_regressors is not None:
             P_no_ci = np.zeros((n_point, system.n_state, 2))
@@ -75,11 +76,11 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
         else:
             # estimate system state
             if t_i > n_point_delay:
-                Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[
-                                1] + dataset_config.noise()
+                Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0 + dataset_config.noise()
+            Z_t += dataset_config.noise()
             # estimate prediction and control signal
             if method == 'numerical':
                 P_numerical[t_i, :] = dynamic_systems.solve_integral(
@@ -119,6 +120,18 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
                     else:
                         U[t_i] = system.kappa(P_numerical[t_i, :])
                         p_numerical_count += 1
+            elif method == 'scheduled_sampling':
+                if np.random.binomial(n=1, p=train_config.scheduled_sampling_p) == 1:
+                    # Teacher Forcing
+                    P_no[t_i, :] = dynamic_systems.solve_integral(
+                        Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
+                        dataset_config=dataset_config)
+                else:
+                    # Not Teacher Forcing
+                    U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
+                    P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
+                if t_i > n_point_delay:
+                    U[t_i] = system.kappa(P_no[t_i, :])
             else:
                 raise NotImplementedError()
     # print(p_no_count, '/', p_numerical_count)
@@ -145,7 +158,7 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
 
     if method == 'explicit':
         return U, Z, P_explicit
-    elif method == 'no' or method == 'numerical_no' or method == 'alternative':
+    elif method == 'no' or method == 'numerical_no' or method == 'alternative' or method == 'scheduled_sampling':
         if uncertainty_out:
             return U, Z, P_no, P_no_ci
         else:
@@ -402,6 +415,39 @@ def run_quantile_training(dataset_config: DatasetConfig, model_config: ModelConf
         training_loss_t, _, _ = model_train(quantile_model, no_optimizer, no_scheduler, device, training_dataloader,
                                             quantile_predict_and_loss)
         bar.set_description(f'Quantile NN Epoch [{epoch + 1}/{n_epoch}] || Training loss: {training_loss_t:.6f}')
+    return model
+
+
+def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config: ModelConfig,
+                                    train_config: TrainConfig):
+    device = train_config.device
+    n_epoch = train_config.n_epoch
+    model, model_loaded = load_model(train_config, model_config, dataset_config)
+    optimizer = load_optimizer(model.parameters(), train_config)
+    scheduler = load_lr_scheduler(optimizer, train_config)
+    bar = tqdm(list(range(train_config.n_epoch)))
+    for epoch in bar:
+        train_config.set_scheduled_sampling_p(epoch)
+        Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
+                               size=(dataset_config.n_state,))
+        U, Z, P_no = simulation(dataset_config, Z0, 'scheduled_sampling', model, img_save_path='./misc/test4')
+        predictions = shift(P_no, dataset_config.n_point_delay)
+        true_values = Z[dataset_config.n_point_delay:]
+        samples = []
+        for t_i, (p, z, t) in enumerate(
+                zip(list(predictions), list(true_values), list(dataset_config.ts[dataset_config.n_point_delay:]))):
+            u = U[t_i: t_i + dataset_config.n_point_delay]
+            P = dynamic_systems.solve_integral_successive(
+                Z_t=z, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state, dt=dataset_config.dt,
+                U_D=u, f=dataset_config.system.dynamic,
+                n_iterations=dataset_config.successive_approximation_n_iteration)
+            samples.append((torch.from_numpy(np.concatenate([t.reshape(-1), z, u])), torch.from_numpy(P)))
+        np.random.shuffle(samples)
+        dataloader = DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=False)
+        training_loss_t, _, _ = model_train(model, optimizer, scheduler, device, dataloader, predict_and_loss)
+        bar.set_description(f'Epoch [{epoch + 1}/{n_epoch}] '
+                            f'|| Scheduled Sampling Rate {train_config.scheduled_sampling_p} '
+                            f'|| Training loss: {training_loss_t:.6f}')
     return model
 
 
@@ -815,11 +861,17 @@ def create_nn_dataset(dataset_config: DatasetConfig):
 
 
 def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
-    if train_config.active:
-        model = run_active_training(dataset_config=dataset_config, model_config=model_config, train_config=train_config)
-    else:
+    if train_config.training_type == 'offline':
         model = run_offline_training(dataset_config=dataset_config, model_config=model_config,
                                      train_config=train_config)
+    elif train_config.training_type == 'scheduled sampling':
+        model = run_scheduled_sampling_training(dataset_config=dataset_config, model_config=model_config,
+                                                train_config=train_config)
+    elif train_config.training_type == 'switching':
+        model = run_quantile_training(dataset_config=dataset_config, model_config=model_config,
+                                      train_config=train_config)
+    else:
+        raise NotImplementedError()
     return (
         run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='no'),
         run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='numerical'),
@@ -830,7 +882,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_seed(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s2')
+    parser.add_argument('-s', type=str, default='s4')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-fl', type=int, default=None)
     args = parser.parse_args()
