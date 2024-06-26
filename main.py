@@ -124,12 +124,11 @@ def simulation(
                 if np.random.binomial(n=1, p=train_config.scheduled_sampling_p) == 1:
                     # Teacher Forcing
                     P_no[t_i, :] = dynamic_systems.solve_integral(
-                        Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
-                        dataset_config=dataset_config)
+                        Z_t=Z_t, P_D=P_no[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t, dataset_config=dataset_config)
                 else:
                     # Not Teacher Forcing
-                    U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
-                    P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
+                    P_no[t_i, :] = solve_integral_nn(
+                        model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t)
                 if t_i > n_point_delay:
                     U[t_i] = system.kappa(P_no[t_i, :])
             else:
@@ -422,32 +421,66 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
                                     train_config: TrainConfig):
     device = train_config.device
     n_epoch = train_config.n_epoch
+    img_save_path = model_config.base_path
     model, model_loaded = load_model(train_config, model_config, dataset_config)
     optimizer = load_optimizer(model.parameters(), train_config)
     scheduler = load_lr_scheduler(optimizer, train_config)
     bar = tqdm(list(range(train_config.n_epoch)))
+    training_loss_arr = []
+    scheduled_sampling_p_arr = []
     for epoch in bar:
         train_config.set_scheduled_sampling_p(epoch)
+        scheduled_sampling_p_arr.append(train_config.scheduled_sampling_p)
         Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
                                size=(dataset_config.n_state,))
         U, Z, P_no = simulation(dataset_config, Z0, 'scheduled_sampling', model, img_save_path='./misc/test4')
         predictions = shift(P_no, dataset_config.n_point_delay)
         true_values = Z[dataset_config.n_point_delay:]
+
+        predictions_array = np.array(predictions)
+        true_values_array = np.array(true_values)
+        timestamps_array = np.array(dataset_config.ts[dataset_config.n_point_delay:])
+        U_array = np.array([U[t_i: t_i + dataset_config.n_point_delay] for t_i in range(len(timestamps_array))])
+        if np.isnan(predictions_array).any() or np.isnan(true_values_array).any() or np.isnan(
+                timestamps_array).any() or np.isnan(U_array).any() or np.isinf(predictions_array).any() or np.isinf(
+            true_values_array).any() or np.isinf(timestamps_array).any() or np.isinf(U_array).any():
+            training_loss_arr.append(0)
+            continue
+
+        P_batched = dynamic_systems.solve_integral_successive_batched(
+            Z_t=true_values_array, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state,
+            dt=dataset_config.dt,
+            U_D=U_array, f=dataset_config.system.dynamic,
+            n_iterations=dataset_config.successive_approximation_n_iteration)
+
         samples = []
-        for t_i, (p, z, t) in enumerate(
-                zip(list(predictions), list(true_values), list(dataset_config.ts[dataset_config.n_point_delay:]))):
-            u = U[t_i: t_i + dataset_config.n_point_delay]
-            P = dynamic_systems.solve_integral_successive(
-                Z_t=z, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state, dt=dataset_config.dt,
-                U_D=u, f=dataset_config.system.dynamic,
-                n_iterations=dataset_config.successive_approximation_n_iteration)
+        for t_i, (p, z, t) in enumerate(zip(predictions_array, true_values_array, timestamps_array)):
+            u = U_array[t_i]
+            P = P_batched[t_i]
             samples.append((torch.from_numpy(np.concatenate([t.reshape(-1), z, u])), torch.from_numpy(P)))
-        np.random.shuffle(samples)
+
         dataloader = DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=False)
         training_loss_t, _, _ = model_train(model, optimizer, scheduler, device, dataloader, predict_and_loss)
         bar.set_description(f'Epoch [{epoch + 1}/{n_epoch}] '
                             f'|| Scheduled Sampling Rate {train_config.scheduled_sampling_p} '
                             f'|| Training loss: {training_loss_t:.6f}')
+        training_loss_arr.append(training_loss_t)
+    fig = plt.figure(figsize=set_size())
+    plt.plot(training_loss_arr, label="Training loss")
+    plt.yscale("log")
+    plt.xlabel('epoch')
+    plt.legend()
+    plt.savefig(f'{img_save_path}/loss.png')
+    fig.clear()
+    plt.close(fig)
+
+    fig = plt.figure(figsize=set_size())
+    plt.plot(scheduled_sampling_p_arr, label="Scheduled Sampling P")
+    plt.xlabel('epoch')
+    plt.legend()
+    plt.savefig(f'{img_save_path}/p.png')
+    fig.clear()
+    plt.close(fig)
     return model
 
 
@@ -882,7 +915,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_seed(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s4')
+    parser.add_argument('-s', type=str, default='s2')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-fl', type=int, default=None)
     args = parser.parse_args()

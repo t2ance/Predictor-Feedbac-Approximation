@@ -208,20 +208,27 @@ class QuantileRegressionModel(nn.Module):
 
 
 class FNN(torch.nn.Module):
-    def __init__(self, n_state: int, n_point_delay: int, *args, **kwargs):
+    def __init__(self, n_state: int, n_point_delay: int, n_layers: int, layer_width: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.mse_loss = torch.nn.MSELoss()
         in_features = n_state + n_point_delay
         out_features = n_state
-        self.projection = torch.nn.Sequential(
-            torch.nn.Linear(in_features=in_features, out_features=8 * in_features),
-            torch.nn.ReLU(),
-            torch.nn.Linear(in_features=8 * in_features, out_features=4 * in_features),
-            torch.nn.ReLU(),
-            torch.nn.Linear(in_features=4 * in_features, out_features=in_features),
+        layers = [
+            torch.nn.Linear(in_features=in_features, out_features=layer_width * in_features),
+            torch.nn.ReLU()
+        ]
+        for _ in range(n_layers):
+            layers.extend([
+                torch.nn.Linear(in_features=layer_width * in_features, out_features=layer_width * in_features),
+                torch.nn.ReLU()
+            ])
+        layers.extend([
+            torch.nn.Linear(in_features=layer_width * in_features, out_features=in_features),
             torch.nn.ReLU(),
             torch.nn.Linear(in_features=in_features, out_features=out_features)
-        )
+        ])
+
+        self.projection = torch.nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor, label: torch.Tensor = None):
         x = self.projection(x)

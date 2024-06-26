@@ -14,7 +14,8 @@ class ModelConfig:
     deeponet_n_hidden: Optional[int] = field(default=5)
     fno_n_modes_height: Optional[int] = field(default=16)
     fno_hidden_channels: Optional[int] = field(default=32)
-    fno_n_layers: Optional[int] = field(default=4)
+    n_layer: Optional[int] = field(default=4)
+    ffn_layer_width: Optional[int] = field(default=8)
     fno_end_to_end: Optional[bool] = field(default=True)
     model_name: Optional[Literal['FFN', 'FNO', 'DeepONet', 'FNOTwoStage', 'PIFNO']] = field(default='FNO')
     system: Optional[str] = field(default='s1')
@@ -54,6 +55,7 @@ class TrainConfig:
         default='linear')
     scheduled_sampling_p: Optional[float] = field(default=None)
     scheduled_sampling_k: Optional[float] = field(default=0.01)
+    scheduled_sampling_warm_start: Optional[int] = field(default=0)
     system: Optional[str] = field(default='s1')
 
     training_type: Optional[Literal['offline', 'switching', 'scheduled sampling']] = field(default='scheduled sampling')
@@ -68,8 +70,13 @@ class TrainConfig:
             self.scheduled_sampling_p = np.exp(-self.scheduled_sampling_k * epoch)
         elif self.scheduled_sampling_type == 'inverse sigmoid':
             # k controls how steep the sigmoid is. x0 shifts the sigmoid along the x-axis.
-            x0 = self.n_epoch / 2
-            self.scheduled_sampling_p = 1 / (1 + np.exp(self.scheduled_sampling_k * (epoch - x0)))
+            if epoch < self.scheduled_sampling_warm_start:
+                self.scheduled_sampling_p = 1
+            else:
+                epoch -= self.scheduled_sampling_warm_start
+                self.scheduled_sampling_p = 1 / (1 + np.exp(
+                    self.scheduled_sampling_k * (epoch - (self.n_epoch - self.scheduled_sampling_warm_start) / 2)))
+
         elif self.scheduled_sampling_type == 'linear':
             # Here k is the total number of epochs after which the value reaches 0.
             self.scheduled_sampling_p = max(0, 1 - epoch / self.n_epoch)
@@ -247,34 +254,33 @@ def get_config(system_=None, n_iteration=None, fno_n_layers=None, fno_n_modes_he
                                    weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5, debug=False,
                                    do_test=False, load_model=False)
-        model_config = ModelConfig(model_name='FFN', fno_n_layers=5, fno_n_modes_height=32, fno_hidden_channels=32)
+        model_config = ModelConfig(model_name='FFN', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=32)
     elif system_ == 's2':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=1,
-                                       duration=8, dt=0.02, n_dataset=100, n_sample_per_dataset=-1, n_plot_sample=20,
+                                       duration=8, dt=0.05, n_dataset=100, n_sample_per_dataset=-1, n_plot_sample=20,
                                        ic_lower_bound=-1, ic_upper_bound=1, successive_approximation_n_iteration=5)
-        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=250, batch_size=128,
-                                   weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential',
-                                   scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5, debug=False,
-                                   do_test=True, adversarial_epsilon=0.01)
-        model_config = ModelConfig(model_name='FFN', fno_n_layers=5, fno_n_modes_height=32, fno_hidden_channels=64)
+        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=2000, batch_size=64,
+                                   weight_decay=1e-3, log_step=-1, do_test=False, scheduled_sampling_warm_start=500,
+                                   scheduled_sampling_type='linear', scheduled_sampling_k=1e-2)
+        model_config = ModelConfig(model_name='FFN', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64,
+                                   ffn_layer_width=8)
     elif system_ == 's3':
         dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
-                                       delay=0.3, duration=8, dt=0.01, n_dataset=250, n_sample_per_dataset=-1,
+                                       delay=0.3, duration=8, dt=0.05, n_dataset=250, n_sample_per_dataset=-1,
                                        n_plot_sample=20, ic_lower_bound=-1, ic_upper_bound=1,
                                        successive_approximation_n_iteration=5)
-        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=200, batch_size=512,
-                                   weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential',
-                                   scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5, debug=False,
-                                   do_test=True, adversarial_epsilon=0.2)
-        model_config = ModelConfig(model_name='FFN', fno_n_layers=6, fno_n_modes_height=32, fno_hidden_channels=64)
+        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=2000, batch_size=64,
+                                   weight_decay=1e-3, log_step=-1, do_test=False,
+                                   scheduled_sampling_type='inverse sigmoid', scheduled_sampling_k=1e-2)
+        model_config = ModelConfig(model_name='FFN', n_layer=10, fno_n_modes_height=32, fno_hidden_channels=64)
     elif system_ == 's4':
         dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory', delay=1,
                                        duration=8, dt=0.05, n_dataset=200, n_sample_per_dataset=-1, n_plot_sample=20,
-                                       ic_lower_bound=-2, ic_upper_bound=2, successive_approximation_n_iteration=10)
-        model_config = ModelConfig(model_name='FFN', fno_n_layers=3, fno_n_modes_height=8, fno_hidden_channels=16)
+                                       ic_lower_bound=-2, ic_upper_bound=2, successive_approximation_n_iteration=5)
+        model_config = ModelConfig(model_name='FFN', n_layer=4, fno_n_modes_height=8, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=1000, batch_size=64,
                                    weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential', alpha=0.01,
-                                   load_model=False, do_test=False, scheduled_sampling_type='linear',
+                                   load_model=False, do_test=False, scheduled_sampling_type='inverse sigmoid',
                                    scheduled_sampling_k=1e-2)
     else:
         raise NotImplementedError()

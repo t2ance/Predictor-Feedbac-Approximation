@@ -133,7 +133,8 @@ def load_model(train_config, model_config, dataset_config):
     n_point_delay = dataset_config.n_point_delay
     n_modes_height = model_config.fno_n_modes_height
     hidden_channels = model_config.fno_hidden_channels
-    n_layers = model_config.fno_n_layers
+    n_layers = model_config.n_layer
+    layer_width = model_config.ffn_layer_width
     if model_name == 'DeepONet':
         layer_size_branch = [n_point_delay + n_state] + [hidden_size] * n_hidden + [merge_size]
         layer_size_trunk = [1] + [hidden_size] * n_hidden + [merge_size]
@@ -159,7 +160,7 @@ def load_model(train_config, model_config, dataset_config):
             n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_layers=n_layers, dt=dataset_config.dt,
             n_state=dataset_config.n_state, dynamic=dataset_config.system.dynamic_tensor_batched2)
     elif model_name == 'FFN':
-        model = FNN(n_state=n_state, n_point_delay=n_point_delay)
+        model = FNN(n_state=n_state, n_point_delay=n_point_delay, n_layers=n_layers, layer_width=layer_width)
     else:
         raise NotImplementedError()
     n_params = count_params(model)
