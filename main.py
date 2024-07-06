@@ -448,7 +448,7 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
         for t_i, (p, z, t) in enumerate(zip(predictions_array, true_values_array, timestamps_array)):
             u = U_array[t_i]
             P = P_batched[t_i]
-            samples.append((torch.from_numpy(np.concatenate([t.reshape(-1), z, u])), torch.from_numpy(P)))
+            samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(P)))
 
         dataloader = DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=False)
         training_loss_t, _, _ = model_train(model, optimizer, scheduler, device, dataloader, predict_and_loss)
@@ -911,7 +911,8 @@ if __name__ == '__main__':
     parser.add_argument('-fl', type=int, default=None)
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n)
-    train_config.training_type = 'offline'
+    # train_config.training_type = 'offline'
+    train_config.training_type = 'scheduled sampling'
     print_args(dataset_config)
     print_args(model_config)
     print_args(train_config)

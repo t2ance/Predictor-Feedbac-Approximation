@@ -74,15 +74,25 @@ class Baxter(DynamicSystem):
         self.qd_des = np.zeros(7) if qd_des is None else qd_des  # Expected joint velocities
 
     def h(self, e1, e2):
-        return self.qdd_des - self.alpha ** 2 @ e1 + np.linalg.inv(self.M) @ (
-                self.C @ self.qd_des + self.G + self.C @ self.alpha @ e1 - self.C @ e2)
+        return self.qdd_des - self.alpha @ (self.alpha @ e1) + np.linalg.inv(self.M) @ (
+                self.C @ self.qd_des + self.G + self.C @ (self.alpha @ e1) - self.C @ e2)
 
     def dynamic(self, E_t, t, U_delay):
-        e1_t, e2_t = E_t[:7], E_t[7:]
-        e1_t_dot = e2_t - self.alpha @ e1_t
-        h = self.h(e1_t, e2_t)
-        e2_t_dot = self.C @ e2_t + h - np.linalg.inv(self.M) @ U_delay
-        return np.concatenate([e1_t_dot, e2_t_dot])
+        # Check if E_t is a single vector or a batch
+        if E_t.ndim == 1:
+            E_t = E_t[np.newaxis, :]
+            batch_mode = False
+        else:
+            batch_mode = True
+
+        e1_t, e2_t = E_t[:, :7], E_t[:, 7:]
+        e1_t_dot = e2_t - np.matmul(e1_t, self.alpha.T)
+        h = np.array([self.h(e[:7], e[7:]) for e in E_t])
+        e2_t_dot = np.matmul(e2_t, self.C.T) + h - np.matmul(U_delay, np.linalg.inv(self.M).T)
+
+        dynamics = np.concatenate([e1_t_dot, e2_t_dot], axis=1)
+
+        return dynamics if batch_mode else dynamics[0]
 
     def kappa(self, E_t):
         e1, e2 = E_t[:7], E_t[7:]
