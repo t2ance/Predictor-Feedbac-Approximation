@@ -20,8 +20,13 @@ class DynamicSystem:
     def name(self):
         ...
 
+    @property
     def n_state(self):
         raise NotImplementedError()
+
+    @property
+    def n_input(self):
+        return 1
 
     @abstractmethod
     def dynamic(self, Z_t, t, U_delay):
@@ -38,6 +43,51 @@ class DynamicSystem:
     @abstractmethod
     def dynamic_tensor_batched2(self, Z_t, t, U_delay):
         ...
+
+
+class Baxter(DynamicSystem):
+    '''
+    A dynamic system class for the Baxter robot manipulator with input delay,
+    implementing the dynamics based on the equations described in the paper.
+    '''
+
+    @property
+    def name(self):
+        return 's5'
+
+    @property
+    def n_input(self):
+        return 7
+
+    @property
+    def n_state(self):
+        return 14  # 7 dimensions for e1 and 7 dimensions for e2
+
+    def __init__(self, M=None, C=None, G=None, alpha=None, beta=None, delay=0.1, qdd_des=None, qd_des=None):
+        super().__init__(delay)
+        self.M = np.eye(7) if M is None else M
+        self.C = np.zeros((7, 7)) if C is None else C
+        self.G = np.zeros(7) if G is None else G
+        self.alpha = np.eye(7) * 1 if alpha is None else alpha
+        self.beta = np.eye(7) * 0.1 if beta is None else beta
+        self.qdd_des = np.zeros(7) if qdd_des is None else qdd_des  # Expected joint accelerations
+        self.qd_des = np.zeros(7) if qd_des is None else qd_des  # Expected joint velocities
+
+    def h(self, e1, e2):
+        return self.qdd_des - self.alpha ** 2 @ e1 + np.linalg.inv(self.M) @ (
+                self.C @ self.qd_des + self.G + self.C @ self.alpha @ e1 - self.C @ e2)
+
+    def dynamic(self, E_t, t, U_delay):
+        e1_t, e2_t = E_t[:7], E_t[7:]
+        e1_t_dot = e2_t - self.alpha @ e1_t
+        h = self.h(e1_t, e2_t)
+        e2_t_dot = self.C @ e2_t + h - np.linalg.inv(self.M) @ U_delay
+        return np.concatenate([e1_t_dot, e2_t_dot])
+
+    def kappa(self, E_t):
+        e1, e2 = E_t[:7], E_t[7:]
+        h = self.h(e1, e2)
+        return self.M @ (h + (self.beta + self.alpha) @ e2)
 
 
 class DynamicSystem1(DynamicSystem):
@@ -70,6 +120,11 @@ class DynamicSystem1(DynamicSystem):
             Z2_t_dot = U_delay
             return np.vstack([Z1_t_dot, Z2_t_dot]).T
 
+    def kappa(self, Z_t):
+        Z1 = Z_t[0]
+        Z2 = Z_t[1]
+        return -Z1 - 2 * Z2 - self.c / (self.n + 1) * Z2 ** (self.n + 1)
+
     def dynamic_tensor_batched1(self, Z_t, t, U_delay):
         Z1_t = Z_t[:, 0]
         Z2_t = Z_t[:, 1]
@@ -83,11 +138,6 @@ class DynamicSystem1(DynamicSystem):
         Z1_t_dot = Z2_t - self.c * Z2_t ** self.n * U_delay
         Z2_t_dot = U_delay
         return torch.stack([Z1_t_dot, Z2_t_dot], dim=1)
-
-    def kappa(self, Z_t):
-        Z1 = Z_t[0]
-        Z2 = Z_t[1]
-        return -Z1 - 2 * Z2 - self.c / (self.n + 1) * Z2 ** (self.n + 1)
 
     def U_explicit(self, t, Z0):
         assert self.c == 1
@@ -336,6 +386,7 @@ def solve_integral_successive(Z_t, n_points: int, n_state: int, dt: float, U_D: 
     assert isinstance(Z_t, np.ndarray)
     P_D = np.zeros((n_iterations + 1, n_points + 1, n_state))
     P_D[0, :, :] = Z_t
+    P_D[-1, :, :] = Z_t
     for n in range(n_iterations):
         for j in range(n_points):
             if j == 0:

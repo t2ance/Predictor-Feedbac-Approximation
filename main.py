@@ -23,15 +23,6 @@ from utils import set_size, pad_leading_zeros, plot_comparison, plot_difference,
     split_dataset, quantile_predict_and_loss, print_args
 
 
-# def odeint(func, y0, t, args=()):
-#     y = np.zeros((len(t), len(y0)))
-#     y[0] = y0
-#     for i in range(1, len(t)):
-#         h = t[i] - t[i - 1]
-#         y[i] = y[i - 1] + h * func(y[i - 1], t[i - 1], *args)
-#     return y
-
-
 def simulation(
         dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
         method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling'] = None,
@@ -42,7 +33,7 @@ def simulation(
     ts = dataset_config.ts
     Z0 = np.array(Z0)
     n_point = dataset_config.n_point
-    U = np.zeros(n_point)
+    U = np.zeros((n_point, system.n_input))
     Z = np.zeros((n_point, system.n_state))
 
     if method == 'explicit':
@@ -915,11 +906,12 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_seed(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s3')
+    parser.add_argument('-s', type=str, default='s5')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-fl', type=int, default=None)
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n)
+    train_config.training_type = 'offline'
     print_args(dataset_config)
     print_args(model_config)
     print_args(train_config)

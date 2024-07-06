@@ -7,7 +7,7 @@ def sample_to_tensor(z_features, u_features, time_step_position):
         z_features = torch.tensor(z_features)
     if u_features is not torch.Tensor:
         u_features = torch.tensor(u_features)
-    features = torch.cat((torch.tensor(time_step_position).view(-1), z_features, u_features))
+    features = torch.cat((torch.tensor(time_step_position).view(-1), z_features, u_features.view(-1)))
     return features
 
 
@@ -44,7 +44,7 @@ class ZUPDataset(Dataset):
     def __getitem__(self, idx):
         idx += self.n_point_delay
         z_features = self.Z[idx]
-        u_features = self.U[idx - self.n_point_delay:idx].view(-1)
+        u_features = self.U[idx - self.n_point_delay:idx]
         label = self.P[idx]
         features = sample_to_tensor(z_features, u_features, idx * self.dt)
         return features, label

@@ -121,62 +121,8 @@ def draw_difference(dataset_config):
 
 
 if __name__ == '__main__':
-    dataset_config, model_config, train_config = get_config(system_='s4')
-    # for Z0 in tqdm.tqdm(dataset_config.test_points):
-    # Z0 = (0.6, -0.2)
-    Z0 = (-1, -0.2)
+    dataset_config, model_config, train_config = get_config(system_='s5')
+    # Z0 = tuple([1, 1] + [0] * 12)
+    Z0 = tuple(np.random.random(14).tolist())
     U, Z, P = simulation(method='numerical', Z0=Z0, dataset_config=dataset_config, img_save_path='./misc')
-
-    # import torch
-    # from model import FNOProjection
-
-    # training_samples_loaded = torch.load('./s1/datasets/trajectory/train.pt')
-    # print(len(training_samples_loaded))
-    # dataset_config, model_config, train_config = get_config()
-    # model = FNOProjection(
-    #     n_modes_height=32, hidden_channels=32, n_state=2,
-    #     n_point_delay=dataset_config.n_point_delay, n_layers=model_config.fno_n_layers).to('cuda')
-    # model.load_state_dict(torch.load(f'./s1/checkpoint/FNO.pth'))
-    # n_params = count_params(model)
-    # print(n_params)
-
-    # successive_approximation_test()
-    # dataset_config = DatasetConfig(delay=0.5, duration=8, dt=0.05, integral_method='successive')
-    # dataset_config = DatasetConfig(delay=1, duration=8, dt=0.05, successive_approximation_n_iteration=30)
-    # z = 2
-    # U, Z, P = run(method='numerical', Z0=(z, z), dataset_config=dataset_config, img_save_path='./misc')
-    # classify_sample()
-    # dataset_config = DatasetConfig(delay=1, duration=16)
-    # U, Z, P = run(method='numerical', Z0=(2, 2, 2), dataset_config=dataset_config, img_save_path='./misc')
-
-    # dataset_config = DatasetConfig(
-    #     recreate_training_dataset=True,
-    #     recreate_testing_dataset=False,
-    #     data_generation_strategy='trajectory',
-    #     random_u_type='spline',
-    #     dt=0.02,
-    #     n_dataset=500,
-    #     system_n=2,
-    #     system_c=5,
-    #     n_sample_per_dataset=1,
-    #     filter_ood_sample=True
-    # )
-    # samples = create_trajectory_dataset(dataset_config)
-    # draw_distribution(samples)
-    # Z_t = np.array([0, 1])
-    # n_point_delay = dataset_config.n_point_delay
-    # U_D = np.random.randn(n_point_delay)
-    # predict_integral(Z_t=Z_t, n_point_delay=n_point_delay, n_state=2, dt=0.125, U_D=U_D,
-    #                  dynamic=dataset_config.system.dynamic, )
-    # run(dataset_config, (0, 1), method='numerical', img_save_path='./misc/result')
-    # for _ in tqdm(range(36)):
-    #     U, Z, P = run(method='numerical', Z0=np.random.random(2), dataset_config=dataset_config)
-    # draw_distribution(dataset_config, False)
-    # draw_distribution2(dataset_config)
-    # draw_difference()
-    # with open('./datasets/train.pkl', 'wb') as file:
-    #     pickle.dump([], file)
-    # with open('./datasets/train.pkl', 'rb') as file:
-    #     training_samples_loaded = pickle.load(file)
-    # print(len(training_samples_loaded))
     ...

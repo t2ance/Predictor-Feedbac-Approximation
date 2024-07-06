@@ -14,7 +14,8 @@ from config import DatasetConfig, TrainConfig
 from dataset import PredictionDataset
 from model import FNOProjection, FNOTwoStage, PIFNO, FNN
 
-colors = ['red', 'green', 'blue', 'yellow', 'black']
+colors = ['red', 'green', 'blue', 'yellow', 'black', 'cyan', 'magenta', 'white', 'pink', 'orange', 'gray', 'lightblue',
+          'lightgreen', 'purple', 'brown', 'teal', 'olive', 'navy', 'lime', 'coral', 'salmon', 'aqua', 'wheat']
 legend_loc = 'upper right'
 legend_fontsize = 8
 
@@ -52,7 +53,8 @@ def draw_distribution(samples, n_state: int, img_save_path: str = None):
         plt.xlim(xlim)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
-        plt.legend(loc='upper left')
+        if n_state < 5:
+            plt.legend(loc='upper left')
         if img_save_path is not None:
             plt.savefig(f'{img_save_path}/{file_name}')
             plt.clf()
@@ -126,7 +128,8 @@ def prepare_datasets(samples, training_ratio: float, batch_size: int, device: st
 def load_model(train_config, model_config, dataset_config):
     model_name = model_config.model_name
     device = train_config.device
-    n_state = dataset_config.n_state
+    n_state = dataset_config.system.n_state
+    n_input = dataset_config.system.n_input
     hidden_size = model_config.deeponet_n_hidden_size
     n_hidden = model_config.deeponet_n_hidden
     merge_size = model_config.deeponet_merge_size
@@ -136,7 +139,7 @@ def load_model(train_config, model_config, dataset_config):
     n_layers = model_config.n_layer
     layer_width = model_config.ffn_layer_width
     if model_name == 'DeepONet':
-        layer_size_branch = [n_point_delay + n_state] + [hidden_size] * n_hidden + [merge_size]
+        layer_size_branch = [n_point_delay * n_input + n_state] + [hidden_size] * n_hidden + [merge_size]
         layer_size_trunk = [1] + [hidden_size] * n_hidden + [merge_size]
         import deepxde as dde
         model = dde.nn.DeepONet(
@@ -150,7 +153,7 @@ def load_model(train_config, model_config, dataset_config):
     elif model_name == 'FNO':
         model = FNOProjection(
             n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
-            n_point_delay=n_point_delay, n_layers=n_layers)
+            n_point_delay=n_point_delay, n_input=n_input, n_layers=n_layers)
     elif model_name == 'FNOTwoStage':
         model = FNOTwoStage(
             n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_layers=n_layers, dt=dataset_config.dt,
@@ -160,7 +163,8 @@ def load_model(train_config, model_config, dataset_config):
             n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_layers=n_layers, dt=dataset_config.dt,
             n_state=dataset_config.n_state, dynamic=dataset_config.system.dynamic_tensor_batched2)
     elif model_name == 'FFN':
-        model = FNN(n_state=n_state, n_point_delay=n_point_delay, n_layers=n_layers, layer_width=layer_width)
+        model = FNN(n_state=n_state, n_point_delay=n_point_delay, n_input=n_input, n_layers=n_layers,
+                    layer_width=layer_width)
     else:
         raise NotImplementedError()
     n_params = count_params(model)
@@ -209,16 +213,18 @@ def plot_sample(feature, label, dataset_config: DatasetConfig, name: str = '1.pn
     if isinstance(label, torch.Tensor):
         label = label.cpu().numpy()
     n_state = dataset_config.system.n_state
+    n_input = dataset_config.system.n_input
     t = feature[:1]
     z = feature[1:1 + n_state]
-    u = feature[1 + n_state:]
+    u = feature[1 + n_state:].reshape(-1, n_input)
     p = label
     ts = np.linspace(t - dataset_config.delay, t, dataset_config.n_point_delay)
     plt.plot(ts, u, label='U')
     for i in range(n_state):
         plt.scatter(ts[-1], z[i], label=f'$Z_t({i})$', c=colors[i])
         plt.scatter(ts[-1], p[i], label=f'$P_t({i})$', c=colors[i], marker='^')
-    plt.legend(loc='upper left')
+    if n_state < 5:
+        plt.legend(loc='upper left')
     out_dir = f'{dataset_config.dataset_base_path}/sample'
     check_dir(out_dir)
     plt.savefig(f'{out_dir}/{name}')
@@ -323,7 +329,8 @@ def plot_uncertainty(ts, P, P_ci, Z, delay, n_point_delay, save_path, n_state: i
     plt.xlabel('Time t')
     if ylim is not None:
         plt.ylim(ylim)
-    plt.legend(loc=legend_loc, fontsize=legend_fontsize)
+    if n_state < 5:
+        plt.legend(loc=legend_loc, fontsize=legend_fontsize)
     if save_path is not None:
         plt.savefig(save_path)
         fig.clear()
@@ -341,24 +348,18 @@ def plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, 
         if P_numerical is not None:
             plt.plot(ts[n_point_delay:], shift(P_numerical, n_point_delay)[:, t_i], linestyle=':', color=colors[t_i],
                      label=f'$P^{{numerical}}_{t_i + 1}(t-{delay})$')
-            # plt.plot(ts[n_point_delay:], p_safe(P_numerical, t_i), linestyle=':', color=p_z_colors[t_i],
-            #          label=f'$\hat{{P}}_{t_i + 1}(t)$')
         if P_no is not None:
             plt.plot(ts[n_point_delay:], shift(P_no, n_point_delay)[:, t_i], linestyle='--', color=colors[t_i],
                      label=f'$P^{{no}}_{t_i + 1}(t-{delay})$')
-            # plt.plot(ts[n_point_delay:], p_safe(P_no, t_i), linestyle='--', color=p_z_colors[t_i],
-            #          label=f'$\hat{{P}}_{t_i + 1}(t)$')
         if P_explicit is not None:
             plt.plot(ts[n_point_delay:], shift(P_explicit, n_point_delay)[:, t_i], linestyle='-.', color=colors[t_i],
                      label=f'$P^{{explicit}}_{t_i + 1}(t-{delay})$')
-            # plt.plot(ts[n_point_delay:], p_safe(P_explicit, t_i), linestyle='-.', color=p_z_colors[t_i],
-            #          label=f'$\hat{{P}}_{t_i + 1}(t)$')
         plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$', color=colors[t_i])
-        # plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$X_{t_i + 1}(t+D)$', color=p_z_colors[t_i])
     plt.xlabel('Time t')
     if ylim is not None:
         plt.ylim(ylim)
-    plt.legend(loc=legend_loc, fontsize=legend_fontsize)
+    if n_state < 5:
+        plt.legend(loc=legend_loc, fontsize=legend_fontsize)
     if save_path is not None:
         plt.savefig(save_path)
         fig.clear()
@@ -386,7 +387,8 @@ def plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, save_pa
     plt.xlabel('Time t')
     if ylim is not None:
         plt.ylim(ylim)
-    plt.legend(loc=legend_loc, fontsize=legend_fontsize)
+    if n_state < 5:
+        plt.legend(loc=legend_loc, fontsize=legend_fontsize)
     if save_path is not None:
         plt.savefig(save_path)
         fig.clear()
@@ -487,11 +489,19 @@ def pad_leading_zeros(segment, length):
     if len(segment) < length:
         padding_length = length - len(segment)
         if isinstance(segment, np.ndarray):
-            padding = np.zeros(padding_length)
+            if segment.ndim == 2:
+                padding = np.zeros((padding_length, segment.shape[1]))
+            else:
+                padding = np.zeros(padding_length)
             segment = np.concatenate((padding, segment))
         elif isinstance(segment, torch.Tensor):
-            padding = torch.zeros(padding_length)
+            if segment.ndim == 2:
+                padding = torch.zeros((padding_length, segment.shape[1]))
+            else:
+                padding = torch.zeros(padding_length)
             segment = torch.concatenate((padding, segment))
+        else:
+            raise NotImplementedError()
 
     return segment
 

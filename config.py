@@ -176,6 +176,24 @@ class DatasetConfig:
                 np.linspace(-1, 1, 6),
                 np.linspace(-1, 1, 6),
             )]
+        elif self.system_ == 's5':
+            bound = 0.5
+            return list(itertools.product(
+                np.linspace(-bound, bound, 6),
+                np.linspace(-bound, bound, 6),
+                [0],
+                [0],
+                [0],
+                [0],
+                [0],
+                [0],
+                [0],
+                [0],
+                [0],
+                [0],
+                [0],
+                [0]
+            ))
         else:
             raise NotImplementedError()
 
@@ -217,6 +235,8 @@ class DatasetConfig:
             return dynamic_systems.InvertedPendulum(delay=self.delay)
         elif self.system_ == 's4':
             return dynamic_systems.VanDerPolOscillator(delay=self.delay)
+        elif self.system_ == 's5':
+            return dynamic_systems.Baxter(delay=self.delay)
         else:
             raise NotImplementedError()
 
@@ -242,7 +262,7 @@ class DatasetConfig:
         return np.random.randn() * self.noise_epsilon
 
 
-def get_config(system_=None, n_iteration=None, fno_n_layers=None, fno_n_modes_height=None, fno_hidden_channels=None):
+def get_config(system_, n_iteration=None, duration=None, delay=None):
     if system_ == 's1':
         dataset_config = DatasetConfig(recreate_training_dataset=True, recreate_testing_dataset=False,
                                        data_generation_strategy='trajectory', delay=1,
@@ -282,14 +302,27 @@ def get_config(system_=None, n_iteration=None, fno_n_layers=None, fno_n_modes_he
                                    weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential', alpha=0.01,
                                    load_model=False, do_test=False, scheduled_sampling_type='inverse sigmoid',
                                    scheduled_sampling_k=1e-2)
+    elif system_ == 's5':
+        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
+                                       delay=0.1, duration=8, dt=0.02, n_dataset=10, n_sample_per_dataset=-1,
+                                       n_plot_sample=20, ic_lower_bound=-0.5, ic_upper_bound=0.5,
+                                       successive_approximation_n_iteration=5)
+        model_config = ModelConfig(model_name='FFN', n_layer=4, fno_n_modes_height=8, fno_hidden_channels=16)
+        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=100, batch_size=64,
+                                   weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential', alpha=0.01,
+                                   load_model=False, do_test=False, scheduled_sampling_type='inverse sigmoid',
+                                   scheduled_sampling_k=1e-2)
     else:
         raise NotImplementedError()
     if n_iteration is not None:
         dataset_config.successive_approximation_n_iteration = n_iteration
-    if system_ is not None:
-        dataset_config.system_ = system_
-        model_config.system = system_
-        train_config.system = system_
+    if delay is not None:
+        dataset_config.delay = delay
+    if duration is not None:
+        dataset_config.duration = duration
+    dataset_config.system_ = system_
+    model_config.system = system_
+    train_config.system = system_
     return dataset_config, model_config, train_config
 
 

@@ -208,10 +208,11 @@ class QuantileRegressionModel(nn.Module):
 
 
 class FNN(torch.nn.Module):
-    def __init__(self, n_state: int, n_point_delay: int, n_layers: int, layer_width: int, *args, **kwargs):
+    def __init__(self, n_state: int, n_point_delay: int, n_input: int, n_layers: int, layer_width: int, *args,
+                 **kwargs):
         super().__init__(*args, **kwargs)
         self.mse_loss = torch.nn.MSELoss()
-        in_features = n_state + n_point_delay
+        in_features = n_state + n_point_delay * n_input
         out_features = n_state
         layers = [
             torch.nn.Linear(in_features=in_features, out_features=layer_width * in_features),
@@ -262,13 +263,13 @@ class PIFNO(torch.nn.Module):
 
 
 class FNOProjection(torch.nn.Module):
-    def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, n_state: int, n_point_delay: int,
-                 *args, **kwargs):
+    def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, n_input: int, n_state: int,
+                 n_point_delay: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.mse_loss = torch.nn.MSELoss()
         self.fno = FNO1d(n_modes_height=n_modes_height, n_layers=n_layers, hidden_channels=hidden_channels,
                          in_channels=1, out_channels=1)
-        in_features = n_state + n_point_delay
+        in_features = n_state + n_point_delay * n_input
         out_features = n_state
         self.projection = torch.nn.Sequential(
             torch.nn.Linear(in_features=in_features, out_features=in_features),
