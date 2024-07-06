@@ -140,6 +140,8 @@ class DatasetConfig:
 
     system_: Optional[str] = field(default='s1')
 
+    random_test: Optional[bool] = field(default=True)
+
     @property
     def n_sample(self):
         if self.n_sample_per_dataset < 0:
@@ -178,6 +180,8 @@ class DatasetConfig:
             )]
         elif self.system_ == 's5':
             bound = 0.5
+            if self.random_test:
+                return [tuple((np.random.random(14) * bound).tolist()) for _ in range(36)]
             return list(itertools.product(
                 np.linspace(-bound, bound, 6),
                 np.linspace(-bound, bound, 6),
