@@ -419,12 +419,15 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
     bar = tqdm(list(range(train_config.n_epoch)))
     training_loss_arr = []
     scheduled_sampling_p_arr = []
+    img_save_path = f'./misc/{dataset_config.system.name}'
+    check_dir(img_save_path)
     for epoch in bar:
         train_config.set_scheduled_sampling_p(epoch)
         scheduled_sampling_p_arr.append(train_config.scheduled_sampling_p)
         Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
                                size=(dataset_config.n_state,))
-        U, Z, P_no = simulation(dataset_config, Z0, 'scheduled_sampling', model, img_save_path='./misc/test4')
+        U, Z, P_no = simulation(dataset_config, Z0, 'scheduled_sampling', model,
+                                img_save_path=img_save_path)
         predictions = shift(P_no, dataset_config.n_point_delay)
         true_values = Z[dataset_config.n_point_delay:]
 
