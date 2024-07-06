@@ -34,7 +34,7 @@ from utils import set_size, pad_leading_zeros, plot_comparison, plot_difference,
 
 def simulation(
         dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
-        method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'alternative', 'scheduled_sampling'] = None,
+        method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling'] = None,
         model=None, mapie_regressors=None, img_save_path: str = None, uncertainty_out: bool = False):
     system: dynamic_systems.DynamicSystem = dataset_config.system
     n_point_delay = dataset_config.n_point_delay
@@ -49,12 +49,12 @@ def simulation(
         P_explicit = np.zeros((n_point, system.n_state))
     else:
         P_explicit = None
-    if method == 'numerical' or method == 'numerical_no' or method == 'alternative' or method == 'scheduled_sampling':
+    if method == 'numerical' or method == 'numerical_no' or method == 'switching' or method == 'scheduled_sampling':
         P_numerical = np.zeros((n_point, system.n_state))
     else:
         P_numerical = None
 
-    if method == 'no' or method == 'numerical_no' or method == 'alternative' or method == 'scheduled_sampling':
+    if method == 'no' or method == 'numerical_no' or method == 'switching' or method == 'scheduled_sampling':
         P_no = np.zeros((n_point, system.n_state))
         if mapie_regressors is not None:
             P_no_ci = np.zeros((n_point, system.n_state, 2))
@@ -105,7 +105,7 @@ def simulation(
                     P_no_ci[t_i, :, :], _ = solve_integral_ci_nn(mapie_regressors, U_D, Z_t)
                 if t_i > n_point_delay:
                     U[t_i] = system.kappa(P_numerical[t_i, :])
-            elif method == 'alternative':
+            elif method == 'switching':
                 P_numerical[t_i, :] = dynamic_systems.solve_integral(
                     Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
                     dataset_config=dataset_config)
@@ -157,7 +157,7 @@ def simulation(
 
     if method == 'explicit':
         return U, Z, P_explicit
-    elif method == 'no' or method == 'numerical_no' or method == 'alternative' or method == 'scheduled_sampling':
+    elif method == 'no' or method == 'numerical_no' or method == 'switching' or method == 'scheduled_sampling':
         if uncertainty_out:
             return U, Z, P_no, P_no_ci
         else:
@@ -349,7 +349,7 @@ def run_active_training(dataset_config: DatasetConfig, model_config: ModelConfig
             # U, Z, P_no, P_no_ci = simulation(dataset_config, Z0, 'numerical_no', model,
             #                                  mapie_regressors=mapie_regressors,
             #                                  img_save_path='./misc/test2', uncertainty_out=True)
-            U, Z, P_no, P_no_ci = simulation(dataset_config, Z0, 'alternative', model,
+            U, Z, P_no, P_no_ci = simulation(dataset_config, Z0, 'switching', model,
                                              mapie_regressors=mapie_regressors,
                                              img_save_path='./misc/test3', uncertainty_out=True)
             predictions = shift(P_no, dataset_config.n_point_delay)
@@ -915,7 +915,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_seed(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s2')
+    parser.add_argument('-s', type=str, default='s3')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-fl', type=int, default=None)
     args = parser.parse_args()

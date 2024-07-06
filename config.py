@@ -65,23 +65,22 @@ class TrainConfig:
         return f'./{self.system}/checkpoint'
 
     def set_scheduled_sampling_p(self, epoch):
-        if self.scheduled_sampling_type == 'exponential':
-            # k is a constant that controls the decay rate. Adjust it based on your requirements.
-            self.scheduled_sampling_p = np.exp(-self.scheduled_sampling_k * epoch)
-        elif self.scheduled_sampling_type == 'inverse sigmoid':
-            # k controls how steep the sigmoid is. x0 shifts the sigmoid along the x-axis.
-            if epoch < self.scheduled_sampling_warm_start:
-                self.scheduled_sampling_p = 1
-            else:
-                epoch -= self.scheduled_sampling_warm_start
-                self.scheduled_sampling_p = 1 / (1 + np.exp(
-                    self.scheduled_sampling_k * (epoch - (self.n_epoch - self.scheduled_sampling_warm_start) / 2)))
-
-        elif self.scheduled_sampling_type == 'linear':
-            # Here k is the total number of epochs after which the value reaches 0.
-            self.scheduled_sampling_p = max(0, 1 - epoch / self.n_epoch)
+        if epoch < self.scheduled_sampling_warm_start:
+            self.scheduled_sampling_p = 1
         else:
-            raise ValueError("Unsupported scheduled_sampling_type")
+            epoch -= self.scheduled_sampling_warm_start
+            n_epoch = self.n_epoch - self.scheduled_sampling_warm_start
+            if self.scheduled_sampling_type == 'exponential':
+                # k is a constant that controls the decay rate. Adjust it based on your requirements.
+                self.scheduled_sampling_p = np.exp(-self.scheduled_sampling_k * epoch)
+            elif self.scheduled_sampling_type == 'inverse sigmoid':
+                # k controls how steep the sigmoid is. x0 shifts the sigmoid along the x-axis.
+                self.scheduled_sampling_p = 1 / (1 + np.exp(self.scheduled_sampling_k * (epoch - n_epoch / 2)))
+            elif self.scheduled_sampling_type == 'linear':
+                # Here k is the total number of epochs after which the value reaches 0.
+                self.scheduled_sampling_p = max(0, 1 - epoch / n_epoch)
+            else:
+                raise ValueError("Unsupported scheduled_sampling_type")
 
 
 @dataclass
@@ -270,9 +269,10 @@ def get_config(system_=None, n_iteration=None, fno_n_layers=None, fno_n_modes_he
                                        n_plot_sample=20, ic_lower_bound=-1, ic_upper_bound=1,
                                        successive_approximation_n_iteration=5)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=2000, batch_size=64,
-                                   weight_decay=1e-3, log_step=-1, do_test=False,
-                                   scheduled_sampling_type='inverse sigmoid', scheduled_sampling_k=1e-2)
-        model_config = ModelConfig(model_name='FFN', n_layer=10, fno_n_modes_height=32, fno_hidden_channels=64)
+                                   weight_decay=1e-3, log_step=-1, do_test=False, scheduled_sampling_warm_start=500,
+                                   scheduled_sampling_type='linear', scheduled_sampling_k=1e-2)
+        model_config = ModelConfig(n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64,
+                                   ffn_layer_width=8)
     elif system_ == 's4':
         dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory', delay=1,
                                        duration=8, dt=0.05, n_dataset=200, n_sample_per_dataset=-1, n_plot_sample=20,
