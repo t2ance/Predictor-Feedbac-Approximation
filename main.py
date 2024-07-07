@@ -272,7 +272,9 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
             plt.xlabel('epoch')
             plt.legend()
             if img_save_path is not None:
-                plt.savefig(f'{img_save_path}/loss.png')
+                p = f'{img_save_path}/loss.png'
+                plt.savefig(p)
+                print(f'save loss curve to {p}')
                 fig.clear()
                 plt.close(fig)
             else:
@@ -419,7 +421,6 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
     bar = tqdm(list(range(train_config.n_epoch)))
     training_loss_arr = []
     scheduled_sampling_p_arr = []
-    img_save_path = f'./misc/{dataset_config.system.name}'
     check_dir(img_save_path)
     for epoch in bar:
         train_config.set_scheduled_sampling_p(epoch)
