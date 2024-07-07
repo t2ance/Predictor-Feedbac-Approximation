@@ -141,6 +141,7 @@ class DatasetConfig:
     system_: Optional[str] = field(default='s1')
 
     random_test: Optional[bool] = field(default=True)
+    random_test_points = None
 
     @property
     def n_sample(self):
@@ -181,7 +182,9 @@ class DatasetConfig:
         elif self.system_ == 's5':
             bound = 0.5
             if self.random_test:
-                return [tuple((np.random.random(14) * bound).tolist()) for _ in range(36)]
+                if self.random_test_points is None:
+                    self.random_test_points = [tuple((np.random.random(14) * bound).tolist()) for _ in range(36)]
+                return self.random_test_points
             return list(itertools.product(
                 np.linspace(-bound, bound, 6),
                 np.linspace(-bound, bound, 6),
@@ -308,7 +311,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's5':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
-                                       delay=0.5, duration=16, dt=0.02, n_dataset=200, n_sample_per_dataset=-1,
+                                       delay=1., duration=16, dt=0.02, n_dataset=200, n_sample_per_dataset=-1,
                                        n_plot_sample=20, ic_lower_bound=-0.5, ic_upper_bound=0.5,
                                        successive_approximation_n_iteration=5)
         model_config = ModelConfig(model_name='FNO', n_layer=4, fno_n_modes_height=8, fno_hidden_channels=16)
