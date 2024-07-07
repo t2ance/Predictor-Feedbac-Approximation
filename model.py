@@ -271,12 +271,7 @@ class FNOProjection(torch.nn.Module):
                          in_channels=1, out_channels=1)
         in_features = n_state + n_point_delay * n_input
         out_features = n_state
-        self.projection = torch.nn.Sequential(
-            torch.nn.Linear(in_features=in_features, out_features=in_features),
-            torch.nn.ReLU(),
-            torch.nn.Linear(in_features=in_features, out_features=out_features)
-        )
-        # self.projection = torch.nn.Linear(in_features=in_features, out_features=out_features)
+        self.projection = torch.nn.Linear(in_features=in_features, out_features=out_features)
 
     def forward(self, x: torch.Tensor, label: torch.Tensor = None):
         x = x.unsqueeze(-2)
