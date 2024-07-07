@@ -7,6 +7,7 @@ from typing import Literal, Tuple, List
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import wandb
 from scipy.integrate import odeint
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
@@ -20,7 +21,7 @@ from model import FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet, Mapie
 from utils import set_size, pad_leading_zeros, plot_comparison, plot_difference, \
     metric, check_dir, plot_sample, predict_and_loss, load_lr_scheduler, prepare_datasets, draw_distribution, \
     set_seed, plot_single, print_result, postprocess, load_model, load_optimizer, plot_uncertainty, shift, \
-    split_dataset, quantile_predict_and_loss, print_args
+    split_dataset, quantile_predict_and_loss, print_args, get_time_str
 
 
 def simulation(
@@ -459,6 +460,10 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
         bar.set_description(f'Epoch [{epoch + 1}/{n_epoch}] '
                             f'|| Scheduled Sampling Rate {train_config.scheduled_sampling_p} '
                             f'|| Training loss: {training_loss_t:.6f}')
+        wandb.log({
+            'sampling rate': train_config.scheduled_sampling_p,
+            'training loss': training_loss_t,
+        }, step=epoch)
         training_loss_arr.append(training_loss_t)
     fig = plt.figure(figsize=set_size())
     plt.plot(training_loss_arr, label="Training loss")
@@ -857,7 +862,6 @@ def create_nn_dataset(dataset_config: DatasetConfig):
             lr = scheduler.get_last_lr()[-1]
             bar.set_description(f'Epoch [{epoch + 1}/{n_epoch}] || Total loss {total_loss_avg:.6f} '
                                 f'|| Smooth loss {smooth_loss_avg:.6f} || IE loss {ie_loss_avg:.6f} || Lr {lr:.6f}')
-
         plt.title('training loss')
         plt.plot(training_total_loss_list, label='Total loss')
         plt.plot(training_ie_loss_list, label='Integral equation loss')
@@ -908,6 +912,11 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 
 
 if __name__ == '__main__':
+    wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
+    wandb.init(
+        project="no",
+        name=get_time_str()
+    )
     set_seed(0)
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', type=str, default='s5')
