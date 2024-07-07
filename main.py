@@ -915,6 +915,7 @@ if __name__ == '__main__':
     parser.add_argument('-fl', type=int, default=None)
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n)
+    assert torch.cuda.is_available()
     # train_config.training_type = 'offline'
     train_config.training_type = 'scheduled sampling'
     print_args(dataset_config)
