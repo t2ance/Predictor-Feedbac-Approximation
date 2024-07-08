@@ -419,11 +419,11 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
     model, model_loaded = load_model(train_config, model_config, dataset_config)
     optimizer = load_optimizer(model.parameters(), train_config)
     scheduler = load_lr_scheduler(optimizer, train_config)
-    bar = tqdm(list(range(train_config.n_epoch)))
     training_loss_arr = []
     scheduled_sampling_p_arr = []
     check_dir(img_save_path)
-    for epoch in bar:
+    print('Begin Training...')
+    for epoch in list(range(train_config.n_epoch)):
         train_config.set_scheduled_sampling_p(epoch)
         scheduled_sampling_p_arr.append(train_config.scheduled_sampling_p)
         Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
@@ -457,9 +457,11 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
 
         dataloader = DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=False)
         training_loss_t, _, _ = model_train(model, optimizer, scheduler, device, dataloader, predict_and_loss)
-        bar.set_description(f'Epoch [{epoch + 1}/{n_epoch}] '
-                            f'|| Scheduled Sampling Rate {train_config.scheduled_sampling_p} '
-                            f'|| Training loss: {training_loss_t:.6f}')
+        if epoch % 10 == 0:
+            desc = f'Epoch [{epoch + 1}/{n_epoch}] ' \
+                   f'|| Scheduled Sampling Rate {train_config.scheduled_sampling_p} ' \
+                   f'|| Training loss: {training_loss_t:.6f}'
+            print(desc)
         wandb.log({
             'sampling rate': train_config.scheduled_sampling_p,
             'training loss': training_loss_t,
