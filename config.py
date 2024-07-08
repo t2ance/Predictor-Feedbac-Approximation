@@ -314,11 +314,11 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                        delay=1, duration=8, dt=0.02, n_dataset=200, n_sample_per_dataset=-1,
                                        n_plot_sample=20, ic_lower_bound=-0.5, ic_upper_bound=0.5,
                                        successive_approximation_n_iteration=5)
-        model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=16, fno_hidden_channels=32)
+        model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=500, batch_size=128,
                                    weight_decay=1e-4, log_step=-1, lr_scheduler_type='exponential', alpha=0.01,
                                    scheduled_sampling_warm_start=200, load_model=False, do_test=False,
-                                   scheduled_sampling_type='inverse sigmoid', scheduled_sampling_k=1e-2)
+                                   scheduled_sampling_type='linear', scheduled_sampling_k=1e-2)
     else:
         raise NotImplementedError()
     if n_iteration is not None:
