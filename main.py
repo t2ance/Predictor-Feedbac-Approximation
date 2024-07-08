@@ -426,42 +426,43 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
     for epoch in range(train_config.n_epoch):
         train_config.set_scheduled_sampling_p(epoch)
         scheduled_sampling_p_arr.append(train_config.scheduled_sampling_p)
-        print('begin generating data', get_time_str())
-        Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
-                               size=(dataset_config.n_state,))
-        U, Z, P_no = simulation(dataset_config, Z0, 'scheduled_sampling', model,
-                                img_save_path=img_save_path)
-        predictions = shift(P_no, dataset_config.n_point_delay)
-        true_values = Z[dataset_config.n_point_delay:]
-        print('end generating data', get_time_str())
+        if epoch % 10 == 0:
+            print('begin generating data', get_time_str())
+            Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
+                                   size=(dataset_config.n_state,))
+            U, Z, P_no = simulation(dataset_config, Z0, 'scheduled_sampling', model,
+                                    img_save_path=img_save_path)
+            predictions = shift(P_no, dataset_config.n_point_delay)
+            true_values = Z[dataset_config.n_point_delay:]
+            print('end generating data', get_time_str())
 
-        predictions_array = np.array(predictions)
-        true_values_array = np.array(true_values)
-        timestamps_array = np.array(dataset_config.ts[dataset_config.n_point_delay:])
-        U_array = np.array([U[t_i: t_i + dataset_config.n_point_delay] for t_i in range(len(timestamps_array))])
+            predictions_array = np.array(predictions)
+            true_values_array = np.array(true_values)
+            timestamps_array = np.array(dataset_config.ts[dataset_config.n_point_delay:])
+            U_array = np.array([U[t_i: t_i + dataset_config.n_point_delay] for t_i in range(len(timestamps_array))])
 
-        if np.isnan(predictions_array).any() or np.isnan(true_values_array).any() or np.isnan(
-                timestamps_array).any() or np.isnan(U_array).any() or np.isinf(predictions_array).any() or np.isinf(
-            true_values_array).any() or np.isinf(timestamps_array).any() or np.isinf(U_array).any():
-            training_loss_arr.append(0)
-            continue
-        print('begin construct dataset', get_time_str())
-        P_batched = dynamic_systems.solve_integral_successive_batched(
-            Z_t=true_values_array, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state,
-            dt=dataset_config.dt,
-            U_D=U_array, f=dataset_config.system.dynamic,
-            n_iterations=dataset_config.successive_approximation_n_iteration)
+            if np.isnan(predictions_array).any() or np.isnan(true_values_array).any() or np.isnan(
+                    timestamps_array).any() or np.isnan(U_array).any() or np.isinf(predictions_array).any() or np.isinf(
+                true_values_array).any() or np.isinf(timestamps_array).any() or np.isinf(U_array).any():
+                training_loss_arr.append(0)
+                continue
+            print('begin construct dataset', get_time_str())
+            P_batched = dynamic_systems.solve_integral_successive_batched(
+                Z_t=true_values_array, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state,
+                dt=dataset_config.dt,
+                U_D=U_array, f=dataset_config.system.dynamic,
+                n_iterations=dataset_config.successive_approximation_n_iteration)
 
-        samples = []
-        for t_i, (p, z, t) in enumerate(zip(predictions_array, true_values_array, timestamps_array)):
-            u = U_array[t_i]
-            P = P_batched[t_i]
-            samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(P)))
+            samples = []
+            for t_i, (p, z, t) in enumerate(zip(predictions_array, true_values_array, timestamps_array)):
+                u = U_array[t_i]
+                P = P_batched[t_i]
+                samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(P)))
 
-        print('end construct dataset', get_time_str())
+            dataloader = DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=False)
+            print('end construct dataset', get_time_str())
 
         print('begin training', get_time_str())
-        dataloader = DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=False)
         training_loss_t, _, _ = model_train(model, optimizer, scheduler, device, dataloader, predict_and_loss)
         if epoch % 10 == 0:
             desc = f'Epoch [{epoch + 1}/{n_epoch}] ' \
