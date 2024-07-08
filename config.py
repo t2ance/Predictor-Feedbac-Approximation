@@ -37,7 +37,7 @@ class TrainConfig:
     training_ratio: Optional[float] = field(default=0.8)
     log_step: Optional[int] = field(default=10)
     n_epoch: Optional[int] = field(default=100)
-    device: Optional[str] = field(default='cuda:0')
+    device: Optional[str] = field(default='cuda')
     load_model: Optional[bool] = field(default=False)
 
     scheduler_step_size: Optional[int] = field(default=1)
