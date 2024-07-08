@@ -295,7 +295,6 @@ class FNOTwoStage(torch.nn.Module):
                                     in_channels=1, out_channels=n_state)
         self.integral_net_p_u = FNO1d(n_modes_height=n_modes_height, n_layers=n_layers, hidden_channels=hidden_channels,
                                       in_channels=n_state, out_channels=n_state)
-
         self.dt = dt
 
     def forward(self, z_u: torch.Tensor, label: torch.Tensor = None):
