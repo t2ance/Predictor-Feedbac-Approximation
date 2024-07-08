@@ -140,8 +140,8 @@ def simulation(
         u_path = f'{img_save_path}/u.png'
         plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, comparison_full, n_state)
         plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, comparison_zoom, n_state, [-5, 5])
-        plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, difference_full, n_state)
-        plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, difference_zoom, n_state, [-5, 5])
+        plot_difference(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, difference_full, n_state)
+        plot_difference(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, difference_zoom, n_state, [-5, 5])
         plot_single(ts, U, '$U(t)$', u_path)
         if P_no_ci is not None:
             plot_uncertainty(ts, P_no, P_no_ci, Z, delay, n_point_delay, uncertainty_full, n_state)

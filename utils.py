@@ -360,6 +360,11 @@ def plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, 
         plt.ylim(ylim)
     if n_state < 5:
         plt.legend(loc=legend_loc, fontsize=legend_fontsize)
+    else:
+        plt.legend(handles=[plt.Line2D([0], [0], color='black', linestyle='--'),
+                            plt.Line2D([0], [0], color='black', linestyle='-')],
+                   labels=[f'P^{{no}}(t-{delay}', f'Z(t)'],
+                   loc='best')
     if save_path is not None:
         plt.savefig(save_path)
         fig.clear()
@@ -368,7 +373,7 @@ def plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, 
         plt.show()
 
 
-def plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, save_path, n_state: int, ylim=None):
+def plot_difference(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, save_path, n_state: int, ylim=None):
     fig = plt.figure(figsize=set_size())
     plt.title('Difference')
 
@@ -389,6 +394,11 @@ def plot_difference(ts, P_no, P_numerical, P_explicit, Z, n_point_delay, save_pa
         plt.ylim(ylim)
     if n_state < 5:
         plt.legend(loc=legend_loc, fontsize=legend_fontsize)
+    else:
+        plt.legend(handles=[plt.Line2D([0], [0], color='black', linestyle='--'),
+                            plt.Line2D([0], [0], color='black', linestyle='-')],
+                   labels=[f'P^{{no}}(t-{delay}', f'Z(t)'],
+                   loc='best')
     if save_path is not None:
         plt.savefig(save_path)
         fig.clear()
