@@ -180,7 +180,7 @@ class DatasetConfig:
                 np.linspace(-1, 1, 6),
             )]
         elif self.system_ == 's5':
-            bound = 0.5
+            bound = 0.2
             if self.random_test:
                 if self.random_test_points is None:
                     self.random_test_points = [tuple((np.random.random(14) * bound).tolist()) for _ in range(10)]
@@ -311,8 +311,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's5':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
-                                       delay=0.5, duration=12, dt=0.05, n_dataset=200, n_sample_per_dataset=-1,
-                                       n_plot_sample=20, ic_lower_bound=-0.5, ic_upper_bound=0.5,
+                                       delay=0.5, duration=12, dt=0.02, n_dataset=200, n_sample_per_dataset=-1,
+                                       n_plot_sample=20, ic_lower_bound=-0.2, ic_upper_bound=0.2,
                                        successive_approximation_n_iteration=5)
         model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=3000, batch_size=64,
