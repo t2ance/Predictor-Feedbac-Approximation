@@ -88,7 +88,7 @@ class Baxter(DynamicSystem):
         e1_t, e2_t = E_t[:, :7], E_t[:, 7:]
         e1_t_dot = e2_t - np.matmul(e1_t, self.alpha.T)
         h = np.array([self.h(e[:7], e[7:]) for e in E_t])
-        e2_t_dot = np.matmul(e2_t, self.C.T) + h - np.matmul(U_delay, np.linalg.inv(self.M).T)
+        e2_t_dot = np.matmul(e2_t, self.alpha.T) + h - np.matmul(U_delay, np.linalg.inv(self.M).T)
 
         dynamics = np.concatenate([e1_t_dot, e2_t_dot], axis=1)
 
