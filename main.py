@@ -27,7 +27,8 @@ from utils import set_size, pad_leading_zeros, plot_comparison, plot_difference,
 def simulation(
         dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
         method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling'] = None,
-        model=None, mapie_regressors=None, img_save_path: str = None, uncertainty_out: bool = False):
+        model=None, mapie_regressors=None, img_save_path: str = None, uncertainty_out: bool = False,
+        time_out: bool = False):
     system: dynamic_systems.DynamicSystem = dataset_config.system
     n_point_delay = dataset_config.n_point_delay
     n_state = dataset_config.n_state
@@ -58,6 +59,7 @@ def simulation(
     p_numerical_count = 0
     p_no_count = 0
     Z[n_point_delay, :] = Z0
+    inference_time = 0.
     for t_i in range(dataset_config.n_point):
         t_minus_D_i = max(t_i - n_point_delay, 0)
         t = ts[t_i]
@@ -75,14 +77,20 @@ def simulation(
             Z_t += dataset_config.noise()
             # estimate prediction and control signal
             if method == 'numerical':
+                begin = time.time()
                 P_numerical[t_i, :] = dynamic_systems.solve_integral(
                     Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
                     dataset_config=dataset_config)
+                end = time.time()
+                inference_time += end - begin
                 if t_i > n_point_delay:
                     U[t_i] = system.kappa(P_numerical[t_i, :])
             elif method == 'no':
                 U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
+                begin = time.time()
                 P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
+                end = time.time()
+                inference_time += end - begin
                 if mapie_regressors is not None:
                     P_no_ci[t_i, :, :], _ = solve_integral_ci_nn(mapie_regressors, U_D, Z_t)
                 if t_i > n_point_delay:
@@ -148,16 +156,20 @@ def simulation(
             plot_uncertainty(ts, P_no, P_no_ci, Z, delay, n_point_delay, uncertainty_zoom, n_state, [-5, 5])
 
     if method == 'explicit':
-        return U, Z, P_explicit
+        result = (U, Z, P_explicit, inference_time)
     elif method == 'no' or method == 'numerical_no' or method == 'switching' or method == 'scheduled_sampling':
         if uncertainty_out:
-            return U, Z, P_no, P_no_ci
+            result = (U, Z, P_no, P_no_ci, inference_time)
         else:
-            return U, Z, P_no
+            result = (U, Z, P_no, inference_time)
     elif method == 'numerical':
-        return U, Z, P_numerical
+        result = (U, Z, P_numerical, inference_time)
     else:
         raise NotImplementedError()
+    if time_out:
+        return *result, inference_time
+    else:
+        return result
 
 
 def model_train(model, optimizer, scheduler, device, training_dataloader, predict_and_loss,
@@ -427,14 +439,12 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
         train_config.set_scheduled_sampling_p(epoch)
         scheduled_sampling_p_arr.append(train_config.scheduled_sampling_p)
 
-        # print('begin generating data', get_time_str())
         Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
                                size=(dataset_config.n_state,))
         U, Z, P_no = simulation(dataset_config, Z0, 'scheduled_sampling', model,
                                 img_save_path=img_save_path)
         predictions = shift(P_no, dataset_config.n_point_delay)
         true_values = Z[dataset_config.n_point_delay:]
-        # print('end generating data', get_time_str())
 
         predictions_array = np.array(predictions)
         true_values_array = np.array(true_values)
@@ -446,7 +456,6 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
             true_values_array).any() or np.isinf(timestamps_array).any() or np.isinf(U_array).any():
             training_loss_arr.append(0)
             continue
-        # print('begin construct dataset', get_time_str())
         P_batched = dynamic_systems.solve_integral_successive_batched(
             Z_t=true_values_array, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state,
             dt=dataset_config.dt,
@@ -460,9 +469,7 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
             samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(P)))
 
         dataloader = DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=False)
-        # print('end construct dataset', get_time_str())
 
-        # print('begin training', get_time_str())
         training_loss_t, _, _ = model_train(model, optimizer, scheduler, device, dataloader, predict_and_loss)
         if epoch % 10 == 0:
             desc = f'Epoch [{epoch + 1}/{n_epoch}] ' \
@@ -509,11 +516,8 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
 
         img_save_path = f'{base_path}/{np.round(test_point, decimals=2)}'
         check_dir(img_save_path)
-        begin = time.time()
-        U, Z, P = simulation(dataset_config=dataset_config, model=m, Z0=test_point, method=method,
-                             img_save_path=img_save_path)
-        end = time.time()
-        runtime = end - begin
+        U, Z, P, runtime = simulation(dataset_config=dataset_config, model=m, Z0=test_point, method=method,
+                                      img_save_path=img_save_path, time_out=True)
         plt.close()
         n_point_delay = dataset_config.n_point_delay
         rl2, l2 = metric(P[n_point_delay:-n_point_delay], Z[2 * n_point_delay:])
