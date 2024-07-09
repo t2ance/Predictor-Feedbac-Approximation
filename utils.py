@@ -203,6 +203,11 @@ def load_lr_scheduler(optimizer: torch.optim.Optimizer, config):
     elif config.lr_scheduler_type == 'exponential':
         return torch.optim.lr_scheduler.StepLR(optimizer, step_size=config.scheduler_step_size,
                                                gamma=config.scheduler_gamma)
+    elif config.lr_scheduler_type == 'none':
+        def lr_lambda(current_step):
+            return 1.0
+
+        return LambdaLR(optimizer, lr_lambda)
     else:
         raise NotImplementedError()
 

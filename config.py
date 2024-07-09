@@ -44,7 +44,8 @@ class TrainConfig:
     scheduler_gamma: Optional[float] = field(default=1.)
     scheduler_min_lr: Optional[float] = field(default=0.)
     scheduler_ratio_warmup: Optional[float] = field(default=0.02)
-    lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential']] = field(default='linear_with_warmup')
+    lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential', 'none']] = field(
+        default='linear_with_warmup')
 
     # conformal prediction
     alpha: Optional[float] = field(default=0.1)
@@ -316,7 +317,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                        successive_approximation_n_iteration=5)
         model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64)
         train_config = TrainConfig(learning_rate=5e-5, training_ratio=0.8, n_epoch=2000, batch_size=64,
-                                   weight_decay=1e-4, log_step=-1, lr_scheduler_type='exponential', alpha=0.01,
+                                   weight_decay=1e-4, log_step=-1, lr_scheduler_type='none', alpha=0.01,
                                    scheduled_sampling_warm_start=750, load_model=False, do_test=False,
                                    scheduled_sampling_type='linear', scheduled_sampling_k=1e-2)
     else:
