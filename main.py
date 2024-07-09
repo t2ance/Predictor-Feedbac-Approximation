@@ -156,14 +156,14 @@ def simulation(
             plot_uncertainty(ts, P_no, P_no_ci, Z, delay, n_point_delay, uncertainty_zoom, n_state, [-5, 5])
 
     if method == 'explicit':
-        result = (U, Z, P_explicit, inference_time)
+        result = (U, Z, P_explicit)
     elif method == 'no' or method == 'numerical_no' or method == 'switching' or method == 'scheduled_sampling':
         if uncertainty_out:
-            result = (U, Z, P_no, P_no_ci, inference_time)
+            result = (U, Z, P_no, P_no_ci)
         else:
-            result = (U, Z, P_no, inference_time)
+            result = (U, Z, P_no)
     elif method == 'numerical':
-        result = (U, Z, P_numerical, inference_time)
+        result = (U, Z, P_numerical)
     else:
         raise NotImplementedError()
     if time_out:
