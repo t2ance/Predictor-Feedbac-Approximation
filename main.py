@@ -427,14 +427,14 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
         train_config.set_scheduled_sampling_p(epoch)
         scheduled_sampling_p_arr.append(train_config.scheduled_sampling_p)
 
-        print('begin generating data', get_time_str())
+        # print('begin generating data', get_time_str())
         Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
                                size=(dataset_config.n_state,))
         U, Z, P_no = simulation(dataset_config, Z0, 'scheduled_sampling', model,
                                 img_save_path=img_save_path)
         predictions = shift(P_no, dataset_config.n_point_delay)
         true_values = Z[dataset_config.n_point_delay:]
-        print('end generating data', get_time_str())
+        # print('end generating data', get_time_str())
 
         predictions_array = np.array(predictions)
         true_values_array = np.array(true_values)
@@ -446,7 +446,7 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
             true_values_array).any() or np.isinf(timestamps_array).any() or np.isinf(U_array).any():
             training_loss_arr.append(0)
             continue
-        print('begin construct dataset', get_time_str())
+        # print('begin construct dataset', get_time_str())
         P_batched = dynamic_systems.solve_integral_successive_batched(
             Z_t=true_values_array, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state,
             dt=dataset_config.dt,
@@ -460,16 +460,16 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
             samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(P)))
 
         dataloader = DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=False)
-        print('end construct dataset', get_time_str())
+        # print('end construct dataset', get_time_str())
 
-        print('begin training', get_time_str())
+        # print('begin training', get_time_str())
         training_loss_t, _, _ = model_train(model, optimizer, scheduler, device, dataloader, predict_and_loss)
         if epoch % 10 == 0:
             desc = f'Epoch [{epoch + 1}/{n_epoch}] ' \
                    f'|| Scheduled Sampling Rate {train_config.scheduled_sampling_p} ' \
                    f'|| Training loss: {training_loss_t:.6f}'
             print(desc)
-        print('end training', get_time_str())
+        # print('end training', get_time_str())
         wandb.log({
             'sampling rate': train_config.scheduled_sampling_p,
             'training loss': training_loss_t,
