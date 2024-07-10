@@ -26,7 +26,7 @@ from utils import set_size, pad_leading_zeros, plot_comparison, plot_difference,
 
 def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
                method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling'] = None,
-               model=None, mapie_regressors=None, img_save_path: str = None, uncertainty_out: bool = False):
+               model=None, mapie_regressors=None, img_save_path: str = None):
     system: dynamic_systems.DynamicSystem = dataset_config.system
     n_point_delay = dataset_config.n_point_delay
     n_state = dataset_config.n_state
@@ -130,8 +130,7 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
                     # Teacher Forcing
                     solution = dynamic_systems.solve_integral(
                         Z_t=Z_t, P_D=P_no[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t, dataset_config=dataset_config)
-                    P_numerical[t_i, :] = solution.solution
-                    P_numerical_n_iters[t_i] = solution.n_iter
+                    P_no[t_i, :] = solution.solution
                 else:
                     # Not Teacher Forcing
                     P_no[t_i, :] = solve_integral_nn(
@@ -346,7 +345,7 @@ def run_active_training(dataset_config: DatasetConfig, model_config: ModelConfig
                                    size=(dataset_config.n_state,))
             result = simulation(dataset_config, Z0, 'switching', model,
                                 mapie_regressors=mapie_regressors,
-                                img_save_path='./misc/test3', uncertainty_out=True)
+                                img_save_path='./misc/test3')
             predictions = shift(result.P_no, dataset_config.n_point_delay)
             conf_intervals = shift(result.P_no_ci, dataset_config.n_point_delay)
             true_values = result.Z[dataset_config.n_point_delay:]
