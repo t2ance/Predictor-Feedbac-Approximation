@@ -318,9 +318,11 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
                                        delay=0.5, duration=32, dt=0.02, n_dataset=200, n_sample_per_dataset=-1,
                                        n_plot_sample=20, ic_lower_bound=-0.2, ic_upper_bound=0.2,
-                                       successive_approximation_n_iteration=5)
+                                       integral_method='successive adaptive',
+                                       # successive_approximation_n_iteration=5
+                                       )
         model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64)
-        train_config = TrainConfig(learning_rate=3e-5, training_ratio=0.8, n_epoch=1, batch_size=64,
+        train_config = TrainConfig(learning_rate=3e-5, training_ratio=0.8, n_epoch=100, batch_size=64,
                                    weight_decay=1e-4, log_step=-1, lr_scheduler_type='none', alpha=0.01,
                                    scheduled_sampling_warm_start=0, load_model=False, do_test=False,
                                    scheduled_sampling_type='linear', scheduled_sampling_k=1e-2)
