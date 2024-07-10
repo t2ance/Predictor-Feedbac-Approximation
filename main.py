@@ -445,7 +445,7 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
             training_loss_arr.append(0)
             continue
         if dataset_config.integral_method == 'successive':
-            P_batched, n_iter = dynamic_systems.solve_integral_successive_batched(
+            P_batched = dynamic_systems.solve_integral_successive_batched(
                 Z_t=true_values_array, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state,
                 dt=dataset_config.dt, U_D=U_array, f=dataset_config.system.dynamic,
                 n_iterations=dataset_config.successive_approximation_n_iteration, adaptive=False)
