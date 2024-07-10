@@ -444,10 +444,16 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
             true_values_array).any() or np.isinf(timestamps_array).any() or np.isinf(U_array).any():
             training_loss_arr.append(0)
             continue
-        P_batched, n_iter = dynamic_systems.solve_integral_successive_batched(
-            Z_t=true_values_array, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state,
-            dt=dataset_config.dt, U_D=U_array, f=dataset_config.system.dynamic,
-            threshold=dataset_config.successive_approximation_threshold, adaptive=True)
+        if dataset_config.integral_method == 'successive':
+            P_batched, n_iter = dynamic_systems.solve_integral_successive_batched(
+                Z_t=true_values_array, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state,
+                dt=dataset_config.dt, U_D=U_array, f=dataset_config.system.dynamic,
+                n_iterations=dataset_config.successive_approximation_n_iteration, adaptive=False)
+        else:
+            P_batched, n_iter = dynamic_systems.solve_integral_successive_batched(
+                Z_t=true_values_array, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state,
+                dt=dataset_config.dt, U_D=U_array, f=dataset_config.system.dynamic,
+                threshold=dataset_config.successive_approximation_threshold, adaptive=True)
 
         samples = []
         for t_i, (p, z, t) in enumerate(zip(predictions_array, true_values_array, timestamps_array)):

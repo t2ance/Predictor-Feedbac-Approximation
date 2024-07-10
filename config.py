@@ -319,6 +319,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                        delay=0.5, duration=32, dt=0.05, n_dataset=200, n_sample_per_dataset=-1,
                                        n_plot_sample=20, ic_lower_bound=-0.2, ic_upper_bound=0.2,
                                        # integral_method='successive adaptive',
+                                       integral_method='successive',
                                        successive_approximation_n_iteration=5
                                        )
         model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64)
