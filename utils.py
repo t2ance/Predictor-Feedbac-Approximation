@@ -33,11 +33,6 @@ class SimulationResult:
     P_numerical_n_iters: np.ndarray = None
 
 
-@dataclass
-class IntegralSolution:
-    solution: np.ndarray = None
-    n_iter: int = None
-
 
 def print_args(args):
     print('=' * 100)

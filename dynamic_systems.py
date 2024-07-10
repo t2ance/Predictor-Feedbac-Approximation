@@ -1,10 +1,15 @@
 from abc import abstractmethod
+from dataclasses import dataclass
 
 import numpy as np
 import torch
 from scipy.integrate import simps
 
-from utils import IntegralSolution
+
+@dataclass
+class IntegralSolution:
+    solution: np.ndarray = None
+    n_iter: int = None
 
 
 class DynamicSystem:
