@@ -4,6 +4,8 @@ import numpy as np
 import torch
 from scipy.integrate import simps
 
+from utils import IntegralSolution
+
 
 class DynamicSystem:
     def __init__(self, delay):
@@ -363,23 +365,29 @@ def solve_integral(Z_t, P_D, U_D, t: float, dataset_config):
     n_points = len(P_D)
     assert n_points <= dataset_config.n_point_delay
     ts = np.linspace(t - n_points * dt, t - dt, n_points)
+    solution = IntegralSolution()
     if dataset_config.integral_method == 'rectangle':
-        return solve_integral_rectangle(f=f, Z_t=Z_t, P_D=P_D, U_D=U_D, ts=ts, dt=dt)
+        solution.solution = solve_integral_rectangle(f=f, Z_t=Z_t, P_D=P_D, U_D=U_D, ts=ts, dt=dt)
     elif dataset_config.integral_method == 'trapezoidal':
-        return solve_integral_trapezoidal(f=f, Z_t=Z_t, P_D=P_D, U_D=U_D, ts=ts, dt=dt)
+        solution.solution = solve_integral_trapezoidal(f=f, Z_t=Z_t, P_D=P_D, U_D=U_D, ts=ts, dt=dt)
     elif dataset_config.integral_method == 'simpson':
-        return solve_integral_simpson(f=f, Z_t=Z_t, P_D=P_D, U_D=U_D, ts=ts, dt=dt)
+        solution.solution = solve_integral_simpson(f=f, Z_t=Z_t, P_D=P_D, U_D=U_D, ts=ts, dt=dt)
     elif dataset_config.integral_method == 'eular':
-        return solve_integral_eular(Z_t=Z_t, n_points=n_points, n_state=n_state, dt=dt, U_D=U_D, f=f)
+        solution.solution = solve_integral_eular(Z_t=Z_t, n_points=n_points, n_state=n_state, dt=dt, U_D=U_D, f=f)
     elif dataset_config.integral_method == 'successive':
-        return solve_integral_successive(Z_t=Z_t, n_points=n_points, n_state=n_state, dt=dt, U_D=U_D, f=f,
-                                         n_iterations=dataset_config.successive_approximation_n_iteration,
-                                         adaptive=False)
+        solution.solution = solve_integral_successive(Z_t=Z_t, n_points=n_points, n_state=n_state, dt=dt, U_D=U_D, f=f,
+                                                      n_iterations=dataset_config.successive_approximation_n_iteration,
+                                                      adaptive=False)
+        solution.n_iter = dataset_config.successive_approximation_n_iteration
     elif dataset_config.integral_method == 'successive adaptive':
-        return solve_integral_successive(Z_t=Z_t, n_points=n_points, n_state=n_state, dt=dt, U_D=U_D, f=f,
-                                         threshold=dataset_config.successive_approximation_threshold, adaptive=True)
+        res, n_iter = solve_integral_successive(Z_t=Z_t, n_points=n_points, n_state=n_state, dt=dt, U_D=U_D, f=f,
+                                                threshold=dataset_config.successive_approximation_threshold,
+                                                adaptive=True)
+        solution.solution = res
+        solution.n_iter = n_iter
     else:
         raise NotImplementedError()
+    return solution
 
 
 def solve_integral_eular(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f):

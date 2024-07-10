@@ -21,14 +21,12 @@ from model import FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet, Mapie
 from utils import set_size, pad_leading_zeros, plot_comparison, plot_difference, \
     metric, check_dir, plot_sample, predict_and_loss, load_lr_scheduler, prepare_datasets, draw_distribution, \
     set_seed, plot_single, print_result, postprocess, load_model, load_optimizer, plot_uncertainty, shift, \
-    split_dataset, quantile_predict_and_loss, print_args, get_time_str
+    split_dataset, quantile_predict_and_loss, print_args, get_time_str, SimulationResult
 
 
-def simulation(
-        dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
-        method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling'] = None,
-        model=None, mapie_regressors=None, img_save_path: str = None, uncertainty_out: bool = False,
-        time_out: bool = False):
+def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
+               method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling'] = None,
+               model=None, mapie_regressors=None, img_save_path: str = None, uncertainty_out: bool = False):
     system: dynamic_systems.DynamicSystem = dataset_config.system
     n_point_delay = dataset_config.n_point_delay
     n_state = dataset_config.n_state
@@ -44,8 +42,10 @@ def simulation(
         P_explicit = None
     if method == 'numerical' or method == 'numerical_no' or method == 'switching' or method == 'scheduled_sampling':
         P_numerical = np.zeros((n_point, system.n_state))
+        P_numerical_n_iters = np.zeros(n_point)
     else:
         P_numerical = None
+        P_numerical_n_iters = None
 
     if method == 'no' or method == 'numerical_no' or method == 'switching' or method == 'scheduled_sampling':
         P_no = np.zeros((n_point, system.n_state))
@@ -78,9 +78,11 @@ def simulation(
             # estimate prediction and control signal
             if method == 'numerical':
                 begin = time.time()
-                P_numerical[t_i, :] = dynamic_systems.solve_integral(
+                solution = dynamic_systems.solve_integral(
                     Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
                     dataset_config=dataset_config)
+                P_numerical[t_i, :] = solution.solution
+                P_numerical_n_iters[t_i] = solution.n_iter
                 end = time.time()
                 inference_time += end - begin
                 if t_i > n_point_delay:
@@ -96,9 +98,12 @@ def simulation(
                 if t_i > n_point_delay:
                     U[t_i] = system.kappa(P_no[t_i, :])
             elif method == 'numerical_no':
-                P_numerical[t_i, :] = dynamic_systems.solve_integral(
+                solution = dynamic_systems.solve_integral(
                     Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
                     dataset_config=dataset_config)
+                P_numerical[t_i, :] = solution.solution
+                P_numerical_n_iters[t_i] = solution.n_iter
+
                 U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
                 P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
                 if mapie_regressors is not None:
@@ -123,8 +128,10 @@ def simulation(
             elif method == 'scheduled_sampling':
                 if np.random.binomial(n=1, p=train_config.scheduled_sampling_p) == 1:
                     # Teacher Forcing
-                    P_no[t_i, :] = dynamic_systems.solve_integral(
+                    solution = dynamic_systems.solve_integral(
                         Z_t=Z_t, P_D=P_no[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t, dataset_config=dataset_config)
+                    P_numerical[t_i, :] = solution.solution
+                    P_numerical_n_iters[t_i] = solution.n_iter
                 else:
                     # Not Teacher Forcing
                     P_no[t_i, :] = solve_integral_nn(
@@ -133,7 +140,6 @@ def simulation(
                     U[t_i] = system.kappa(P_no[t_i, :])
             else:
                 raise NotImplementedError()
-    # print(p_no_count, '/', p_numerical_count)
     ts = dataset_config.ts
     delay = dataset_config.delay
     n_point_delay = dataset_config.n_point_delay
@@ -155,21 +161,8 @@ def simulation(
             plot_uncertainty(ts, P_no, P_no_ci, Z, delay, n_point_delay, uncertainty_full, n_state)
             plot_uncertainty(ts, P_no, P_no_ci, Z, delay, n_point_delay, uncertainty_zoom, n_state, [-5, 5])
 
-    if method == 'explicit':
-        result = (U, Z, P_explicit)
-    elif method == 'no' or method == 'numerical_no' or method == 'switching' or method == 'scheduled_sampling':
-        if uncertainty_out:
-            result = (U, Z, P_no, P_no_ci)
-        else:
-            result = (U, Z, P_no)
-    elif method == 'numerical':
-        result = (U, Z, P_numerical)
-    else:
-        raise NotImplementedError()
-    if time_out:
-        return *result, inference_time
-    else:
-        return result
+    return SimulationResult(U=U, Z=Z, P_explicit=P_explicit, P_no=P_no, P_no_ci=P_no_ci, P_numerical=P_numerical,
+                            runtime=inference_time, P_numerical_n_iters=P_numerical_n_iters)
 
 
 def model_train(model, optimizer, scheduler, device, training_dataloader, predict_and_loss,
@@ -351,17 +344,12 @@ def run_active_training(dataset_config: DatasetConfig, model_config: ModelConfig
         while len(samples) < dataset_config.n_sample:
             Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
                                    size=(dataset_config.n_state,))
-            # U, Z, P_no, P_no_ci = simulation(dataset_config, Z0, 'no', model, mapie_regressors=mapie_regressors,
-            #                                  img_save_path='./misc/test1', uncertainty_out=True)
-            # U, Z, P_no, P_no_ci = simulation(dataset_config, Z0, 'numerical_no', model,
-            #                                  mapie_regressors=mapie_regressors,
-            #                                  img_save_path='./misc/test2', uncertainty_out=True)
-            U, Z, P_no, P_no_ci = simulation(dataset_config, Z0, 'switching', model,
-                                             mapie_regressors=mapie_regressors,
-                                             img_save_path='./misc/test3', uncertainty_out=True)
-            predictions = shift(P_no, dataset_config.n_point_delay)
-            conf_intervals = shift(P_no_ci, dataset_config.n_point_delay)
-            true_values = Z[dataset_config.n_point_delay:]
+            result = simulation(dataset_config, Z0, 'switching', model,
+                                mapie_regressors=mapie_regressors,
+                                img_save_path='./misc/test3', uncertainty_out=True)
+            predictions = shift(result.P_no, dataset_config.n_point_delay)
+            conf_intervals = shift(result.P_no_ci, dataset_config.n_point_delay)
+            true_values = result.Z[dataset_config.n_point_delay:]
             conf_intervals.sort(axis=-1)
             out_of_interval = (true_values < conf_intervals[:, :, 0]) | (true_values > conf_intervals[:, :, 1])
             out_of_interval_indices = np.where(out_of_interval.all(axis=1))[0]
@@ -370,7 +358,7 @@ def run_active_training(dataset_config: DatasetConfig, model_config: ModelConfig
                 if t_i not in out_of_interval_indices:
                     continue
 
-                u = U[t_i: t_i + dataset_config.n_point_delay]
+                u = result.U[t_i: t_i + dataset_config.n_point_delay]
                 P = dynamic_systems.solve_integral_successive(
                     Z_t=z, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state, dt=dataset_config.dt,
                     U_D=u, f=dataset_config.system.dynamic,
@@ -442,15 +430,14 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
 
         Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
                                size=(dataset_config.n_state,))
-        U, Z, P_no = simulation(dataset_config, Z0, 'scheduled_sampling', model,
-                                img_save_path=img_save_path)
-        predictions = shift(P_no, dataset_config.n_point_delay)
-        true_values = Z[dataset_config.n_point_delay:]
+        result = simulation(dataset_config, Z0, 'scheduled_sampling', model, img_save_path=img_save_path)
+        predictions = shift(result.P_no, dataset_config.n_point_delay)
+        true_values = result.Z[dataset_config.n_point_delay:]
 
         predictions_array = np.array(predictions)
         true_values_array = np.array(true_values)
         timestamps_array = np.array(dataset_config.ts[dataset_config.n_point_delay:])
-        U_array = np.array([U[t_i: t_i + dataset_config.n_point_delay] for t_i in range(len(timestamps_array))])
+        U_array = np.array([result.U[t_i: t_i + dataset_config.n_point_delay] for t_i in range(len(timestamps_array))])
 
         if np.isnan(predictions_array).any() or np.isnan(true_values_array).any() or np.isnan(
                 timestamps_array).any() or np.isnan(U_array).any() or np.isinf(predictions_array).any() or np.isinf(
@@ -510,30 +497,45 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
     rl2_list = []
     l2_list = []
     runtime_list = []
+    n_iter_list = []
     for test_point in bar:
         if not silence:
             bar.set_description(f'Solving system with initial point {np.round(test_point, decimals=2)}.')
 
         img_save_path = f'{base_path}/{np.round(test_point, decimals=2)}'
         check_dir(img_save_path)
-        U, Z, P, runtime = simulation(dataset_config=dataset_config, model=m, Z0=test_point, method=method,
-                                      img_save_path=img_save_path, time_out=True)
+        result = simulation(dataset_config=dataset_config, model=m, Z0=test_point, method=method,
+                            img_save_path=img_save_path)
         plt.close()
         n_point_delay = dataset_config.n_point_delay
-        rl2, l2 = metric(P[n_point_delay:-n_point_delay], Z[2 * n_point_delay:])
+        if method == 'no':
+            P = result.P_no
+        elif method == 'numerical':
+            P = result.P_numerical
+        elif method == 'numerical_no':
+            P = result.P_no
+        else:
+            raise NotImplementedError()
+        rl2, l2 = metric(P[n_point_delay:-n_point_delay], result.Z[2 * n_point_delay:])
 
         if np.isinf(rl2) or np.isnan(rl2):
             if not silence:
                 print(f'[WARNING] Running with initial condition Z = {test_point} with method [{method}] failed.')
             continue
-        np.savetxt(f'{img_save_path}/metric.txt', np.array([rl2, l2, runtime]))
+        np.savetxt(f'{img_save_path}/metric.txt', np.array([rl2, l2, result.runtime]))
         rl2_list.append(rl2)
         l2_list.append(l2)
-        runtime_list.append(runtime)
+        runtime_list.append(result.runtime)
+        n_iter_list.append(result.P_numerical_n_iters)
     rl2 = np.nanmean(rl2_list).item()
     l2 = np.nanmean(l2_list).item()
     runtime = np.nanmean(runtime_list).item()
-    np.savetxt(f'{base_path}/metric.txt', np.array([rl2, l2, runtime]))
+    to_save = [rl2, l2, runtime]
+    if method == 'numerical':
+        n_iter = np.concatenate(n_iter_list).mean()
+        to_save.append(n_iter)
+        print(f'Numerical method uses {n_iter} iterations on average.')
+    np.savetxt(f'{base_path}/metric.txt', np.array(to_save))
     if plot or base_path is not None:
         def plot_result(data, label, title, xlabel, path):
             fig = plt.figure(figsize=set_size())
@@ -638,14 +640,14 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, initial_conditions:
         img_save_path = f'{dataset_config.dataset_base_path}/example/{str(i)}'
         check_dir(img_save_path)
         if dataset_config.z_u_p_pair:
-            U, Z, P = simulation(method='numerical', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
+            result = simulation(method='numerical', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
             dataset = ZUPDataset(
-                torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
-                torch.tensor(P, dtype=torch.float32), dataset_config.n_point_delay, dataset_config.dt)
+                torch.tensor(result.Z, dtype=torch.float32), torch.tensor(result.U, dtype=torch.float32),
+                torch.tensor(result.P_numerical, dtype=torch.float32), dataset_config.n_point_delay, dataset_config.dt)
         else:
-            U, Z, _ = simulation(method='explicit', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
+            result = simulation(method='explicit', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
             dataset = ZUZDataset(
-                torch.tensor(Z, dtype=torch.float32), torch.tensor(U, dtype=torch.float32),
+                torch.tensor(result.Z, dtype=torch.float32), torch.tensor(result.U, dtype=torch.float32),
                 dataset_config.n_point_delay, dataset_config.dt)
         dataset = list(dataset)
         random.shuffle(dataset)

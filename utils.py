@@ -2,6 +2,7 @@ import datetime
 import os
 import random
 import time
+from dataclasses import dataclass
 
 import numpy as np
 import torch
@@ -18,6 +19,24 @@ colors = ['red', 'green', 'blue', 'yellow', 'black', 'cyan', 'magenta', 'white',
           'lightgreen', 'purple', 'brown', 'teal', 'olive', 'navy', 'lime', 'coral', 'salmon', 'aqua', 'wheat']
 legend_loc = 'upper right'
 legend_fontsize = 8
+
+
+@dataclass
+class SimulationResult:
+    U: np.ndarray = None
+    Z: np.ndarray = None
+    P_explicit: np.ndarray = None
+    P_no: np.ndarray = None
+    P_no_ci: np.ndarray = None
+    P_numerical: np.ndarray = None
+    runtime: float = None
+    P_numerical_n_iters: np.ndarray = None
+
+
+@dataclass
+class IntegralSolution:
+    solution: np.ndarray = None
+    n_iter: int = None
 
 
 def print_args(args):
