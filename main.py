@@ -204,7 +204,8 @@ def model_train(model, optimizer, scheduler, device, training_dataloader, predic
                 Z_t=np.array(adversarial_inputs[:, 1:1 + n_state].detach().cpu().numpy()),
                 U_D=np.array(adversarial_inputs[:, 1 + n_state:].detach().cpu().numpy()),
                 dt=dataset_config.dt, n_state=dataset_config.system.n_state, n_points=dataset_config.n_point_delay,
-                f=dataset_config.system.dynamic, n_iterations=dataset_config.successive_approximation_n_iteration)
+                f=dataset_config.system.dynamic, n_iterations=dataset_config.successive_approximation_n_iteration,
+                adaptive=False)
             adversarial_labels = torch.from_numpy(adversarial_labels)
             outputs, loss = predict_and_loss(adversarial_inputs.to(device, dtype=torch.float32),
                                              adversarial_labels.to(device, dtype=torch.float32), model)
@@ -373,7 +374,7 @@ def run_active_training(dataset_config: DatasetConfig, model_config: ModelConfig
                 P = dynamic_systems.solve_integral_successive(
                     Z_t=z, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state, dt=dataset_config.dt,
                     U_D=u, f=dataset_config.system.dynamic,
-                    n_iterations=dataset_config.successive_approximation_n_iteration)
+                    n_iterations=dataset_config.successive_approximation_n_iteration, adaptive=False)
                 samples.append((torch.from_numpy(np.concatenate([t.reshape(-1), z, u])), torch.from_numpy(P)))
             print(f'{len(samples)}/{dataset_config.n_sample}')
         print(f'Incremental training use {len(samples)} samples')
@@ -456,11 +457,10 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
             true_values_array).any() or np.isinf(timestamps_array).any() or np.isinf(U_array).any():
             training_loss_arr.append(0)
             continue
-        P_batched = dynamic_systems.solve_integral_successive_batched(
+        P_batched, n_iter = dynamic_systems.solve_integral_successive_batched(
             Z_t=true_values_array, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state,
-            dt=dataset_config.dt,
-            U_D=U_array, f=dataset_config.system.dynamic,
-            n_iterations=dataset_config.successive_approximation_n_iteration)
+            dt=dataset_config.dt, U_D=U_array, f=dataset_config.system.dynamic,
+            threshold=dataset_config.successive_approximation_threshold, adaptive=True)
 
         samples = []
         for t_i, (p, z, t) in enumerate(zip(predictions_array, true_values_array, timestamps_array)):

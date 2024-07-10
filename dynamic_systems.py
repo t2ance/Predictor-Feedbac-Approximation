@@ -373,7 +373,11 @@ def solve_integral(Z_t, P_D, U_D, t: float, dataset_config):
         return solve_integral_eular(Z_t=Z_t, n_points=n_points, n_state=n_state, dt=dt, U_D=U_D, f=f)
     elif dataset_config.integral_method == 'successive':
         return solve_integral_successive(Z_t=Z_t, n_points=n_points, n_state=n_state, dt=dt, U_D=U_D, f=f,
-                                         n_iterations=dataset_config.successive_approximation_n_iteration)
+                                         n_iterations=dataset_config.successive_approximation_n_iteration,
+                                         adaptive=False)
+    elif dataset_config.integral_method == 'successive adaptive':
+        return solve_integral_successive(Z_t=Z_t, n_points=n_points, n_state=n_state, dt=dt, U_D=U_D, f=f,
+                                         threshold=dataset_config.successive_approximation_threshold, adaptive=True)
     else:
         raise NotImplementedError()
 
@@ -391,38 +395,84 @@ def solve_integral_eular(Z_t, n_points: int, n_state: int, dt: float, U_D: np.nd
     return P_D[-1]
 
 
-def solve_integral_successive(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f, n_iterations: int):
+def solve_integral_successive(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f, n_iterations: int = 1,
+                              threshold: float = 1e-5, adaptive: bool = False):
     assert n_iterations >= 0
     assert isinstance(Z_t, np.ndarray)
-    P_D = np.zeros((n_iterations + 1, n_points + 1, n_state))
-    P_D[0, :, :] = Z_t
-    P_D[-1, :, :] = Z_t
-    for n in range(n_iterations):
-        for j in range(n_points):
-            if j == 0:
-                P_D[n + 1, j + 1, :] = Z_t + dt * f(P_D[n, 0, :], 0 * dt, U_D[0])
-            else:
-                P_D[n + 1, j + 1, :] = P_D[n + 1, j, :] + dt * f(P_D[n, j, :], j * dt, U_D[j])
-    return P_D[-1, -1, :]
+    if adaptive:
+        P_D = np.zeros((2, n_points + 1, n_state))
+        P_D[0, :, :] = Z_t
+        P_D[1, :, :] = Z_t
+
+        n_iterations = 0
+        while True:
+            n_iterations += 1
+            for j in range(n_points):
+                if j == 0:
+                    P_D[1, j + 1, :] = Z_t + dt * f(P_D[0, 0, :], 0 * dt, U_D[0])
+                else:
+                    P_D[1, j + 1, :] = P_D[1, j, :] + dt * f(P_D[0, j, :], j * dt, U_D[j])
+
+            # Check for convergence
+            if np.all(np.abs(P_D[1] - P_D[0]) < threshold):
+                break
+
+            # Update P_D for the next iteration
+            P_D[0, :, :] = P_D[1, :, :]
+
+        return P_D[1, -1, :], n_iterations
+    else:
+        P_D = np.zeros((n_iterations + 1, n_points + 1, n_state))
+        P_D[0, :, :] = Z_t
+        P_D[-1, :, :] = Z_t
+        for n in range(n_iterations):
+            for j in range(n_points):
+                if j == 0:
+                    P_D[n + 1, j + 1, :] = Z_t + dt * f(P_D[n, 0, :], 0 * dt, U_D[0])
+                else:
+                    P_D[n + 1, j + 1, :] = P_D[n + 1, j, :] + dt * f(P_D[n, j, :], j * dt, U_D[j])
+        return P_D[-1, -1, :]
 
 
 def solve_integral_successive_batched(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f,
-                                      n_iterations: int):
+                                      n_iterations: int = 1, threshold: float = 1e-5, adaptive: bool = False):
     assert n_iterations >= 0
     assert isinstance(Z_t, np.ndarray)
     batch_size = Z_t.shape[0]
 
-    P_D = np.zeros((n_iterations + 1, batch_size, n_points + 1, n_state))
-    P_D[0, :, :, :] = Z_t[:, np.newaxis, :]
+    if adaptive:
+        P_D = np.zeros((2, batch_size, n_points + 1, n_state))
+        P_D[0, :, :, :] = Z_t[:, np.newaxis, :]
 
-    for n in range(n_iterations):
-        for j in range(n_points):
-            if j == 0:
-                P_D[n + 1, :, j + 1, :] = Z_t + dt * f(P_D[n, :, 0, :], 0 * dt, U_D[:, 0])
-            else:
-                P_D[n + 1, :, j + 1, :] = P_D[n + 1, :, j, :] + dt * f(P_D[n, :, j, :], j * dt, U_D[:, j])
+        n_iterations = 0
+        while True:
+            n_iterations += 1
+            for j in range(n_points):
+                if j == 0:
+                    P_D[1, :, j + 1, :] = Z_t + dt * f(P_D[0, :, 0, :], 0 * dt, U_D[:, 0])
+                else:
+                    P_D[1, :, j + 1, :] = P_D[1, :, j, :] + dt * f(P_D[0, :, j, :], j * dt, U_D[:, j])
 
-    return P_D[-1, :, -1, :]
+            # Check for convergence
+            if np.all(np.abs(P_D[1] - P_D[0]) < threshold):
+                break
+
+            # Update P_D for the next iteration
+            P_D[0, :, :, :] = P_D[1, :, :, :]
+
+        return P_D[1, :, -1, :], n_iterations
+    else:
+        P_D = np.zeros((n_iterations + 1, batch_size, n_points + 1, n_state))
+        P_D[0, :, :, :] = Z_t[:, np.newaxis, :]
+
+        for n in range(n_iterations):
+            for j in range(n_points):
+                if j == 0:
+                    P_D[n + 1, :, j + 1, :] = Z_t + dt * f(P_D[n, :, 0, :], 0 * dt, U_D[:, 0])
+                else:
+                    P_D[n + 1, :, j + 1, :] = P_D[n + 1, :, j, :] + dt * f(P_D[n, :, j, :], j * dt, U_D[:, j])
+
+        return P_D[-1, :, -1, :]
 
 
 def solve_integral_rectangle(f, Z_t, P_D, U_D, ts, dt: float):
