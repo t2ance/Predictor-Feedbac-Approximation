@@ -946,7 +946,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', type=str, default='s5')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
-    parser.add_argument('-training_type', type=float, default='offline')
+    parser.add_argument('-training_type', type=str, default='offline')
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n, args.delay)
     assert torch.cuda.is_available()
