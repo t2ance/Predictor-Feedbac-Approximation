@@ -531,7 +531,8 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
             if not silence:
                 print(f'[WARNING] Running with initial condition Z = {test_point} with method [{method}] failed.')
             continue
-        np.savetxt(f'{img_save_path}/metric.txt', np.array([rl2, l2, result.runtime, test_point]))
+        np.savetxt(f'{img_save_path}/metric.txt', np.array([rl2, l2, result.runtime]))
+        np.savetxt(f'{img_save_path}/test_point.txt', test_point)
         rl2_list.append(rl2)
         l2_list.append(l2)
         runtime_list.append(result.runtime)
