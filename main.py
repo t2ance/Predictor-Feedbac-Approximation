@@ -954,9 +954,11 @@ if __name__ == '__main__':
     if args.training_type == 'offline':
         train_config.lr_scheduler_type = 'exponential'
         train_config.n_epoch = 300
-    else:
+    elif args.training_type == 'scheduled sampling':
         train_config.lr_scheduler_type = 'none'
         train_config.n_epoch = 2000
+    else:
+        raise NotImplementedError()
     print_args(dataset_config)
     print_args(model_config)
     print_args(train_config)
