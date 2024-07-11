@@ -11,6 +11,7 @@ import wandb
 from scipy.integrate import odeint
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
+import uuid
 
 import config
 import dynamic_systems
@@ -508,9 +509,9 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
     n_iter_list = []
     for test_point in bar:
         if not silence:
-            bar.set_description(f'Solving system with initial point {np.round(test_point, decimals=2)}.')
+            bar.set_description(f'Solving system with initial point {np.round(test_point, decimals=3)}.')
 
-        img_save_path = f'{base_path}/{np.round(test_point, decimals=2)}'
+        img_save_path = f'{base_path}/{uuid.uuid4()}'
         check_dir(img_save_path)
         result = simulation(dataset_config=dataset_config, model=m, Z0=test_point, method=method,
                             img_save_path=img_save_path)
@@ -530,7 +531,7 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
             if not silence:
                 print(f'[WARNING] Running with initial condition Z = {test_point} with method [{method}] failed.')
             continue
-        np.savetxt(f'{img_save_path}/metric.txt', np.array([rl2, l2, result.runtime]))
+        np.savetxt(f'{img_save_path}/metric.txt', np.array([rl2, l2, result.runtime, test_point]))
         rl2_list.append(rl2)
         l2_list.append(l2)
         runtime_list.append(result.runtime)
