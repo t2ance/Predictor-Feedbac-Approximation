@@ -951,6 +951,7 @@ if __name__ == '__main__':
     assert torch.cuda.is_available()
     train_config.training_type = 'offline'
     train_config.lr_scheduler_type = 'exponential'
+    train_config.n_epoch = 300
     # train_config.training_type = 'scheduled sampling'
     print_args(dataset_config)
     print_args(model_config)
