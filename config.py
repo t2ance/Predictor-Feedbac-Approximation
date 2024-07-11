@@ -96,7 +96,7 @@ class DatasetConfig:
         default='successive')
 
     successive_approximation_n_iteration: Optional[int] = field(default=1)
-    successive_approximation_threshold: Optional[float] = field(default=1e-5)
+    successive_approximation_threshold: Optional[float] = field(default=1e-7)
 
     ic_lower_bound: Optional[float] = field(default=-2)
     ic_upper_bound: Optional[float] = field(default=2)
@@ -188,7 +188,8 @@ class DatasetConfig:
             bound = 0.2
             if self.random_test:
                 if self.random_test_points is None:
-                    self.random_test_points = [tuple((np.random.random(14) * bound).tolist()) for _ in range(10)]
+                    self.random_test_points = [tuple((np.random.uniform(-1, 1, 14) * bound).tolist()) for _ in
+                                               range(10)]
                 return self.random_test_points
             return list(itertools.product(
                 np.linspace(-bound, bound, 6),
@@ -322,8 +323,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                        # integral_method='successive',
                                        # successive_approximation_n_iteration=5
                                        )
-        model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64)
-        train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=3000, batch_size=64,
+        model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=16, fno_hidden_channels=32)
+        train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=2000, batch_size=64,
                                    weight_decay=1e-4, log_step=-1, lr_scheduler_type='none', alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2)

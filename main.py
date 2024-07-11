@@ -949,10 +949,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n)
     assert torch.cuda.is_available()
-    train_config.training_type = 'offline'
-    train_config.lr_scheduler_type = 'exponential'
-    train_config.n_epoch = 300
-    # train_config.training_type = 'scheduled sampling'
+    # train_config.training_type = 'offline'
+    # train_config.lr_scheduler_type = 'exponential'
+    # train_config.n_epoch = 300
+    train_config.training_type = 'scheduled sampling'
     print_args(dataset_config)
     print_args(model_config)
     print_args(train_config)
