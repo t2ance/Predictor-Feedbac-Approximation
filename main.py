@@ -304,7 +304,10 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
                 adversarial_loss_arr.append(adversarial_loss_t)
                 desc += f' || Adversarial loss: {adversarial_loss_t:.6f}'
             bar.set_description(desc)
-
+            wandb.log({
+                'training loss': training_loss_t,
+                'validation loss': validating_loss_t,
+            }, step=epoch)
             if (train_config.log_step > 0 and epoch % train_config.log_step == 0) or epoch == n_epoch - 1:
                 rl2, l2, _, n_success = run_test(
                     model, dataset_config, method='no', base_path=model_config.base_path, silence=True)
