@@ -33,7 +33,6 @@ class SimulationResult:
     P_numerical_n_iters: np.ndarray = None
 
 
-
 def print_args(args):
     print('=' * 100)
     print(args.__class__.__name__)
@@ -414,9 +413,8 @@ def plot_difference(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, 
     if n_state < 5:
         plt.legend(loc=legend_loc, fontsize=legend_fontsize)
     else:
-        plt.legend(handles=[plt.Line2D([0], [0], color='black', linestyle='--'),
-                            plt.Line2D([0], [0], color='black', linestyle='-')],
-                   labels=[f'$P^{{no}}(t-{delay})$', f'$Z(t)$'],
+        plt.legend(handles=[plt.Line2D([0], [0], color='black', linestyle='-')],
+                   labels=[f'$\Delta P^{{no}}(t-{delay})$'],
                    loc='best')
     if save_path is not None:
         plt.savefig(save_path)
