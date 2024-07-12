@@ -336,7 +336,7 @@ def shift(p, n_point_delay):
 
 def plot_uncertainty(ts, P, P_ci, Z, delay, n_point_delay, save_path, n_state: int, ylim=None):
     fig = plt.figure(figsize=set_size())
-    plt.title('Uncertainty')
+    # plt.title('Uncertainty')
 
     for state in range(n_state):
         plt.plot(ts[n_point_delay:], shift(P, n_point_delay)[:, state], linestyle='--', color=colors[state],
@@ -361,7 +361,7 @@ def plot_uncertainty(ts, P, P_ci, Z, delay, n_point_delay, save_path, n_state: i
 def plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, save_path, n_state: int, ylim=None):
     fig = plt.figure(figsize=set_size())
 
-    plt.title('Comparison')
+    # plt.title('Comparison')
 
     for t_i in range(n_state):
         if P_numerical is not None:
@@ -394,7 +394,7 @@ def plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, 
 
 def plot_difference(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, save_path, n_state: int, ylim=None):
     fig = plt.figure(figsize=set_size())
-    plt.title('Difference')
+    # plt.title('Difference')
 
     if P_no is not None:
         difference = shift(P_no, n_point_delay) - Z[n_point_delay:]
