@@ -310,10 +310,11 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
                 'validation loss': validating_loss_t,
             }, step=epoch)
             if (train_config.log_step > 0 and epoch % train_config.log_step == 0) or epoch == n_epoch - 1:
-                rl2, l2, _, n_success = run_test(
-                    model, dataset_config, method='no', base_path=model_config.base_path, silence=True)
-                rl2_list.append(rl2)
-                l2_list.append(l2)
+                # rl2, l2, _, n_success = run_test(
+                #     model, dataset_config, method='no', base_path=model_config.base_path, silence=True)
+                # rl2_list.append(rl2)
+                # l2_list.append(l2)
+                ...
         draw()
         torch.save(model.state_dict(), f'{train_config.model_save_path}/{model_config.model_name}.pth')
     print('Finished Training')
