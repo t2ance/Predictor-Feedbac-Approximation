@@ -961,7 +961,9 @@ if __name__ == '__main__':
     train_config.training_type = args.training_type
     if args.training_type == 'offline':
         train_config.lr_scheduler_type = 'exponential'
-        train_config.n_epoch = 300
+        # train_config.n_epoch = 300
+        train_config.n_epoch = 1
+        dataset_config.n_dataset = 1
     elif args.training_type == 'scheduled sampling':
         train_config.lr_scheduler_type = 'none'
         train_config.n_epoch = 2000
