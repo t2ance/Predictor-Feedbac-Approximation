@@ -502,16 +502,18 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
     base_path = f'{base_path}/{method}'
     if test_points is None:
         test_points = dataset_config.test_points
+        test_points = [(tp, uuid.uuid4()) for tp in test_points]
+
     bar = test_points if silence else tqdm(test_points)
     rl2_list = []
     l2_list = []
     runtime_list = []
     n_iter_list = []
-    for test_point in bar:
+    for test_point, name in bar:
         if not silence:
             bar.set_description(f'Solving system with initial point {np.round(test_point, decimals=3)}.')
 
-        img_save_path = f'{base_path}/{uuid.uuid4()}'
+        img_save_path = f'{base_path}/{name}'
         check_dir(img_save_path)
         result = simulation(dataset_config=dataset_config, model=m, Z0=test_point, method=method,
                             img_save_path=img_save_path)
