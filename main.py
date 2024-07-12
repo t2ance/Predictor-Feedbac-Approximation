@@ -502,7 +502,6 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
     base_path = f'{base_path}/{method}'
     if test_points is None:
         test_points = dataset_config.test_points
-        test_points = [(tp, uuid.uuid4()) for tp in test_points]
 
     bar = test_points if silence else tqdm(test_points)
     rl2_list = []
@@ -932,10 +931,14 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
                                       train_config=train_config)
     else:
         raise NotImplementedError()
+    test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
     return (
-        run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='no'),
-        run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='numerical'),
-        run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='numerical_no')
+        run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
+                 method='no'),
+        run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
+                 method='numerical'),
+        run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
+                 method='numerical_no')
     )
 
 
