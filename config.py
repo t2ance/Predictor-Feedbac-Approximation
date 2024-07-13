@@ -185,7 +185,7 @@ class DatasetConfig:
                 np.linspace(-1, 1, 6),
             )]
         elif self.system_ == 's5':
-            bound = 0.2
+            bound = 0.5
             if self.random_test:
                 if self.random_test_points is None:
                     self.random_test_points = [tuple((np.random.uniform(-1, 1, 14) * bound).tolist()) for _ in

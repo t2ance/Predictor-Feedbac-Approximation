@@ -365,13 +365,13 @@ def plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, 
     for t_i in range(n_state):
         if P_numerical is not None:
             plt.plot(ts[n_point_delay:], shift(P_numerical, n_point_delay)[:, t_i], linestyle=':', color=colors[t_i],
-                     label=f'$P^{{numerical}}_{t_i + 1}(t-{delay})$')
+                     label=f'$P_{t_i + 1}(t-{delay})$')
         if P_no is not None:
             plt.plot(ts[n_point_delay:], shift(P_no, n_point_delay)[:, t_i], linestyle='--', color=colors[t_i],
-                     label=f'$P^{{no}}_{t_i + 1}(t-{delay})$')
+                     label=f'$P_{t_i + 1}(t-{delay})$')
         if P_explicit is not None:
             plt.plot(ts[n_point_delay:], shift(P_explicit, n_point_delay)[:, t_i], linestyle='-.', color=colors[t_i],
-                     label=f'$P^{{explicit}}_{t_i + 1}(t-{delay})$')
+                     label=f'$P_{t_i + 1}(t-{delay})$')
         plt.plot(ts[n_point_delay:], Z[n_point_delay:, t_i], label=f'$Z_{t_i + 1}(t)$', color=colors[t_i])
     plt.xlabel('Time t')
     if ylim is not None:
@@ -381,7 +381,7 @@ def plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, 
     else:
         plt.legend(handles=[plt.Line2D([0], [0], color='black', linestyle='--'),
                             plt.Line2D([0], [0], color='black', linestyle='-')],
-                   labels=[f'$P^{{no}}(t-{delay})$', f'$Z(t)$'],
+                   labels=[f'$P(t-{delay})$', f'$Z(t)$'],
                    loc='best')
     if save_path is not None:
         plt.savefig(save_path)
@@ -398,15 +398,18 @@ def plot_difference(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, 
     if P_no is not None:
         difference = shift(P_no, n_point_delay) - Z[n_point_delay:]
         for i in range(n_state):
-            plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{no}}_{i + 1}$')
+            plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P_{i + 1}$')
+            # plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{no}}_{i + 1}$')
     if P_numerical is not None:
         difference = shift(P_numerical, n_point_delay) - Z[n_point_delay:]
         for i in range(n_state):
-            plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{numerical}}_{i + 1}$')
+            plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P_{i + 1}$')
+            # plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{numerical}}_{i + 1}$')
     if P_explicit is not None:
         difference = shift(P_explicit, n_point_delay) - Z[n_point_delay:]
         for i in range(n_state):
-            plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{explicit}}_{i + 1}$')
+            plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P_{i + 1}$')
+            # plt.plot(ts[n_point_delay:], difference[:, i], label=f'$\Delta P^{{explicit}}_{i + 1}$')
     plt.xlabel('Time t')
     if ylim is not None:
         plt.ylim(ylim)
@@ -414,7 +417,7 @@ def plot_difference(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, 
         plt.legend(loc=legend_loc, fontsize=legend_fontsize)
     else:
         plt.legend(handles=[plt.Line2D([0], [0], color='black', linestyle='-')],
-                   labels=[f'$\Delta P^{{no}}(t-{delay})$'],
+                   labels=[f'$\Delta P(t-{delay})$'],
                    loc='best')
     if save_path is not None:
         plt.savefig(save_path)
