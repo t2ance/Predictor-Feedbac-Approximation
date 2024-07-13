@@ -318,7 +318,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
     elif system_ == 's5':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
                                        delay=.5, duration=32, dt=0.01, n_dataset=25, n_sample_per_dataset=-1,
-                                       n_plot_sample=20, ic_lower_bound=-0.2, ic_upper_bound=0.2,
+                                       n_plot_sample=20, ic_lower_bound=-0.5, ic_upper_bound=0.5,
                                        integral_method='successive adaptive'
                                        )
         model_config = ModelConfig(model_name='FNO', n_layer=3, fno_n_modes_height=16, fno_hidden_channels=16)
