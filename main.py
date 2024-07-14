@@ -326,6 +326,7 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
                 timestamps_array).any() or np.isnan(U_array).any() or np.isinf(predictions_array).any() or np.isinf(
             true_values_array).any() or np.isinf(timestamps_array).any() or np.isinf(U_array).any():
             training_loss_arr.append(0)
+            print(f'Abnormal value encountered at epoch {epoch}')
             continue
         if dataset_config.integral_method == 'successive':
             P_batched = dynamic_systems.solve_integral_successive_batched(
@@ -850,7 +851,7 @@ if __name__ == '__main__':
         # train_config.load_model = True
     elif args.training_type == 'scheduled sampling':
         train_config.lr_scheduler_type = 'none'
-        train_config.learning_rate = 5e-5
+        train_config.learning_rate = 1e-4
         train_config.n_epoch = 2000
     else:
         raise NotImplementedError()
