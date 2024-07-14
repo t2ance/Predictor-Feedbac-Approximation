@@ -28,7 +28,8 @@ class ModelConfig:
 @dataclass
 class TrainConfig:
     debug: Optional[bool] = field(default=False)
-    do_test: Optional[bool] = field(default=False)
+    do_testing: Optional[bool] = field(default=False)
+    do_training: Optional[bool] = field(default=False)
 
     batch_size: Optional[int] = field(default=64)
     learning_rate: Optional[float] = field(default=1e-4)
@@ -188,8 +189,8 @@ class DatasetConfig:
             bound = 0.5
             if self.random_test:
                 if self.random_test_points is None:
-                    self.random_test_points = [tuple((np.random.uniform(-1, 1, 14) * bound).tolist()) for _ in
-                                               range(10)]
+                    # self.random_test_points = [tuple((np.random.uniform(-1, 1, 14) * bound).tolist()) for _ in range(10)]
+                    self.random_test_points = [tuple([1] * 14)]
                 return self.random_test_points
             return list(itertools.product(
                 np.linspace(-bound, bound, 6),
@@ -282,17 +283,17 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                        duration=8, dt=0.02, n_dataset=250, n_sample_per_dataset=-1, n_plot_sample=20,
                                        system_n=2, system_c=1, ic_lower_bound=-2, ic_upper_bound=2,
                                        successive_approximation_n_iteration=3)
-        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=250, batch_size=64,
+        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=250, batch_size=128,
                                    weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5, debug=False,
-                                   do_test=False, load_model=False)
+                                   do_testing=False, load_model=False)
         model_config = ModelConfig(model_name='FFN', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=32)
     elif system_ == 's2':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=1,
                                        duration=8, dt=0.05, n_dataset=100, n_sample_per_dataset=-1, n_plot_sample=20,
                                        ic_lower_bound=-1, ic_upper_bound=1, successive_approximation_n_iteration=5)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=2000, batch_size=64,
-                                   weight_decay=1e-3, log_step=-1, do_test=False, scheduled_sampling_warm_start=500,
+                                   weight_decay=1e-3, log_step=-1, do_testing=False, scheduled_sampling_warm_start=500,
                                    scheduled_sampling_type='linear', scheduled_sampling_k=1e-2)
         model_config = ModelConfig(model_name='FFN', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64,
                                    ffn_layer_width=8)
@@ -302,7 +303,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                        n_plot_sample=20, ic_lower_bound=-1, ic_upper_bound=1,
                                        successive_approximation_n_iteration=5)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=2000, batch_size=64,
-                                   weight_decay=1e-3, log_step=-1, do_test=False, scheduled_sampling_warm_start=500,
+                                   weight_decay=1e-3, log_step=-1, do_testing=False, scheduled_sampling_warm_start=500,
                                    scheduled_sampling_type='linear', scheduled_sampling_k=1e-2)
         model_config = ModelConfig(n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64,
                                    ffn_layer_width=8)
@@ -313,14 +314,13 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
         model_config = ModelConfig(model_name='FFN', n_layer=4, fno_n_modes_height=8, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=1000, batch_size=64,
                                    weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential', alpha=0.01,
-                                   load_model=False, do_test=False, scheduled_sampling_type='inverse sigmoid',
+                                   load_model=False, do_testing=False, scheduled_sampling_type='inverse sigmoid',
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's5':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
                                        delay=.5, duration=32, dt=0.01, n_dataset=25, n_sample_per_dataset=-1,
                                        n_plot_sample=20, ic_lower_bound=-0.5, ic_upper_bound=0.5,
-                                       integral_method='successive adaptive'
-                                       )
+                                       integral_method='successive adaptive')
         model_config = ModelConfig(model_name='FNO', n_layer=3, fno_n_modes_height=16, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=2000, batch_size=128,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='none', alpha=0.01,

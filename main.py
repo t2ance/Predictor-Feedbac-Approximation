@@ -2,6 +2,7 @@ import argparse
 import os
 import random
 import time
+import uuid
 from typing import Literal, Tuple, List
 
 import matplotlib.pyplot as plt
@@ -11,56 +12,43 @@ import wandb
 from scipy.integrate import odeint
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
-import uuid
 
 import config
 import dynamic_systems
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import solve_integral_eular, solve_integral_nn, solve_integral_ci_nn
-from model import FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet, MapieRegressors, QuantileRegressionModel
-from utils import set_size, pad_leading_zeros, plot_comparison, plot_difference, \
-    metric, check_dir, plot_sample, predict_and_loss, load_lr_scheduler, prepare_datasets, draw_distribution, \
-    set_seed, plot_single, print_result, postprocess, load_model, load_optimizer, plot_uncertainty, shift, \
-    split_dataset, quantile_predict_and_loss, print_args, get_time_str, SimulationResult
+from model import FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
+from utils import set_size, pad_leading_zeros, metric, check_dir, plot_sample, predict_and_loss, load_lr_scheduler, \
+    prepare_datasets, draw_distribution, set_seed, print_result, postprocess, load_model, load_optimizer, shift, \
+    print_args, get_time_str, SimulationResult, plot_result
 
 
 def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
                method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling'] = None,
-               model=None, mapie_regressors=None, img_save_path: str = None):
+               model=None, img_save_path: str = None):
     system: dynamic_systems.DynamicSystem = dataset_config.system
     n_point_delay = dataset_config.n_point_delay
-    n_state = dataset_config.n_state
     ts = dataset_config.ts
     Z0 = np.array(Z0)
     n_point = dataset_config.n_point
+    alpha = train_config.alpha
     U = np.zeros((n_point, system.n_input))
     Z = np.zeros((n_point, system.n_state))
+    P_numerical_n_iters = np.zeros(n_point)
+    switching_indicator = np.zeros(n_point)
 
-    if method == 'explicit':
-        P_explicit = np.zeros((n_point, system.n_state))
-    else:
-        P_explicit = None
-    if method == 'numerical' or method == 'numerical_no' or method == 'switching' or method == 'scheduled_sampling':
-        P_numerical = np.zeros((n_point, system.n_state))
-        P_numerical_n_iters = np.zeros(n_point)
-    else:
-        P_numerical = None
-        P_numerical_n_iters = None
+    P_explicit = np.zeros((n_point, system.n_state))
+    P_numerical = np.zeros((n_point, system.n_state))
+    P_no = np.zeros((n_point, system.n_state))
+    P_no_ci = np.zeros((n_point, system.n_state, 2))
+    P_no_Ri = np.zeros((n_point))
+    P_switching = np.zeros((n_point, system.n_state))
 
-    if method == 'no' or method == 'numerical_no' or method == 'switching' or method == 'scheduled_sampling':
-        P_no = np.zeros((n_point, system.n_state))
-        if mapie_regressors is not None:
-            P_no_ci = np.zeros((n_point, system.n_state, 2))
-        else:
-            P_no_ci = None
-    else:
-        P_no = None
-        P_no_ci = None
     p_numerical_count = 0
     p_no_count = 0
     Z[n_point_delay, :] = Z0
-    inference_time = 0.
+    runtime = 0.
     for t_i in range(dataset_config.n_point):
         t_minus_D_i = max(t_i - n_point_delay, 0)
         t = ts[t_i]
@@ -85,7 +73,7 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
                 P_numerical[t_i, :] = solution.solution
                 P_numerical_n_iters[t_i] = solution.n_iter
                 end = time.time()
-                inference_time += end - begin
+                runtime += end - begin
                 if t_i > n_point_delay:
                     U[t_i] = system.kappa(P_numerical[t_i, :])
             elif method == 'no':
@@ -93,9 +81,7 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
                 begin = time.time()
                 P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
                 end = time.time()
-                inference_time += end - begin
-                if mapie_regressors is not None:
-                    P_no_ci[t_i, :, :], _ = solve_integral_ci_nn(mapie_regressors, U_D, Z_t)
+                runtime += end - begin
                 if t_i > n_point_delay:
                     U[t_i] = system.kappa(P_no[t_i, :])
             elif method == 'numerical_no':
@@ -107,25 +93,25 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
 
                 U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
                 P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
-                if mapie_regressors is not None:
-                    P_no_ci[t_i, :, :], _ = solve_integral_ci_nn(mapie_regressors, U_D, Z_t)
                 if t_i > n_point_delay:
                     U[t_i] = system.kappa(P_numerical[t_i, :])
             elif method == 'switching':
-                P_numerical[t_i, :] = dynamic_systems.solve_integral(
-                    Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
-                    dataset_config=dataset_config)
                 U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
                 P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
-                P_no_ci[t_i, :, :], _ = solve_integral_ci_nn(mapie_regressors, U_D, Z_t)
                 if t_i > n_point_delay:
-                    if ((Z_t > P_no_ci[t_i - n_point_delay, :, 0]) & (
-                            Z_t < P_no_ci[t_i - n_point_delay, :, 1])).all():
-                        U[t_i] = system.kappa(P_no[t_i, :])
+                    P_no_Ri[t_i] = np.linalg.norm(P_no[t_i - n_point_delay, :] - Z_t)
+                    Q = np.percentile(P_no_Ri[n_point_delay:t_i + 1], (1 - alpha) * 100)
+                    if P_no_Ri[t_i] < Q:
+                        # switching_indicator[t_i] =
+                        P_switching[t_i, :] = P_no[t_i, :]
                         p_no_count += 1
                     else:
-                        U[t_i] = system.kappa(P_numerical[t_i, :])
+                        P_numerical[t_i, :] = dynamic_systems.solve_integral(
+                            Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
+                            dataset_config=dataset_config).solution
+                        P_switching[t_i, :] = P_numerical[t_i, :]
                         p_numerical_count += 1
+                U[t_i] = system.kappa(P_switching[t_i, :])
             elif method == 'scheduled_sampling':
                 if np.random.binomial(n=1, p=train_config.scheduled_sampling_p) == 1:
                     # Teacher Forcing
@@ -140,29 +126,13 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
                     U[t_i] = system.kappa(P_no[t_i, :])
             else:
                 raise NotImplementedError()
-    ts = dataset_config.ts
-    delay = dataset_config.delay
-    n_point_delay = dataset_config.n_point_delay
 
-    if img_save_path is not None:
-        comparison_full = f'{img_save_path}/comparison_full.png'
-        comparison_zoom = f'{img_save_path}/comparison_zoom.png'
-        difference_full = f'{img_save_path}/difference_full.png'
-        difference_zoom = f'{img_save_path}/difference_zoom.png'
-        uncertainty_zoom = f'{img_save_path}/uncertainty_zoom.png'
-        uncertainty_full = f'{img_save_path}/uncertainty_full.png'
-        u_path = f'{img_save_path}/u.png'
-        plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, comparison_full, n_state)
-        plot_comparison(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, comparison_zoom, n_state, [-5, 5])
-        plot_difference(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, difference_full, n_state)
-        plot_difference(ts, P_no, P_numerical, P_explicit, Z, delay, n_point_delay, difference_zoom, n_state, [-5, 5])
-        plot_single(ts, U, '$U(t)$', u_path)
-        if P_no_ci is not None:
-            plot_uncertainty(ts, P_no, P_no_ci, Z, delay, n_point_delay, uncertainty_full, n_state)
-            plot_uncertainty(ts, P_no, P_no_ci, Z, delay, n_point_delay, uncertainty_zoom, n_state, [-5, 5])
+    plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_switching, Z, U, method)
 
-    return SimulationResult(U=U, Z=Z, P_explicit=P_explicit, P_no=P_no, P_no_ci=P_no_ci, P_numerical=P_numerical,
-                            runtime=inference_time, P_numerical_n_iters=P_numerical_n_iters)
+    return SimulationResult(
+        U=U, Z=Z, P_explicit=P_explicit, P_no=P_no, P_no_ci=P_no_ci, P_numerical=P_numerical, P_switching=P_switching,
+        runtime=runtime, P_numerical_n_iters=P_numerical_n_iters, p_numerical_count=p_numerical_count,
+        p_no_count=p_no_count)
 
 
 def model_train(model, optimizer, scheduler, device, training_dataloader, predict_and_loss,
@@ -236,7 +206,10 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
     optimizer = load_optimizer(model.parameters(), train_config)
     scheduler = load_lr_scheduler(optimizer, train_config)
 
-    training_dataloader, validating_dataloader = load_training_and_validation_datasets(dataset_config, train_config)
+    if not train_config.do_training:
+        training_dataloader, validating_dataloader = None, None
+    else:
+        training_dataloader, validating_dataloader = load_training_and_validation_datasets(dataset_config, train_config)
     testing_dataloader = load_test_datasets(dataset_config, train_config)
     check_dir(model_config.base_path)
     check_dir(train_config.model_save_path)
@@ -319,101 +292,6 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
         draw()
         torch.save(model.state_dict(), f'{train_config.model_save_path}/{model_config.model_name}.pth')
     print('Finished Training')
-    return model
-
-
-def run_active_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
-    device = train_config.device
-    n_epoch = train_config.n_epoch
-    model, model_loaded = load_model(train_config, model_config, dataset_config)
-    optimizer = load_optimizer(model.parameters(), train_config)
-    scheduler = load_lr_scheduler(optimizer, train_config)
-    mapie_regressors = MapieRegressors(model, n_output=dataset_config.n_state, device=device, alpha=train_config.alpha)
-
-    training_dataloader, validating_dataloader = load_training_and_validation_datasets(dataset_config, train_config)
-    bar = tqdm(list(range(train_config.n_epoch)))
-    # train
-    if not model_loaded:
-        print('Start training')
-        for epoch in bar:
-            training_loss_t, _, _ = model_train(model, optimizer, scheduler, device, training_dataloader,
-                                                predict_and_loss)
-            bar.set_description(f'Epoch [{epoch + 1}/{n_epoch}] || Training loss: {training_loss_t:.6f}')
-    # calibrate
-    X, y = zip(*[[batch[0].numpy(), batch[1].numpy()] for batch in validating_dataloader])
-    X, y = np.vstack(X), np.vstack(y)
-    mapie_regressors.fit(X, y)
-    while True:
-        samples = []
-        print('Collecting incremental data')
-        while len(samples) < dataset_config.n_sample:
-            Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
-                                   size=(dataset_config.n_state,))
-            result = simulation(dataset_config, Z0, 'switching', model,
-                                mapie_regressors=mapie_regressors,
-                                img_save_path='./misc/test3')
-            predictions = shift(result.P_no, dataset_config.n_point_delay)
-            conf_intervals = shift(result.P_no_ci, dataset_config.n_point_delay)
-            true_values = result.Z[dataset_config.n_point_delay:]
-            conf_intervals.sort(axis=-1)
-            out_of_interval = (true_values < conf_intervals[:, :, 0]) | (true_values > conf_intervals[:, :, 1])
-            out_of_interval_indices = np.where(out_of_interval.all(axis=1))[0]
-            for t_i, (p, z, t) in enumerate(
-                    zip(list(predictions), list(true_values), list(dataset_config.ts[dataset_config.n_point_delay:]))):
-                if t_i not in out_of_interval_indices:
-                    continue
-
-                u = result.U[t_i: t_i + dataset_config.n_point_delay]
-                P = dynamic_systems.solve_integral_successive(
-                    Z_t=z, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state, dt=dataset_config.dt,
-                    U_D=u, f=dataset_config.system.dynamic,
-                    n_iterations=dataset_config.successive_approximation_n_iteration, adaptive=False)
-                samples.append((torch.from_numpy(np.concatenate([t.reshape(-1), z, u])), torch.from_numpy(P)))
-            print(f'{len(samples)}/{dataset_config.n_sample}')
-        print(f'Incremental training use {len(samples)} samples')
-        train_dataset, validate_dataset = split_dataset(samples, train_config.training_ratio)
-        training_dataloader = DataLoader(PredictionDataset(train_dataset), batch_size=train_config.batch_size,
-                                         shuffle=False)
-        validating_dataloader = DataLoader(PredictionDataset(validate_dataset), batch_size=train_config.batch_size,
-                                           shuffle=False)
-        bar1 = tqdm(list(range(train_config.n_epoch)))
-        for epoch in bar1:
-            training_loss_t, _, _ = model_train(model, optimizer, scheduler, device, training_dataloader,
-                                                predict_and_loss)
-            bar1.set_description(f'Epoch [{epoch + 1}/{n_epoch}] || Training loss: {training_loss_t:.6f}')
-        result_no = run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, method='no')
-        print_result(result_no, dataset_config)
-        X, y = zip(*[[batch[0].numpy(), batch[1].numpy()] for batch in validating_dataloader])
-        X, y = np.vstack(X), np.vstack(y)
-        mapie_regressors.fit(X, y)
-    return model
-
-
-def run_quantile_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
-    device = train_config.device
-    n_epoch = train_config.n_epoch
-    model, model_loaded = load_model(train_config, model_config, dataset_config)
-    no_optimizer = load_optimizer(model.parameters(), train_config)
-    no_scheduler = load_lr_scheduler(no_optimizer, train_config)
-    training_dataloader, validating_dataloader = load_training_and_validation_datasets(dataset_config, train_config)
-    # train prediction nn
-    bar = tqdm(list(range(train_config.n_epoch)))
-    print('Start training NO')
-    if not model_loaded:
-        for epoch in bar:
-            training_loss_t, _, _ = model_train(model, no_optimizer, no_scheduler, device, training_dataloader,
-                                                predict_and_loss)
-            bar.set_description(f'NO Epoch [{epoch + 1}/{n_epoch}] || Training loss: {training_loss_t:.6f}')
-    # train quantile nn
-    print('Start training quantile NN')
-    quantile_model = QuantileRegressionModel(
-        dataset_config.n_state + dataset_config.n_point_delay,
-        dataset_config.n_state, train_config.alpha).to(train_config.device)
-    bar = tqdm(list(range(train_config.n_epoch)))
-    for epoch in bar:
-        training_loss_t, _, _ = model_train(quantile_model, no_optimizer, no_scheduler, device, training_dataloader,
-                                            quantile_predict_and_loss)
-        bar.set_description(f'Quantile NN Epoch [{epoch + 1}/{n_epoch}] || Training loss: {training_loss_t:.6f}')
     return model
 
 
@@ -526,8 +404,12 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
             P = result.P_numerical
         elif method == 'numerical_no':
             P = result.P_no
+        elif method == 'switching':
+            P = result.P_switching
         else:
             raise NotImplementedError()
+        print('no count:', result.p_no_count)
+        print('no count:', result.p_numerical_count)
         rl2, l2 = metric(P[n_point_delay:-n_point_delay], result.Z[2 * n_point_delay:])
 
         if np.isinf(rl2) or np.isnan(rl2):
@@ -611,7 +493,7 @@ def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_c
         plot_sample(feature, label, dataset_config, f'{str(i)}.png')
     draw_distribution(training_samples, dataset_config.n_state, dataset_config.dataset_base_path)
     training_dataloader, validating_dataloader = prepare_datasets(
-        training_samples, train_config.training_ratio, train_config.batch_size, train_config.device)
+        training_samples, train_config.training_ratio, train_config.batch_size)
     print(f'#Training sample: {int(len(training_samples) * train_config.training_ratio)}')
     print(f'#Validating sample: {len(training_samples) - int(len(training_samples) * train_config.training_ratio)}')
     path = dataset_config.training_dataset_file
@@ -624,7 +506,7 @@ def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_c
 
 
 def load_test_datasets(dataset_config, train_config):
-    if not train_config.do_test:
+    if not train_config.do_testing:
         return None
     if not os.path.exists(dataset_config.testing_dataset_file) or dataset_config.recreate_testing_dataset:
         print('Creating testing dataset')
@@ -922,21 +804,21 @@ def create_nn_dataset(dataset_config: DatasetConfig):
 
 
 def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
-    if train_config.training_type == 'offline':
+    if train_config.training_type == 'offline' or train_config.training_type == 'switching':
         model = run_offline_training(dataset_config=dataset_config, model_config=model_config,
                                      train_config=train_config)
     elif train_config.training_type == 'scheduled sampling':
         model = run_scheduled_sampling_training(dataset_config=dataset_config, model_config=model_config,
                                                 train_config=train_config)
-    elif train_config.training_type == 'switching':
-        model = run_quantile_training(dataset_config=dataset_config, model_config=model_config,
-                                      train_config=train_config)
     else:
         raise NotImplementedError()
+
     test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
     return (
         run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
-                 method='no'),
+                 method='switching'),
+        # run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
+        #          method='no'),
         run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
                  method='numerical'),
         run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
@@ -963,8 +845,9 @@ if __name__ == '__main__':
     if args.training_type == 'offline':
         train_config.lr_scheduler_type = 'exponential'
         train_config.n_epoch = 300
-        # train_config.n_epoch = 1
-        # dataset_config.n_dataset = 1
+        dataset_config.recreate_training_dataset = False
+        dataset_config.recreate_testing_dataset = True
+        train_config.load_model = True
     elif args.training_type == 'scheduled sampling':
         train_config.lr_scheduler_type = 'none'
         train_config.n_epoch = 2000
