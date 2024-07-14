@@ -815,10 +815,10 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 
     test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
     return (
-        run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
-                 method='switching'),
         # run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
-        #          method='no'),
+        #          method='switching'),
+        run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
+                 method='no'),
         run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
                  method='numerical'),
         run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
@@ -845,9 +845,9 @@ if __name__ == '__main__':
     if args.training_type == 'offline':
         train_config.lr_scheduler_type = 'exponential'
         train_config.n_epoch = 300
-        dataset_config.recreate_training_dataset = False
-        dataset_config.recreate_testing_dataset = True
-        train_config.load_model = True
+        # dataset_config.recreate_training_dataset = False
+        # dataset_config.recreate_testing_dataset = True
+        # train_config.load_model = True
     elif args.training_type == 'scheduled sampling':
         train_config.lr_scheduler_type = 'none'
         train_config.n_epoch = 2000
