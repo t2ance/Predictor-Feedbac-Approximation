@@ -130,7 +130,7 @@ class DynamicSystem1(DynamicSystem):
             Z1_t, Z2_t = Z_t
             Z1_t_dot = Z2_t - self.c * Z2_t ** self.n * U_delay
             Z2_t_dot = U_delay
-            return np.array([Z1_t_dot, Z2_t_dot])
+            return np.array([Z1_t_dot, Z2_t_dot]).squeeze()
         else:
             Z1_t, Z2_t = Z_t[:, 0], Z_t[:, 1]
             Z1_t_dot = Z2_t - self.c * Z2_t ** self.n * U_delay
