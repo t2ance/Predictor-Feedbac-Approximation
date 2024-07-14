@@ -281,7 +281,7 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
             wandb.log({
                 'training loss': training_loss_t,
                 'validation loss': validating_loss_t,
-                'lr': scheduler.get_lr()
+                'lr': scheduler.get_lr()[-1]
             }, step=epoch)
             if (train_config.log_step > 0 and epoch % train_config.log_step == 0) or epoch == n_epoch - 1:
                 # rl2, l2, _, n_success = run_test(
