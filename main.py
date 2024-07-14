@@ -850,6 +850,7 @@ if __name__ == '__main__':
         # train_config.load_model = True
     elif args.training_type == 'scheduled sampling':
         train_config.lr_scheduler_type = 'none'
+        train_config.learning_rate = 1e-5
         train_config.n_epoch = 2000
     else:
         raise NotImplementedError()
