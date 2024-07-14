@@ -22,6 +22,8 @@ from model import FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
 from utils import set_size, pad_leading_zeros, metric, check_dir, plot_sample, predict_and_loss, load_lr_scheduler, \
     prepare_datasets, draw_distribution, set_seed, print_result, postprocess, load_model, load_optimizer, shift, \
     print_args, get_time_str, SimulationResult, plot_result
+import warnings
+warnings.filterwarnings('error')
 
 
 def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
