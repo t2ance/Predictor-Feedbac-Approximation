@@ -29,7 +29,7 @@ class ModelConfig:
 class TrainConfig:
     debug: Optional[bool] = field(default=False)
     do_testing: Optional[bool] = field(default=False)
-    do_training: Optional[bool] = field(default=False)
+    do_training: Optional[bool] = field(default=True)
 
     batch_size: Optional[int] = field(default=64)
     learning_rate: Optional[float] = field(default=1e-4)
