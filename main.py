@@ -852,9 +852,6 @@ if __name__ == '__main__':
     if args.training_type == 'offline':
         train_config.lr_scheduler_type = 'exponential'
         train_config.n_epoch = 300
-        # dataset_config.recreate_training_dataset = False
-        # dataset_config.recreate_testing_dataset = True
-        # train_config.load_model = True
     elif args.training_type == 'scheduled sampling':
         train_config.lr_scheduler_type = 'none'
     else:
