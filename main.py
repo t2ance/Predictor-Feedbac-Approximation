@@ -23,6 +23,7 @@ from utils import set_size, pad_leading_zeros, metric, check_dir, plot_sample, p
     prepare_datasets, draw_distribution, set_seed, print_result, postprocess, load_model, load_optimizer, shift, \
     print_args, get_time_str, SimulationResult, plot_result
 import warnings
+
 warnings.filterwarnings('error')
 
 
@@ -315,7 +316,12 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
 
         Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
                                size=(dataset_config.n_state,))
-        result = simulation(dataset_config, Z0, 'scheduled_sampling', model, img_save_path=img_save_path)
+        try:
+            result = simulation(dataset_config, Z0, 'scheduled_sampling', model, img_save_path=img_save_path)
+        except RuntimeWarning as e:
+            print("Warning caught:", e)
+            print(f'Abnormal value encountered at epoch {epoch}, skip this epoch!')
+            continue
         predictions = shift(result.P_no, dataset_config.n_point_delay)
         true_values = result.Z[dataset_config.n_point_delay:]
 
@@ -328,7 +334,6 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
                 timestamps_array).any() or np.isnan(U_array).any() or np.isinf(predictions_array).any() or np.isinf(
             true_values_array).any() or np.isinf(timestamps_array).any() or np.isinf(U_array).any():
             training_loss_arr.append(0)
-            print(f'Abnormal value encountered at epoch {epoch}')
             continue
         if dataset_config.integral_method == 'successive':
             P_batched = dynamic_systems.solve_integral_successive_batched(
