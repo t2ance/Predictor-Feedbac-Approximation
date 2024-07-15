@@ -293,7 +293,6 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
                 # l2_list.append(l2)
                 ...
         draw()
-        torch.save(model.state_dict(), f'{train_config.model_save_path}/{model_config.model_name}.pth')
     print('Finished Training')
     return model
 
@@ -821,7 +820,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
                                                 train_config=train_config)
     else:
         raise NotImplementedError()
-
+    torch.save(model.state_dict(), f'{train_config.model_save_path}/{model_config.model_name}.pth')
     test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
     return (
         # run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
