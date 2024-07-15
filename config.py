@@ -280,9 +280,9 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
     if system_ == 's1':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=1,
                                        duration=8, dt=0.02, n_dataset=500, n_sample_per_dataset=-1, n_plot_sample=20,
-                                       ic_lower_bound=-2, ic_upper_bound=2, integral_method='successive adaptive')
+                                       ic_lower_bound=-1, ic_upper_bound=1, integral_method='successive adaptive')
         model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=32)
-        train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=250, batch_size=128,
+        train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=3000, batch_size=128,
                                    weight_decay=1e-4, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5)
     elif system_ == 's2':

@@ -364,6 +364,7 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
         wandb.log({
             'sampling rate': train_config.scheduled_sampling_p,
             'training loss': training_loss_t,
+            'lr': optimizer.param_groups[0]['lr'],
         }, step=epoch)
         training_loss_arr.append(training_loss_t)
     fig = plt.figure(figsize=set_size())
@@ -858,8 +859,6 @@ if __name__ == '__main__':
         # train_config.load_model = True
     elif args.training_type == 'scheduled sampling':
         train_config.lr_scheduler_type = 'none'
-        train_config.learning_rate = 1e-4
-        train_config.n_epoch = 2000
     else:
         raise NotImplementedError()
     print_args(dataset_config)
