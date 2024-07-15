@@ -24,8 +24,6 @@ from utils import set_size, pad_leading_zeros, metric, check_dir, plot_sample, p
     print_args, get_time_str, SimulationResult, plot_result
 import warnings
 
-warnings.filterwarnings('error')
-
 
 def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
                method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling'] = None,
@@ -299,6 +297,7 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
 
 def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config: ModelConfig,
                                     train_config: TrainConfig):
+    warnings.filterwarnings('error')
     device = train_config.device
     n_epoch = train_config.n_epoch
     img_save_path = model_config.base_path
