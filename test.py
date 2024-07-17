@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 from config import get_config
 from dynamic_systems import solve_integral_eular
 from main import create_trajectory_dataset, create_random_dataset, simulation
+from utils import load_model
 
 
 def draw_distribution2(dataset_config):
@@ -123,6 +124,16 @@ def draw_difference(dataset_config):
 if __name__ == '__main__':
     dataset_config, model_config, train_config = get_config(system_='s5')
     # Z0 = tuple([1, 1] + [0] * 12)
-    Z0 = tuple(np.random.random(14).tolist())
-    U, Z, P = simulation(method='numerical', Z0=Z0, dataset_config=dataset_config, img_save_path='./misc')
+    # Z0 = tuple((np.random.random(14) * 0.1).tolist())
+    Z0 = tuple(np.zeros(14).tolist())
+    print('initial point', Z0)
+    dataset_config.duration = 3
+    # dataset_config.delay = 0.5
+    # dataset_config.dt = 0.05
+    model, model_loaded = load_model(train_config, model_config, dataset_config)
+    result = simulation(method='no', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
+                         img_save_path='./misc', model=model)
+    # result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
+    #                     img_save_path='./misc')
+    print(result.runtime)
     ...

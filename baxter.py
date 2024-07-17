@@ -1,15 +1,8 @@
 import numpy as np
 
 
-class BaxterDynamics:
+class BaxterParameters:
     def __init__(self, link_masses=None, inertia_tensors=None, com_positions=None, dh_parameters=None):
-        """
-        初始化BaxterDynamics类
-        :param link_masses: 连杆质量数组
-        :param inertia_tensors: 惯性张量数组
-        :param com_positions: 质心位置数组
-        :param dh_parameters: Denavit-Hartenberg参数
-        """
         if link_masses is None:
             link_masses = [5.70044, 3.22698, 4.31272, 2.07206, 2.24665, 1.60979, 0.54218]
 
@@ -66,18 +59,17 @@ class BaxterDynamics:
         self.dh_parameters = dh_parameters
         self.num_links = len(link_masses)
 
-        # 定义重力矢量
         self.gravity = np.array([0, 0, -9.81, 0])
 
     def get_transform_matrix(self, theta, d, a, alpha):
-        """
-        计算齐次变换矩阵
-        :param theta: 旋转角度
-        :param d: 沿Z轴的偏移
-        :param a: 沿X轴的偏移
-        :param alpha: 扭转角
-        :return: 齐次变换矩阵
-        """
+        '''
+
+        :param theta:
+        :param d:
+        :param a:
+        :param alpha:
+        :return: T_i
+        '''
         return np.array([
             [np.cos(theta), -np.sin(theta) * np.cos(alpha), np.sin(theta) * np.sin(alpha), a * np.cos(theta)],
             [np.sin(theta), np.cos(theta) * np.cos(alpha), -np.cos(theta) * np.sin(alpha), a * np.sin(theta)],
@@ -86,13 +78,13 @@ class BaxterDynamics:
         ])
 
     def get_jacobian_matrix(self, inertia_tensor, mass, com_position):
-        """
-        计算Jacobian矩阵
-        :param inertia_tensor: 惯性张量
-        :param mass: 连杆质量
-        :param com_position: 质心位置
-        :return: Jacobian矩阵
-        """
+        '''
+
+        :param inertia_tensor:
+        :param mass:
+        :param com_position:
+        :return: J_i
+        '''
         Ixx, Iyy, Izz = inertia_tensor[0, 0], inertia_tensor[1, 1], inertia_tensor[2, 2]
         Ixy, Ixz, Iyz = inertia_tensor[0, 1], inertia_tensor[0, 2], inertia_tensor[1, 2]
         x, y, z = com_position
@@ -104,11 +96,10 @@ class BaxterDynamics:
         ])
 
     def compute_inertia_matrix(self, q):
-        """
-        计算惯性矩阵M(q)
-        :param q: 关节角度数组
-        :return: 惯性矩阵M
-        """
+        '''
+        :param q:
+        :return: Mass matrix
+        '''
         M = np.zeros((self.num_links, self.num_links))
         for i in range(self.num_links):
             for j in range(i, self.num_links):
@@ -123,12 +114,12 @@ class BaxterDynamics:
         return M
 
     def compute_coriolis_centrifugal_matrix(self, q, q_dot):
-        """
-        计算科氏/离心力矩阵C(q, q_dot)
-        :param q: 关节角度数组
-        :param q_dot: 关节角速度数组
-        :return: 科氏/离心力矩阵C
-        """
+        '''
+
+        :param q:
+        :param q_dot:
+        :return: C matrix
+        '''
         C = np.zeros((self.num_links, self.num_links))
         for i in range(self.num_links):
             for j in range(self.num_links):
@@ -142,11 +133,11 @@ class BaxterDynamics:
         return C
 
     def compute_gravity_vector(self, q):
-        """
-        计算重力向量G(q)
-        :param q: 关节角度数组
-        :return: 重力向量G
-        """
+        '''
+
+        :param q:
+        :return: G matrix
+        '''
         G = np.zeros(self.num_links)
         for i in range(self.num_links):
             T = np.eye(4)
@@ -157,13 +148,6 @@ class BaxterDynamics:
         return G
 
     def compute_dynamics(self, t, y, tau):
-        """
-        计算动力学方程的右侧，即状态导数
-        :param t: 时间
-        :param y: 状态向量 [q, q_dot]
-        :param tau: 外部施加的关节扭矩
-        :return: 状态导数 [q_dot, q_ddot]
-        """
         q = y[:self.num_links]
         q_dot = y[self.num_links:]
 
@@ -179,9 +163,8 @@ class BaxterDynamics:
 if __name__ == '__main__':
     from scipy.integrate import solve_ivp
 
-    baxter_dynamics = BaxterDynamics()
+    baxter_dynamics = BaxterParameters()
 
-    # 定义初始状态 [q0, q_dot0]
     q0 = np.zeros(7)
     q_dot0 = np.zeros(7)
     y0 = np.concatenate((q0, q_dot0))

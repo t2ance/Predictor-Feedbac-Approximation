@@ -1,10 +1,11 @@
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Callable
 
 import numpy as np
 import torch
 from scipy.integrate import simps
+
+from baxter import BaxterParameters
 
 
 @dataclass
@@ -71,15 +72,27 @@ class Baxter(DynamicSystem):
     def n_state(self):
         return 14  # 7 dimensions for e1 and 7 dimensions for e2
 
-    def __init__(self, M=None, C=None, G=None, alpha=None, beta=None, delay=0.1):
+    def __init__(self, alpha=None, beta=None, delay=0.1):
         super().__init__(delay)
-        self.M = np.eye(7) if M is None else M
-        self.C = np.zeros((7, 7)) if C is None else C
+        # self.M = np.eye(7) if M is None else M
+        # self.C = np.zeros((7, 7)) if C is None else C
         # self.G = np.zeros(7) if G is None else G
-        self.G = np.array([0.0481, 2.1669, 0.0558, 0.2720, 0.1014, 0.9551, -0.3554]) if G is None else G
+
         self.alpha = np.eye(7) * 1 if alpha is None else alpha
         self.beta = np.eye(7) * 0.1 if beta is None else beta
+        self.baxter_parameters = BaxterParameters()
 
+    def G(self, t):
+        return self.baxter_parameters.compute_gravity_vector(self.q_des(t))
+
+    def C(self, t):
+        return self.baxter_parameters.compute_coriolis_centrifugal_matrix(self.q_des(t), self.qd_des(t))
+
+    def M(self, t):
+        return self.baxter_parameters.compute_inertia_matrix(self.q_des(t))
+
+    def q_des(self, t):
+        return np.zeros(7)
 
     def qd_des(self, t):
         return np.zeros(7)
@@ -88,8 +101,8 @@ class Baxter(DynamicSystem):
         return np.zeros(7)
 
     def h(self, e1, e2, t):
-        return self.qdd_des(t) - self.alpha @ (self.alpha @ e1) + np.linalg.inv(self.M) @ (
-                self.C @ self.qd_des(t) + self.G + self.C @ (self.alpha @ e1) - self.C @ e2)
+        return self.qdd_des(t) - self.alpha @ (self.alpha @ e1) + np.linalg.inv(self.M(t)) @ (
+                self.C(t) @ self.qd_des(t) + self.G(t) + self.C(t) @ (self.alpha @ e1) - self.C(t) @ e2)
 
     def dynamic(self, E_t, t, U_delay):
         if E_t.ndim == 1:
@@ -101,7 +114,7 @@ class Baxter(DynamicSystem):
         e1_t, e2_t = E_t[:, :7], E_t[:, 7:]
         e1_t_dot = e2_t - np.matmul(e1_t, self.alpha.T)
         h = np.array([self.h(e[:7], e[7:], t) for e in E_t])
-        e2_t_dot = np.matmul(e2_t, self.alpha.T) + h - np.matmul(U_delay, np.linalg.inv(self.M).T)
+        e2_t_dot = np.matmul(e2_t, self.alpha.T) + h - np.matmul(U_delay, np.linalg.inv(self.M(t)).T)
 
         dynamics = np.concatenate([e1_t_dot, e2_t_dot], axis=1)
 
@@ -110,7 +123,7 @@ class Baxter(DynamicSystem):
     def kappa(self, E_t, t):
         e1, e2 = E_t[:7], E_t[7:]
         h = self.h(e1, e2, t)
-        return self.M @ (h + (self.beta + self.alpha) @ e2)
+        return self.M(t) @ (h + (self.beta + self.alpha) @ e2)
 
 
 class DynamicSystem1(DynamicSystem):

@@ -25,9 +25,9 @@ from utils import set_size, pad_leading_zeros, metric, check_dir, plot_sample, p
 import warnings
 
 
-def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
+def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tuple | np.ndarray | List,
                method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling'] = None,
-               model=None, img_save_path: str = None):
+               model=None, img_save_path: str = None, salience: bool = True):
     system: dynamic_systems.DynamicSystem = dataset_config.system
     n_point_delay = dataset_config.n_point_delay
     ts = dataset_config.ts
@@ -53,7 +53,11 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
     p_no_count = 0
     Z[n_point_delay, :] = Z0
     runtime = 0.
-    for t_i in range(dataset_config.n_point):
+    if salience:
+        bar = range(dataset_config.n_point)
+    else:
+        bar = tqdm(range(dataset_config.n_point))
+    for t_i in bar:
         t_minus_D_i = max(t_i - n_point_delay, 0)
         t = ts[t_i]
         if method == 'explicit':
@@ -364,7 +368,8 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
         Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
                                size=(dataset_config.n_state,))
         try:
-            result = simulation(dataset_config, Z0, 'scheduled_sampling', model, img_save_path=img_save_path)
+            result = simulation(dataset_config, train_config, Z0, 'scheduled_sampling', model,
+                                img_save_path=img_save_path)
         except RuntimeWarning as e:
             print("Warning caught:", e)
             print(f'Abnormal value encountered at epoch {epoch}, skip this epoch!')
@@ -451,7 +456,8 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
 
         img_save_path = f'{base_path}/{name}'
         check_dir(img_save_path)
-        result = simulation(dataset_config=dataset_config, model=m, Z0=test_point, method=method,
+        result = simulation(dataset_config=dataset_config, train_config=train_config, model=m, Z0=test_point,
+                            method=method,
                             img_save_path=img_save_path)
         plt.close()
         n_point_delay = dataset_config.n_point_delay
@@ -597,12 +603,14 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, initial_conditions:
         img_save_path = f'{dataset_config.dataset_base_path}/example/{str(i)}'
         check_dir(img_save_path)
         if dataset_config.z_u_p_pair:
-            result = simulation(method='numerical', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
+            result = simulation(method='numerical', Z0=Z0, dataset_config=dataset_config, train_config=train_config,
+                                img_save_path=img_save_path)
             dataset = ZUPDataset(
                 torch.tensor(result.Z, dtype=torch.float32), torch.tensor(result.U, dtype=torch.float32),
                 torch.tensor(result.P_numerical, dtype=torch.float32), dataset_config.n_point_delay, dataset_config.dt)
         else:
-            result = simulation(method='explicit', Z0=Z0, dataset_config=dataset_config, img_save_path=img_save_path)
+            result = simulation(method='explicit', Z0=Z0, dataset_config=dataset_config, train_config=train_config,
+                                img_save_path=img_save_path)
             dataset = ZUZDataset(
                 torch.tensor(result.Z, dtype=torch.float32), torch.tensor(result.U, dtype=torch.float32),
                 dataset_config.n_point_delay, dataset_config.dt)
