@@ -152,6 +152,8 @@ class DatasetConfig:
 
     random_test: Optional[bool] = field(default=True)
     random_test_points = None
+    random_test_upper_bound: Optional[float] = field(default=1.)
+    random_test_lower_bound: Optional[float] = field(default=0.)
 
     @property
     def n_sample(self):
@@ -167,10 +169,11 @@ class DatasetConfig:
     @property
     def test_points(self) -> List[Tuple]:
         if self.random_test:
-            bound = 1
             if self.random_test_points is None:
-                self.random_test_points = [tuple((np.random.uniform(-1, 1, self.system.n_state) * bound).tolist()) for _
-                                           in range(10)]
+                self.random_test_points = [
+                    tuple((np.random.uniform(self.random_test_lower_bound, self.random_test_upper_bound,
+                                             self.system.n_state)).tolist()) for _ in range(10)
+                ]
             return self.random_test_points
         else:
             if self.system_ == 's1':

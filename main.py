@@ -929,8 +929,8 @@ if __name__ == '__main__':
     parser.add_argument('-s', type=str, default='s1')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
-    # parser.add_argument('-training_type', type=str, default='switching')
-    parser.add_argument('-training_type', type=str, default='offline')
+    parser.add_argument('-training_type', type=str, default='switching')
+    # parser.add_argument('-training_type', type=str, default='offline')
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n, args.delay)
     assert torch.cuda.is_available()
@@ -942,6 +942,11 @@ if __name__ == '__main__':
         train_config.cp_gamma = 0.01
         train_config.cp_adaptive = True
         train_config.cp_switching_type = 'switching'
+
+        dataset_config.random_test_upper_bound = 1.
+        dataset_config.random_test_lower_bound = 0
+        train_config.do_training = False
+        train_config.load_model = True
         # train_config.cp_switching_type = 'alternating'
     elif args.training_type == 'scheduled sampling':
         train_config.lr_scheduler_type = 'none'

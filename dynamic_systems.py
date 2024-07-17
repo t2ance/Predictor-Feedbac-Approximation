@@ -92,13 +92,16 @@ class Baxter(DynamicSystem):
         return self.baxter_parameters.compute_inertia_matrix(self.q_des(t))
 
     def q_des(self, t):
-        return np.zeros(7)
+        # return np.zeros(7)
+        return np.array([np.sin(t), np.cos(t), 0, 0, 0, 0, 0]) * 0.1
 
     def qd_des(self, t):
-        return np.zeros(7)
+        # return np.zeros(7)
+        return np.array([np.cos(t), -np.sin(t), 0, 0, 0, 0, 0]) * 0.1
 
     def qdd_des(self, t):
-        return np.zeros(7)
+        # return np.zeros(7)
+        return np.array([-np.sin(t), -np.cos(t), 0, 0, 0, 0, 0]) * 0.1
 
     def h(self, e1, e2, t):
         return self.qdd_des(t) - self.alpha @ (self.alpha @ e1) + np.linalg.inv(self.M(t)) @ (
