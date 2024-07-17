@@ -37,6 +37,11 @@ class SimulationResult:
     P_numerical_n_iters: np.ndarray = None
     p_numerical_count: int = None
     p_no_count: int = None
+    P_no_Ri: np.ndarray = None
+    alpha_ts: np.ndarray = None
+    q_ts: np.ndarray = None
+    e_ts: np.ndarray = None
+    switching_indicator: np.ndarray = None
 
 
 def print_args(args):
@@ -331,6 +336,83 @@ def shift(p, n_point_delay):
         return p[:-n_point_delay]
 
 
+def plot_switch_segments(ts, result: SimulationResult, save_path):
+    U, switching_indicator = result.U, result.switching_indicator
+    fig = plt.figure(figsize=set_size())
+    marked_indices = np.where(np.logical_xor(switching_indicator[:-1], switching_indicator[1:]))[0]
+    marked_x = ts[marked_indices]
+    marked_y = U[marked_indices]
+    plt.scatter(marked_x, marked_y, color='red', zorder=3)
+
+    colors = ['green', 'blue']
+    color_labels = ['NO', 'Numerical']
+
+    plt.plot(ts[:marked_indices[0]], U[:marked_indices[0]], color=colors[0], label=color_labels[0])
+
+    for i in range(len(marked_indices) - 1):
+        plt.plot(ts[marked_indices[i]:marked_indices[i + 1]], U[marked_indices[i]:marked_indices[i + 1]],
+                 color=colors[(i + 1) % 2], label=color_labels[(i + 1) % 2] if i == 0 else "")
+
+    plt.plot(ts[marked_indices[-1]:], U[marked_indices[-1]:], color=colors[(len(marked_indices) - 1) % 2 + 1])
+
+    plt.xlabel('Time t')
+    plt.legend(loc=legend_loc, fontsize=legend_fontsize)
+    plt.savefig(save_path)
+    fig.clear()
+    plt.close(fig)
+
+
+def plot_switch_system(train_config, dataset_config, result: SimulationResult, n_point_delay: int, img_save_path: str):
+    Q = np.percentile(result.P_no_Ri[2 * n_point_delay:], (1 - train_config.cp_alpha) * 100)
+    plt.hist(result.P_no_Ri[2 * n_point_delay:], bins=100, color='blue', alpha=0.7, label='$R$')
+    plt.axvline(x=Q, color='red', linestyle='--',
+                label=f'{(1 - train_config.cp_alpha) * 100}% quantile: {Q:.2f}')
+    plt.legend(loc='best')
+    plt.title(f'Distribution of $R$ and the ${1 - train_config.cp_alpha}$ quantile')
+    plt.xlabel('$R$')
+    plt.ylabel('frequency')
+    plt.savefig(f'{img_save_path}/quantile.png')
+    plt.close()
+
+    plt.plot(dataset_config.ts[2 * n_point_delay:], result.P_no_Ri[2 * n_point_delay:], label='$R_t$')
+    plt.xlabel('Time t')
+    plt.ylabel('$R_t$')
+    plt.legend(loc='best')
+    plt.savefig(f'{img_save_path}/quantile_time.png')
+    plt.close()
+
+    plt.plot(dataset_config.ts[2 * n_point_delay:], result.alpha_ts[2 * n_point_delay:], label='$\\alpha_t$')
+    plt.xlabel('Time t')
+    plt.ylabel('$\\alpha$')
+    plt.legend(loc='best')
+    plt.savefig(f'{img_save_path}/alpha.png')
+    plt.close()
+
+    plt.plot(dataset_config.ts[2 * n_point_delay:], result.q_ts[2 * n_point_delay:], label='$q_t$')
+    plt.xlabel('Time t')
+    plt.ylabel('$q_t$')
+    plt.legend(loc='best')
+    plt.savefig(f'{img_save_path}/q.png')
+    plt.close()
+
+    plt.plot(dataset_config.ts[2 * n_point_delay:], result.e_ts[2 * n_point_delay:], label='$e_t$')
+    plt.xlabel('Time t')
+    plt.ylabel('$e_t$')
+    plt.legend(loc='best')
+    plt.savefig(f'{img_save_path}/e.png')
+    plt.close()
+
+    plt.plot(dataset_config.ts[2 * n_point_delay:], result.switching_indicator[2 * n_point_delay:],
+             label='$\\mathbb{I}_t$')
+    plt.xlabel('Time t')
+    plt.ylabel('$\\mathbb{I}_t$')
+    plt.legend(loc='best')
+    plt.savefig(f'{img_save_path}/I.png')
+    plt.close()
+
+    plot_switch_segments(dataset_config.ts, result, img_save_path)
+
+
 def plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_switching, Z, U,
                 method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling']):
     if img_save_path is None:
@@ -342,28 +424,43 @@ def plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_
 
     comparison_full = f'{img_save_path}/comparison_full.png'
     difference_full = f'{img_save_path}/difference_full.png'
+    comparison_zoom = f'{img_save_path}/comparison_zoom.png'
+    difference_zoom = f'{img_save_path}/difference_zoom.png'
     u_path = f'{img_save_path}/u.png'
     if method == 'explicit':
         plot_comparison(ts, [P_explicit], Z, delay, n_point_delay, comparison_full, n_state)
         plot_difference(ts, [P_explicit], Z, delay, n_point_delay, difference_full, n_state)
+        plot_comparison(ts, [P_explicit], Z, delay, n_point_delay, comparison_zoom, n_state, ylim=[-5, 5])
+        plot_difference(ts, [P_explicit], Z, delay, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
         plot_single(ts, U, '$U(t)$', u_path)
     elif method == 'no' or method == 'scheduled_sampling':
         plot_comparison(ts, [P_no], Z, delay, n_point_delay, comparison_full, n_state)
         plot_difference(ts, [P_no], Z, delay, n_point_delay, difference_full, n_state)
+        plot_comparison(ts, [P_no], Z, delay, n_point_delay, comparison_zoom, n_state, ylim=[-5, 5])
+        plot_difference(ts, [P_no], Z, delay, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
         plot_single(ts, U, '$U(t)$', u_path)
     elif method == 'numerical':
         plot_comparison(ts, [P_numerical], Z, delay, n_point_delay, comparison_full, n_state)
         plot_difference(ts, [P_numerical], Z, delay, n_point_delay, difference_full, n_state)
+        plot_comparison(ts, [P_numerical], Z, delay, n_point_delay, comparison_zoom, n_state, ylim=[-5, 5])
+        plot_difference(ts, [P_numerical], Z, delay, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
         plot_single(ts, U, '$U(t)$', u_path)
     elif method == 'numerical_no':
         plot_comparison(ts, [P_numerical, P_no], Z, delay, n_point_delay, comparison_full, n_state,
                         Ps_labels=['numerical', 'no'])
         plot_difference(ts, [P_numerical, P_no], Z, delay, n_point_delay, difference_full, n_state,
                         Ps_labels=['numerical', 'no'])
+        plot_comparison(ts, [P_numerical, P_no], Z, delay, n_point_delay, comparison_zoom, n_state,
+                        Ps_labels=['numerical', 'no'], ylim=[-5, 5])
+        plot_difference(ts, [P_numerical, P_no], Z, delay, n_point_delay, difference_zoom, n_state,
+                        Ps_labels=['numerical', 'no'], ylim=[-5, 5])
         plot_single(ts, U, '$U(t)$', u_path)
     elif method == 'switching':
         plot_comparison(ts, [P_switching], Z, delay, n_point_delay, comparison_full, n_state)
         plot_difference(ts, [P_switching], Z, delay, n_point_delay, difference_full, n_state)
+        plot_comparison(ts, [P_switching], Z, delay, n_point_delay, comparison_zoom, n_state, ylim=[-5, 5])
+        plot_difference(ts, [P_switching], Z, delay, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
+        plot_single(ts, U, '$U(t)$', u_path)
     else:
         raise NotImplementedError()
 
@@ -401,7 +498,7 @@ def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
         for j, (P, label) in enumerate(zip(Ps, Ps_labels)):
             plt.plot(ts[n_point_delay:], shift(P, n_point_delay)[:, i], linestyle=styles[j], color=colors[i],
                      label=f'$P^{{{label}}}_{i + 1}(t-{delay})$')
-        plt.plot(ts[n_point_delay:], Z[n_point_delay:, i], label=f'$Z_{i + 1}(t)$', color=colors[i])
+        plt.plot(ts[n_point_delay:], Z[n_point_delay:, i], label=f'$Z_{i + 1}(t)$', linestyle='--', color=colors[i])
     plt.xlabel('Time t')
     if ylim is not None:
         plt.ylim(ylim)
@@ -574,11 +671,10 @@ def set_seed(seed: int):
 
 
 def print_result(result, dataset_config):
-    print(
-        f'Relative L2 error: {result[0]}'
-        f' || L2 error: {result[1]}'
-        f' || Runtime: {result[2]}'
-        f' || Successful cases: [{result[3]}/{len(dataset_config.test_points)}]')
+    print(f'Relative L2 error: {result[0]}'
+          f' || L2 error: {result[1]}'
+          f' || Runtime: {result[2]}'
+          f' || Successful cases: [{result[3]}/{len(dataset_config.test_points)}]')
 
 
 if __name__ == '__main__':

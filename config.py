@@ -49,7 +49,11 @@ class TrainConfig:
         default='linear_with_warmup')
 
     # conformal prediction
-    alpha: Optional[float] = field(default=0.1)
+    cp_alpha: Optional[float] = field(default=0.1)
+    cp_gamma: Optional[float] = field(default=0.01)
+    cp_adaptive: Optional[bool] = field(default=True)
+    cp_switching_type: Optional[Literal['switching', 'alternating']] = field(default='switching')
+
     # adversarial training
     adversarial_epsilon: Optional[float] = field(default=0.0)
     # scheduled sampling probability
@@ -162,54 +166,55 @@ class DatasetConfig:
 
     @property
     def test_points(self) -> List[Tuple]:
-        if self.system_ == 's1':
-            return [(x, y) for x, y in itertools.product(
-                np.linspace(-1, 1, 6),
-                np.linspace(-1, 1, 6)
-            )]
-        elif self.system_ == 's2':
-            return [(x, y, z) for x, y, z in itertools.product(
-                np.linspace(-0.3, 0.3, 3),
-                np.linspace(-0.3, 0.3, 3),
-                np.linspace(-0.3, 0.3, 3)
-            )]
-        elif self.system_ == 's3':
-            return [(x, y, z, w) for x, y, z, w in itertools.product(
-                np.linspace(-0.2, 0.2, 2),
-                np.linspace(-0.2, 0.2, 2),
-                np.linspace(-0.2, 0.2, 2),
-                np.linspace(-0.2, 0.2, 2)
-            )]
-        elif self.system_ == 's4':
-            return [(x, y) for x, y in itertools.product(
-                np.linspace(-1, 1, 6),
-                np.linspace(-1, 1, 6),
-            )]
-        elif self.system_ == 's5':
-            bound = 0.5
-            if self.random_test:
-                if self.random_test_points is None:
-                    # self.random_test_points = [tuple((np.random.uniform(-1, 1, 14) * bound).tolist()) for _ in range(10)]
-                    self.random_test_points = [tuple([1] * 14)]
-                return self.random_test_points
-            return list(itertools.product(
-                np.linspace(-bound, bound, 6),
-                np.linspace(-bound, bound, 6),
-                [0],
-                [0],
-                [0],
-                [0],
-                [0],
-                [0],
-                [0],
-                [0],
-                [0],
-                [0],
-                [0],
-                [0]
-            ))
+        if self.random_test:
+            bound = 2
+            if self.random_test_points is None:
+                self.random_test_points = [tuple((np.random.uniform(-1, 1, self.system.n_state) * bound).tolist()) for _
+                                           in range(10)]
+            return self.random_test_points
         else:
-            raise NotImplementedError()
+            if self.system_ == 's1':
+                return [(x, y) for x, y in itertools.product(
+                    np.linspace(-1, 1, 6),
+                    np.linspace(-1, 1, 6)
+                )]
+            elif self.system_ == 's2':
+                return [(x, y, z) for x, y, z in itertools.product(
+                    np.linspace(-0.3, 0.3, 3),
+                    np.linspace(-0.3, 0.3, 3),
+                    np.linspace(-0.3, 0.3, 3)
+                )]
+            elif self.system_ == 's3':
+                return [(x, y, z, w) for x, y, z, w in itertools.product(
+                    np.linspace(-0.2, 0.2, 2),
+                    np.linspace(-0.2, 0.2, 2),
+                    np.linspace(-0.2, 0.2, 2),
+                    np.linspace(-0.2, 0.2, 2)
+                )]
+            elif self.system_ == 's4':
+                return [(x, y) for x, y in itertools.product(
+                    np.linspace(-1, 1, 6),
+                    np.linspace(-1, 1, 6),
+                )]
+            elif self.system_ == 's5':
+                return list(itertools.product(
+                    np.linspace(-0.5, 0.5, 6),
+                    np.linspace(-0.5, 0.5, 6),
+                    [0],
+                    [0],
+                    [0],
+                    [0],
+                    [0],
+                    [0],
+                    [0],
+                    [0],
+                    [0],
+                    [0],
+                    [0],
+                    [0]
+                ))
+            else:
+                raise NotImplementedError()
 
     @property
     def n_state(self):
@@ -278,11 +283,13 @@ class DatasetConfig:
 
 def get_config(system_, n_iteration=None, duration=None, delay=None):
     if system_ == 's1':
-        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=3,
-                                       duration=8, dt=0.05, n_dataset=1000, n_sample_per_dataset=-1, n_plot_sample=20,
-                                       ic_lower_bound=-1.5, ic_upper_bound=1.5, integral_method='successive adaptive')
+        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory', delay=3,
+                                       duration=16, dt=0.05, n_dataset=1000, n_sample_per_dataset=-1, n_plot_sample=20,
+                                       ic_lower_bound=-1.5, ic_upper_bound=1.5, integral_method='successive adaptive',
+                                       random_test=True)
         model_config = ModelConfig(model_name='FFN', n_layer=5, fno_n_modes_height=64, fno_hidden_channels=64)
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=3000, batch_size=128,
+                                   do_training=False, do_testing=False, load_model=True,
                                    weight_decay=1e-4, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5)
     elif system_ == 's2':
@@ -310,7 +317,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                        ic_lower_bound=-2, ic_upper_bound=2, successive_approximation_n_iteration=5)
         model_config = ModelConfig(model_name='FFN', n_layer=4, fno_n_modes_height=8, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=1000, batch_size=64,
-                                   weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential', alpha=0.01,
+                                   weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential', cp_alpha=0.01,
                                    load_model=False, do_testing=False, scheduled_sampling_type='inverse sigmoid',
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's5':
@@ -319,7 +326,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                        ic_lower_bound=-0.5, ic_upper_bound=0.5, integral_method='successive adaptive')
         model_config = ModelConfig(model_name='FNO', n_layer=3, fno_n_modes_height=16, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=2000, batch_size=128,
-                                   weight_decay=1e-3, log_step=-1, lr_scheduler_type='none', alpha=0.01,
+                                   weight_decay=1e-3, log_step=-1, lr_scheduler_type='none', cp_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2)
     else:

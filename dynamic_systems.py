@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from dataclasses import dataclass
+from typing import Callable
 
 import numpy as np
 import torch
@@ -40,7 +41,7 @@ class DynamicSystem:
         ...
 
     @abstractmethod
-    def kappa(self, Z_t):
+    def kappa(self, Z_t, t):
         ...
 
     @abstractmethod
@@ -70,22 +71,27 @@ class Baxter(DynamicSystem):
     def n_state(self):
         return 14  # 7 dimensions for e1 and 7 dimensions for e2
 
-    def __init__(self, M=None, C=None, G=None, alpha=None, beta=None, delay=0.1, qdd_des=None, qd_des=None):
+    def __init__(self, M=None, C=None, G=None, alpha=None, beta=None, delay=0.1):
         super().__init__(delay)
         self.M = np.eye(7) if M is None else M
         self.C = np.zeros((7, 7)) if C is None else C
-        self.G = np.zeros(7) if G is None else G
+        # self.G = np.zeros(7) if G is None else G
+        self.G = np.array([0.0481, 2.1669, 0.0558, 0.2720, 0.1014, 0.9551, -0.3554]) if G is None else G
         self.alpha = np.eye(7) * 1 if alpha is None else alpha
         self.beta = np.eye(7) * 0.1 if beta is None else beta
-        self.qdd_des = np.zeros(7) if qdd_des is None else qdd_des  # Expected joint accelerations
-        self.qd_des = np.zeros(7) if qd_des is None else qd_des  # Expected joint velocities
 
-    def h(self, e1, e2):
-        return self.qdd_des - self.alpha @ (self.alpha @ e1) + np.linalg.inv(self.M) @ (
-                self.C @ self.qd_des + self.G + self.C @ (self.alpha @ e1) - self.C @ e2)
+
+    def qd_des(self, t):
+        return np.zeros(7)
+
+    def qdd_des(self, t):
+        return np.zeros(7)
+
+    def h(self, e1, e2, t):
+        return self.qdd_des(t) - self.alpha @ (self.alpha @ e1) + np.linalg.inv(self.M) @ (
+                self.C @ self.qd_des(t) + self.G + self.C @ (self.alpha @ e1) - self.C @ e2)
 
     def dynamic(self, E_t, t, U_delay):
-        # Check if E_t is a single vector or a batch
         if E_t.ndim == 1:
             E_t = E_t[np.newaxis, :]
             batch_mode = False
@@ -94,16 +100,16 @@ class Baxter(DynamicSystem):
 
         e1_t, e2_t = E_t[:, :7], E_t[:, 7:]
         e1_t_dot = e2_t - np.matmul(e1_t, self.alpha.T)
-        h = np.array([self.h(e[:7], e[7:]) for e in E_t])
+        h = np.array([self.h(e[:7], e[7:], t) for e in E_t])
         e2_t_dot = np.matmul(e2_t, self.alpha.T) + h - np.matmul(U_delay, np.linalg.inv(self.M).T)
 
         dynamics = np.concatenate([e1_t_dot, e2_t_dot], axis=1)
 
         return dynamics if batch_mode else dynamics[0]
 
-    def kappa(self, E_t):
+    def kappa(self, E_t, t):
         e1, e2 = E_t[:7], E_t[7:]
-        h = self.h(e1, e2)
+        h = self.h(e1, e2, t)
         return self.M @ (h + (self.beta + self.alpha) @ e2)
 
 
@@ -138,7 +144,7 @@ class DynamicSystem1(DynamicSystem):
             Z2_t_dot = U_delay
             return np.vstack([Z1_t_dot, Z2_t_dot]).T
 
-    def kappa(self, Z_t):
+    def kappa(self, Z_t, t):
         Z1 = Z_t[0]
         Z2 = Z_t[1]
         return -Z1 - 2 * Z2 - self.c / (self.n + 1) * Z2 ** (self.n + 1)
@@ -235,7 +241,7 @@ class DynamicSystem2(DynamicSystem):
         Z3_t_dot = U_delay
         return torch.stack([Z1_t_dot, Z2_t_dot, Z3_t_dot], dim=1)
 
-    def kappa(self, Z_t):
+    def kappa(self, Z_t, t):
         P1 = Z_t[0]
         P2 = Z_t[1]
         P3 = Z_t[2]
@@ -290,7 +296,7 @@ class InvertedPendulum(DynamicSystem):
             Z_dot = np.dot(self.A, Z_t.T) + self.B * U_delay
             return Z_dot.T
 
-    def kappa(self, Z_t):
+    def kappa(self, Z_t, t):
         u = -np.dot(self.K, Z_t)
         return u
 
@@ -335,7 +341,7 @@ class VanDerPolOscillator(DynamicSystem):
             x2_dot = self.mu * (1 - x1 ** 2) * x2 - x1 + U_delay
             return np.vstack([x1_dot, x2_dot]).T
 
-    def kappa(self, Z_t):
+    def kappa(self, Z_t, t):
         u = -np.dot(self.K, Z_t)
         return u
 
@@ -428,7 +434,7 @@ def solve_integral_successive(Z_t, n_points: int, n_state: int, dt: float, U_D: 
                     P_D[1, j + 1, :] = P_D[1, j, :] + dt * f(P_D[0, j, :], j * dt, U_D[j])
 
             # Check for convergence
-            if np.all(np.abs(P_D[1] - P_D[0]) < threshold):
+            if np.all(np.abs(P_D[1] - P_D[0]) < threshold) or n_iterations > 100:
                 break
 
             # Update P_D for the next iteration

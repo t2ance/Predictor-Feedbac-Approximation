@@ -21,7 +21,7 @@ from dynamic_systems import solve_integral_eular, solve_integral_nn, solve_integ
 from model import FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
 from utils import set_size, pad_leading_zeros, metric, check_dir, plot_sample, predict_and_loss, load_lr_scheduler, \
     prepare_datasets, draw_distribution, set_seed, print_result, postprocess, load_model, load_optimizer, shift, \
-    print_args, get_time_str, SimulationResult, plot_result
+    print_args, get_time_str, SimulationResult, plot_result, plot_switch_system
 import warnings
 
 
@@ -33,17 +33,20 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
     ts = dataset_config.ts
     Z0 = np.array(Z0)
     n_point = dataset_config.n_point
-    alpha = train_config.alpha
+    alpha = train_config.cp_alpha
+    alpha_t = train_config.cp_alpha
     U = np.zeros((n_point, system.n_input))
     Z = np.zeros((n_point, system.n_state))
     P_numerical_n_iters = np.zeros(n_point)
     switching_indicator = np.zeros(n_point)
-
     P_explicit = np.zeros((n_point, system.n_state))
     P_numerical = np.zeros((n_point, system.n_state))
     P_no = np.zeros((n_point, system.n_state))
     P_no_ci = np.zeros((n_point, system.n_state, 2))
-    P_no_Ri = np.zeros((n_point))
+    P_no_Ri = np.zeros(n_point)
+    alpha_ts = np.zeros(n_point)
+    q_ts = np.zeros(n_point)
+    e_ts = np.zeros(n_point)
     P_switching = np.zeros((n_point, system.n_state))
 
     p_numerical_count = 0
@@ -75,16 +78,16 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
                 P_numerical_n_iters[t_i] = solution.n_iter
                 end = time.time()
                 runtime += end - begin
-                if t_i > n_point_delay:
-                    U[t_i] = system.kappa(P_numerical[t_i, :])
+                if t_i >= n_point_delay:
+                    U[t_i] = system.kappa(P_numerical[t_i, :], t)
             elif method == 'no':
                 U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
                 begin = time.time()
                 P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
                 end = time.time()
                 runtime += end - begin
-                if t_i > n_point_delay:
-                    U[t_i] = system.kappa(P_no[t_i, :])
+                if t_i >= n_point_delay:
+                    U[t_i] = system.kappa(P_no[t_i, :], t)
             elif method == 'numerical_no':
                 solution = dynamic_systems.solve_integral(
                     Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
@@ -94,25 +97,69 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
 
                 U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
                 P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
-                if t_i > n_point_delay:
-                    U[t_i] = system.kappa(P_numerical[t_i, :])
+                if t_i >= n_point_delay:
+                    U[t_i] = system.kappa(P_numerical[t_i, :], t)
             elif method == 'switching':
                 U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
+                begin = time.time()
                 P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
-                if t_i > n_point_delay:
-                    P_no_Ri[t_i] = np.linalg.norm(P_no[t_i - n_point_delay, :] - Z_t)
-                    Q = np.percentile(P_no_Ri[n_point_delay:t_i + 1], (1 - alpha) * 100)
-                    if P_no_Ri[t_i] < Q:
-                        # switching_indicator[t_i] =
-                        P_switching[t_i, :] = P_no[t_i, :]
-                        p_no_count += 1
+                if t_i >= n_point_delay:
+                    if t_i >= 2 * n_point_delay:
+                        # System switching
+                        # (1) Get the uncertainty of no model
+                        P_no_Ri[t_i] = np.linalg.norm(P_no[t_i - n_point_delay, :] - Z_t)
+                        if train_config.cp_adaptive:
+                            Q = np.percentile(P_no_Ri[2 * n_point_delay:t_i + 1], (1 - min(1, max(alpha_t, 0))) * 100)
+                        else:
+                            Q = np.percentile(P_no_Ri[2 * n_point_delay:t_i + 1], (1 - alpha) * 100)
+                        e_t = 0 if P_no_Ri[t_i] <= Q else 1
+                        # (2) Assign the indicator
+                        if train_config.cp_switching_type == 'switching':
+                            if e_t == 0:
+                                # switch to no scheme if possible
+                                if switching_indicator[t_i - 1] == 1:
+                                    t_last_no = np.where(switching_indicator[:t_i] == 0)[0][-1]
+                                    if t_i - t_last_no > n_point_delay:
+                                        # switch back
+                                        switching_indicator[t_i] = 0
+                                    else:
+                                        # cannot switch
+                                        switching_indicator[t_i] = 1
+                                else:
+                                    # keeping using no
+                                    switching_indicator[t_i] = 0
+                            else:
+                                # use to numerical scheme
+                                switching_indicator[t_i] = 1
+                        elif train_config.cp_switching_type == 'alternating':
+                            # alternating between no and numerical arbitrarily
+                            # if indicator is 1, then use numerical scheme, otherwise no scheme
+                            switching_indicator[t_i] = e_t
+
+                        # (3) Select the sub-controller
+                        if switching_indicator[t_i] == 0:
+                            P_switching[t_i, :] = P_no[t_i, :]
+                            p_no_count += 1
+                        else:
+                            P_numerical[t_i, :] = dynamic_systems.solve_integral(
+                                Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
+                                dataset_config=dataset_config).solution
+                            P_switching[t_i, :] = P_numerical[t_i, :]
+                            p_numerical_count += 1
+                        alpha_t += train_config.cp_gamma * (train_config.cp_alpha - e_t)
+                        alpha_ts[t_i] = alpha_t
+                        q_ts[t_i] = Q
+                        e_ts[t_i] = e_t
                     else:
+                        # Warm start
                         P_numerical[t_i, :] = dynamic_systems.solve_integral(
                             Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
                             dataset_config=dataset_config).solution
                         P_switching[t_i, :] = P_numerical[t_i, :]
                         p_numerical_count += 1
-                U[t_i] = system.kappa(P_switching[t_i, :])
+                    U[t_i] = system.kappa(P_switching[t_i, :], t)
+                end = time.time()
+                runtime += end - begin
             elif method == 'scheduled_sampling':
                 if np.random.binomial(n=1, p=train_config.scheduled_sampling_p) == 1:
                     # Teacher Forcing
@@ -123,8 +170,8 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
                     # Not Teacher Forcing
                     P_no[t_i, :] = solve_integral_nn(
                         model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t)
-                if t_i > n_point_delay:
-                    U[t_i] = system.kappa(P_no[t_i, :])
+                if t_i >= n_point_delay:
+                    U[t_i] = system.kappa(P_no[t_i, :], t)
             else:
                 raise NotImplementedError()
 
@@ -133,7 +180,8 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
     return SimulationResult(
         U=U, Z=Z, P_explicit=P_explicit, P_no=P_no, P_no_ci=P_no_ci, P_numerical=P_numerical, P_switching=P_switching,
         runtime=runtime, P_numerical_n_iters=P_numerical_n_iters, p_numerical_count=p_numerical_count,
-        p_no_count=p_no_count)
+        p_no_count=p_no_count, P_no_Ri=P_no_Ri, alpha_ts=alpha_ts, q_ts=q_ts, e_ts=e_ts,
+        switching_indicator=switching_indicator)
 
 
 def model_train(model, optimizer, scheduler, device, training_dataloader, predict_and_loss,
@@ -208,7 +256,7 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
     scheduler = load_lr_scheduler(optimizer, train_config)
 
     if not train_config.do_training:
-        training_dataloader, validating_dataloader = None, None
+        return model
     else:
         training_dataloader, validating_dataloader = load_training_and_validation_datasets(dataset_config, train_config)
     testing_dataloader = load_test_datasets(dataset_config, train_config)
@@ -398,6 +446,7 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
     for test_point, name in bar:
         if not silence:
             bar.set_description(f'Solving system with initial point {np.round(test_point, decimals=3)}.')
+            bar.set_description(f'Save to {name}.')
 
         img_save_path = f'{base_path}/{name}'
         check_dir(img_save_path)
@@ -415,14 +464,19 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
             P = result.P_switching
         else:
             raise NotImplementedError()
-        print('no count:', result.p_no_count)
-        print('no count:', result.p_numerical_count)
-        rl2, l2 = metric(P[n_point_delay:-n_point_delay], result.Z[2 * n_point_delay:])
 
+        rl2, l2 = metric(P[n_point_delay:-n_point_delay], result.Z[2 * n_point_delay:])
         if np.isinf(rl2) or np.isnan(rl2):
             if not silence:
                 print(f'[WARNING] Running with initial condition Z = {test_point} with method [{method}] failed.')
             continue
+
+        if method == 'switching':
+            print()
+            plot_switch_system(train_config, dataset_config, result, n_point_delay, img_save_path)
+            print('no count:', result.p_no_count)
+            print('numerical count:', result.p_numerical_count)
+
         np.savetxt(f'{img_save_path}/metric.txt', np.array([rl2, l2, result.runtime]))
         np.savetxt(f'{img_save_path}/test_point.txt', test_point)
         rl2_list.append(rl2)
@@ -821,16 +875,33 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         raise NotImplementedError()
     torch.save(model.state_dict(), f'{train_config.model_save_path}/{model_config.model_name}.pth')
     test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
-    return (
-        # run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
-        #          method='switching'),
-        run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
-                 method='no'),
-        run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
-                 method='numerical'),
-        run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
-                 method='numerical_no')
-    )
+
+    bound = 2.5
+    run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
+             test_points=[((bound, -bound), 'test')], method='no')
+    run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
+             test_points=[((bound, -bound), 'test')], method='switching')
+    run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
+             test_points=[((bound, -bound), 'test')], method='numerical')
+    exit(0)
+    if train_config.training_type == 'switching':
+        return (
+            run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
+                     method='switching'),
+            run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
+                     method='numerical'),
+            run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
+                     method='numerical_no')
+        )
+    else:
+        return (
+            run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
+                     method='no'),
+            run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
+                     method='numerical'),
+            run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
+                     method='numerical_no')
+        )
 
 
 if __name__ == '__main__':
@@ -844,14 +915,19 @@ if __name__ == '__main__':
     parser.add_argument('-s', type=str, default='s1')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
-    parser.add_argument('-training_type', type=str, default='scheduled sampling')
+    parser.add_argument('-training_type', type=str, default='switching')
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n, args.delay)
     assert torch.cuda.is_available()
     train_config.training_type = args.training_type
-    if args.training_type == 'offline':
+    if args.training_type == 'offline' or args.training_type == 'switching':
         train_config.lr_scheduler_type = 'exponential'
         train_config.n_epoch = 300
+        train_config.cp_alpha = 0.1
+        train_config.cp_gamma = 0.01
+        train_config.cp_adaptive = True
+        train_config.cp_switching_type = 'switching'
+        # train_config.cp_switching_type = 'alternating'
     elif args.training_type == 'scheduled sampling':
         train_config.lr_scheduler_type = 'none'
     else:
