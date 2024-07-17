@@ -878,31 +878,33 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
 
     bound = 2.5
-    run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
-             test_points=[((bound, -bound), 'test')], method='no')
-    run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
-             test_points=[((bound, -bound), 'test')], method='switching')
-    run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
-             test_points=[((bound, -bound), 'test')], method='numerical')
-    exit(0)
+    # run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
+    #          test_points=[((bound, -bound), 'test')], method='no')
+    # run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
+    #          test_points=[((bound, -bound), 'test')], method='switching')
+    # run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
+    #          test_points=[((bound, -bound), 'test')], method='numerical')
+    # exit(0)
     if train_config.training_type == 'switching':
-        return (
-            run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
-                     method='switching'),
-            run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
-                     method='numerical'),
-            run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
-                     method='numerical_no')
-        )
+        return {
+            'no': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
+                           test_points=test_points, method='no'),
+            'switching': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
+                                  test_points=test_points, method='switching'),
+            'numerical': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
+                                  test_points=test_points, method='numerical'),
+            'numerical_no': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
+                                     test_points=test_points, method='numerical_no')
+        }
     else:
-        return (
-            run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
-                     method='no'),
-            run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
-                     method='numerical'),
-            run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path, test_points=test_points,
-                     method='numerical_no')
-        )
+        return {
+            'no': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
+                           test_points=test_points, method='no'),
+            'numerical': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
+                                  test_points=test_points, method='numerical'),
+            'numerical_no': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
+                                     test_points=test_points, method='numerical_no')
+        }
 
 
 if __name__ == '__main__':
@@ -917,6 +919,7 @@ if __name__ == '__main__':
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='switching')
+    # parser.add_argument('-training_type', type=str, default='offline')
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n, args.delay)
     assert torch.cuda.is_available()
@@ -936,10 +939,7 @@ if __name__ == '__main__':
     print_args(dataset_config)
     print_args(model_config)
     print_args(train_config)
-    result_no, result_numerical, result_numerical_no = main(dataset_config, model_config, train_config)
-    print('NO Result')
-    print_result(result_no, dataset_config)
-    print('Numerical Result')
-    print_result(result_numerical, dataset_config)
-    print('Numerical-NO Result')
-    print_result(result_numerical_no, dataset_config)
+    results = main(dataset_config, model_config, train_config)
+    for method, result in results.items():
+        print(method)
+        print_result(result, dataset_config)
