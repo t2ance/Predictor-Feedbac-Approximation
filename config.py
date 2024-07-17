@@ -167,7 +167,7 @@ class DatasetConfig:
     @property
     def test_points(self) -> List[Tuple]:
         if self.random_test:
-            bound = 2
+            bound = 1
             if self.random_test_points is None:
                 self.random_test_points = [tuple((np.random.uniform(-1, 1, self.system.n_state) * bound).tolist()) for _
                                            in range(10)]
@@ -284,7 +284,7 @@ class DatasetConfig:
 def get_config(system_, n_iteration=None, duration=None, delay=None):
     if system_ == 's1':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=1,
-                                       duration=12, dt=0.02, n_dataset=200, n_sample_per_dataset=-1, n_plot_sample=20,
+                                       duration=12, dt=0.02, n_dataset=500, n_sample_per_dataset=-1, n_plot_sample=20,
                                        ic_lower_bound=-1.5, ic_upper_bound=1.5, integral_method='successive adaptive',
                                        random_test=True)
         model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=64, fno_hidden_channels=64)
