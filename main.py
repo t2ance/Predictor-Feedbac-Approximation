@@ -27,7 +27,7 @@ import warnings
 
 def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tuple | np.ndarray | List,
                method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling'] = None,
-               model=None, img_save_path: str = None, salience: bool = True):
+               model=None, img_save_path: str = None, silence: bool = True):
     system: dynamic_systems.DynamicSystem = dataset_config.system
     n_point_delay = dataset_config.n_point_delay
     ts = dataset_config.ts
@@ -53,7 +53,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
     p_no_count = 0
     Z[n_point_delay, :] = Z0
     runtime = 0.
-    if salience:
+    if silence:
         bar = range(dataset_config.n_point)
     else:
         bar = tqdm(range(dataset_config.n_point))
@@ -620,6 +620,9 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, initial_conditions:
             all_samples += dataset[:dataset_config.n_sample_per_dataset]
         else:
             all_samples += dataset
+        wandb.log({
+            "number dataset": i + 1
+        })
     random.shuffle(all_samples)
     return all_samples
 

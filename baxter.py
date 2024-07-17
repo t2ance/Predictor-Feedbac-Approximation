@@ -62,14 +62,6 @@ class BaxterParameters:
         self.gravity = np.array([0, 0, -9.81, 0])
 
     def get_transform_matrix(self, theta, d, a, alpha):
-        '''
-
-        :param theta:
-        :param d:
-        :param a:
-        :param alpha:
-        :return: T_i
-        '''
         return np.array([
             [np.cos(theta), -np.sin(theta) * np.cos(alpha), np.sin(theta) * np.sin(alpha), a * np.cos(theta)],
             [np.sin(theta), np.cos(theta) * np.cos(alpha), -np.cos(theta) * np.sin(alpha), a * np.sin(theta)],
@@ -77,14 +69,44 @@ class BaxterParameters:
             [0, 0, 0, 1]
         ])
 
-    def get_jacobian_matrix(self, inertia_tensor, mass, com_position):
-        '''
+    def compute_Uij(self, q):
+        num_links = self.num_links
+        Uij = np.zeros((num_links, num_links, 4, 4))
+        Qj = np.array([
+            [0, -1, 0, 0],
+            [1, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0]
+        ])
 
-        :param inertia_tensor:
-        :param mass:
-        :param com_position:
-        :return: J_i
-        '''
+        for i in range(num_links):
+            for j in range(num_links):
+                if j <= i:
+                    T = np.eye(4)
+                    for k in range(j):
+                        theta, d, a, alpha = self.dh_parameters[k]
+                        T = T @ self.get_transform_matrix(theta + q[k], d, a, alpha)
+                    Uij[i, j] = T @ Qj @ np.linalg.inv(T)
+        return Uij
+
+    def compute_Uijk(self, Uij, q):
+        num_links = self.num_links
+        Uijk = np.zeros((num_links, num_links, num_links, 4, 4))
+
+        for i in range(num_links):
+            for j in range(num_links):
+                for k in range(num_links):
+                    if i >= k >= j:
+                        T = np.eye(4)
+                        for l in range(k):
+                            theta, d, a, alpha = self.dh_parameters[l]
+                            T = T @ self.get_transform_matrix(theta + q[l], d, a, alpha)
+                        Qj = Uij[j, i]
+                        Qk = Uij[k, i]
+                        Uijk[i, j, k] = T @ Qk @ Qj
+        return Uijk
+
+    def compute_Ji(self, inertia_tensor, mass, com_position):
         Ixx, Iyy, Izz = inertia_tensor[0, 0], inertia_tensor[1, 1], inertia_tensor[2, 2]
         Ixy, Ixz, Iyz = inertia_tensor[0, 1], inertia_tensor[0, 2], inertia_tensor[1, 2]
         x, y, z = com_position
@@ -96,96 +118,49 @@ class BaxterParameters:
         ])
 
     def compute_inertia_matrix(self, q):
-        '''
-        :param q:
-        :return: Mass matrix
-        '''
         M = np.zeros((self.num_links, self.num_links))
+        Uij = self.compute_Uij(q)
+
         for i in range(self.num_links):
-            for j in range(i, self.num_links):
-                T = np.eye(4)
-                for k in range(i, j + 1):
-                    theta, d, a, alpha = self.dh_parameters[k]
-                    T = T @ self.get_transform_matrix(theta + q[k], d, a, alpha)
-                J = self.get_jacobian_matrix(self.inertia_tensors[j], self.link_masses[j], self.com_positions[j])
-                M[i, j] = np.trace(T[:3, :3] @ J[:3, :3])
-                if i != j:
-                    M[j, i] = M[i, j]
+            for k in range(self.num_links):
+                sum_trace = 0
+                for j in range(max(i, k), self.num_links):
+                    Ji = self.compute_Ji(self.inertia_tensors[j], self.link_masses[j], self.com_positions[j])
+                    sum_trace += np.trace(Uij[j, k] @ Ji @ Uij[j, i].T)
+                M[i, k] = sum_trace
         return M
 
     def compute_coriolis_centrifugal_matrix(self, q, q_dot):
-        '''
+        num_links = self.num_links
+        C = np.zeros(num_links)
+        Uij = self.compute_Uij(q)
+        Uijk = self.compute_Uijk(Uij, q)
 
-        :param q:
-        :param q_dot:
-        :return: C matrix
-        '''
-        C = np.zeros((self.num_links, self.num_links))
-        for i in range(self.num_links):
-            for j in range(self.num_links):
-                for k in range(self.num_links):
-                    T = np.eye(4)
-                    for l in range(max(i, j, k)):
-                        theta, d, a, alpha = self.dh_parameters[l]
-                        T = T @ self.get_transform_matrix(theta + q[l], d, a, alpha)
-                    J = self.get_jacobian_matrix(self.inertia_tensors[j], self.link_masses[j], self.com_positions[j])
-                    C[i, j] += np.trace(T[:3, :3] @ J[:3, :3]) * q_dot[k]
+        for i in range(num_links):
+            for k in range(num_links):
+                for m in range(num_links):
+                    hikm = 0
+                    for j in range(max(i, k, m), num_links):
+                        Ji = self.compute_Ji(self.inertia_tensors[j], self.link_masses[j], self.com_positions[j])
+                        hikm += np.trace(Uijk[j, k, m] @ Ji @ Uij[j, i].T)
+                    C[i] += hikm * q_dot[k] * q_dot[m]
+
         return C
 
     def compute_gravity_vector(self, q):
-        '''
+        num_links = self.num_links
+        G = np.zeros(num_links)
+        Uij = self.compute_Uij(q)
 
-        :param q:
-        :return: G matrix
-        '''
-        G = np.zeros(self.num_links)
-        for i in range(self.num_links):
-            T = np.eye(4)
-            for j in range(i + 1):
-                theta, d, a, alpha = self.dh_parameters[j]
-                T = T @ self.get_transform_matrix(theta + q[j], d, a, alpha)
-            G[i] = -self.link_masses[i] * np.dot(self.gravity[:3], T[:3, 3])
+        for i in range(num_links):
+            Gi = 0
+            for j in range(i, num_links):
+                rj = np.append(self.com_positions[j], 1)
+                Gi += -self.link_masses[j] * np.dot(self.gravity, (Uij[j, i] @ rj))
+            G[i] = Gi
+
         return G
-
-    def compute_dynamics(self, t, y, tau):
-        q = y[:self.num_links]
-        q_dot = y[self.num_links:]
-
-        M = self.compute_inertia_matrix(q)
-        C = self.compute_coriolis_centrifugal_matrix(q, q_dot)
-        G = self.compute_gravity_vector(q)
-
-        q_ddot = np.linalg.inv(M).dot(tau - C.dot(q_dot) - G)
-
-        return np.concatenate((q_dot, q_ddot))
 
 
 if __name__ == '__main__':
-    from scipy.integrate import solve_ivp
-
-    baxter_dynamics = BaxterParameters()
-
-    q0 = np.zeros(7)
-    q_dot0 = np.zeros(7)
-    y0 = np.concatenate((q0, q_dot0))
-
-    # 定义仿真时间
-    t_span = [0, 10]  # 仿真10秒
-    tau = np.zeros(7)  # 假设关节扭矩为零
-
-    # 使用solve_ivp求解ODE
-    # solution = solve_ivp(baxter_dynamics.compute_dynamics, t_span, y0, args=(tau,), t_eval=np.linspace(0, 10, 500))
-    # solution = solve_ivp(baxter_dynamics.compute_dynamics, t_span, y0, args=(tau,), t_eval=np.linspace(0, 10, 100),
-    #                      max_step=0.01)
-    solution = solve_ivp(baxter_dynamics.compute_dynamics, t_span, y0, args=(tau,), t_eval=np.linspace(0, 10, 100),
-                         rtol=1e-5, atol=1e-8)
-
-    # 输出仿真结果
-    import matplotlib.pyplot as plt
-
-    plt.plot(solution.t, solution.y[:7].T)
-    plt.xlabel('Time [s]')
-    plt.ylabel('Joint Angles [rad]')
-    plt.title('Baxter Robot Joint Angles Over Time')
-    plt.legend(['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7'])
-    plt.show()
+    ...

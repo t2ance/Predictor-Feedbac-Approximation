@@ -284,8 +284,8 @@ class DatasetConfig:
 def get_config(system_, n_iteration=None, duration=None, delay=None):
     if system_ == 's1':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=1,
-                                       duration=8, dt=0.05, n_dataset=500, n_sample_per_dataset=-1, n_plot_sample=20,
-                                       ic_lower_bound=-1.5, ic_upper_bound=1.5, integral_method='successive adaptive',
+                                       duration=8, dt=0.05, n_dataset=200, n_sample_per_dataset=-1, n_plot_sample=20,
+                                       ic_lower_bound=-2, ic_upper_bound=2, integral_method='successive adaptive',
                                        random_test=True)
         model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=32)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=300, batch_size=64,
