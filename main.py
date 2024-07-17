@@ -157,6 +157,7 @@ def simulation(dataset_config: DatasetConfig, Z0: Tuple | np.ndarray | List,
                             dataset_config=dataset_config).solution
                         P_switching[t_i, :] = P_numerical[t_i, :]
                         p_numerical_count += 1
+                        switching_indicator[t_i] = 1
                     U[t_i] = system.kappa(P_switching[t_i, :], t)
                 end = time.time()
                 runtime += end - begin

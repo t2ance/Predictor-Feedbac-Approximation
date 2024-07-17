@@ -344,20 +344,22 @@ def plot_switch_segments(ts, result: SimulationResult, save_path):
     marked_y = U[marked_indices]
     plt.scatter(marked_x, marked_y, color='red', zorder=3)
 
-    colors = ['green', 'blue']
+    colors = ['green', 'red']
     color_labels = ['NO', 'Numerical']
 
-    plt.plot(ts[:marked_indices[0]], U[:marked_indices[0]], color=colors[0], label=color_labels[0])
+    plt.plot(ts[:marked_indices[0]+1], U[:marked_indices[0]+1], color=colors[0], label=color_labels[0])
 
     for i in range(len(marked_indices) - 1):
-        plt.plot(ts[marked_indices[i]:marked_indices[i + 1]], U[marked_indices[i]:marked_indices[i + 1]],
-                 color=colors[(i + 1) % 2], label=color_labels[(i + 1) % 2] if i == 0 else "")
+        plt.plot(ts[marked_indices[i]:marked_indices[i + 1]+1],
+                 U[marked_indices[i]:marked_indices[i + 1]+1],
+                 color=colors[(i + 1) % 2],
+                 label=color_labels[(i + 1) % 2] if i == 0 else "")
 
-    plt.plot(ts[marked_indices[-1]:], U[marked_indices[-1]:], color=colors[(len(marked_indices) - 1) % 2 + 1])
+    plt.plot(ts[marked_indices[-1]:], U[marked_indices[-1]:], color=colors[len(marked_indices) % 2])
 
     plt.xlabel('Time t')
     plt.legend(loc=legend_loc, fontsize=legend_fontsize)
-    plt.savefig(save_path)
+    plt.savefig(f'{save_path}/u_marked.png')
     fig.clear()
     plt.close(fig)
 

@@ -283,7 +283,7 @@ class DatasetConfig:
 
 def get_config(system_, n_iteration=None, duration=None, delay=None):
     if system_ == 's1':
-        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory', delay=3,
+        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory', delay=1,
                                        duration=16, dt=0.05, n_dataset=1000, n_sample_per_dataset=-1, n_plot_sample=20,
                                        ic_lower_bound=-1.5, ic_upper_bound=1.5, integral_method='successive adaptive',
                                        random_test=True)
