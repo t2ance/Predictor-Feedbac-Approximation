@@ -347,11 +347,11 @@ def plot_switch_segments(ts, result: SimulationResult, save_path):
     colors = ['green', 'red']
     color_labels = ['NO', 'Numerical']
 
-    plt.plot(ts[:marked_indices[0]+1], U[:marked_indices[0]+1], color=colors[0], label=color_labels[0])
+    plt.plot(ts[:marked_indices[0] + 1], U[:marked_indices[0] + 1], color=colors[0], label=color_labels[0])
 
     for i in range(len(marked_indices) - 1):
-        plt.plot(ts[marked_indices[i]:marked_indices[i + 1]+1],
-                 U[marked_indices[i]:marked_indices[i + 1]+1],
+        plt.plot(ts[marked_indices[i]:marked_indices[i + 1] + 1],
+                 U[marked_indices[i]:marked_indices[i + 1] + 1],
                  color=colors[(i + 1) % 2],
                  label=color_labels[(i + 1) % 2] if i == 0 else "")
 
@@ -434,19 +434,19 @@ def plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_
         plot_difference(ts, [P_explicit], Z, delay, n_point_delay, difference_full, n_state)
         plot_comparison(ts, [P_explicit], Z, delay, n_point_delay, comparison_zoom, n_state, ylim=[-5, 5])
         plot_difference(ts, [P_explicit], Z, delay, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
-        plot_single(ts, U, '$U(t)$', u_path)
+        plot_control(ts, U, u_path)
     elif method == 'no' or method == 'scheduled_sampling':
         plot_comparison(ts, [P_no], Z, delay, n_point_delay, comparison_full, n_state)
         plot_difference(ts, [P_no], Z, delay, n_point_delay, difference_full, n_state)
         plot_comparison(ts, [P_no], Z, delay, n_point_delay, comparison_zoom, n_state, ylim=[-5, 5])
         plot_difference(ts, [P_no], Z, delay, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
-        plot_single(ts, U, '$U(t)$', u_path)
+        plot_control(ts, U, u_path)
     elif method == 'numerical':
         plot_comparison(ts, [P_numerical], Z, delay, n_point_delay, comparison_full, n_state)
         plot_difference(ts, [P_numerical], Z, delay, n_point_delay, difference_full, n_state)
         plot_comparison(ts, [P_numerical], Z, delay, n_point_delay, comparison_zoom, n_state, ylim=[-5, 5])
         plot_difference(ts, [P_numerical], Z, delay, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
-        plot_single(ts, U, '$U(t)$', u_path)
+        plot_control(ts, U, u_path)
     elif method == 'numerical_no':
         plot_comparison(ts, [P_numerical, P_no], Z, delay, n_point_delay, comparison_full, n_state,
                         Ps_labels=['numerical', 'no'])
@@ -456,13 +456,13 @@ def plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_
                         Ps_labels=['numerical', 'no'], ylim=[-5, 5])
         plot_difference(ts, [P_numerical, P_no], Z, delay, n_point_delay, difference_zoom, n_state,
                         Ps_labels=['numerical', 'no'], ylim=[-5, 5])
-        plot_single(ts, U, '$U(t)$', u_path)
+        plot_control(ts, U, u_path)
     elif method == 'switching':
         plot_comparison(ts, [P_switching], Z, delay, n_point_delay, comparison_full, n_state)
         plot_difference(ts, [P_switching], Z, delay, n_point_delay, difference_full, n_state)
         plot_comparison(ts, [P_switching], Z, delay, n_point_delay, comparison_zoom, n_state, ylim=[-5, 5])
         plot_difference(ts, [P_switching], Z, delay, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
-        plot_single(ts, U, '$U(t)$', u_path)
+        plot_control(ts, U, u_path)
     else:
         raise NotImplementedError()
 
@@ -546,9 +546,12 @@ def plot_difference(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
         plt.show()
 
 
-def plot_single(ts, data, label, save_path, ylim=None):
+def plot_control(ts, U, save_path, ylim=None):
     fig = plt.figure(figsize=set_size())
-    plt.plot(ts, data, label=label)
+    assert U.ndim == 2
+    U = U.T
+    for i, u in enumerate(U):
+        plt.plot(ts, u, label=f'U_{i}(t)')
     plt.xlabel('Time t')
     if ylim is not None:
         plt.ylim(ylim)

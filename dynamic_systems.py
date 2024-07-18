@@ -72,14 +72,10 @@ class Baxter(DynamicSystem):
     def n_state(self):
         return 14  # 7 dimensions for e1 and 7 dimensions for e2
 
-    def __init__(self, alpha=None, beta=None, delay=0.1):
+    def __init__(self, delay: float, alpha=None, beta=None):
         super().__init__(delay)
-        # self.M = np.eye(7) if M is None else M
-        # self.C = np.zeros((7, 7)) if C is None else C
-        # self.G = np.zeros(7) if G is None else G
-
         self.alpha = np.eye(7) * 1 if alpha is None else alpha
-        self.beta = np.eye(7) * 0.1 if beta is None else beta
+        self.beta = np.eye(7) * 1 if beta is None else beta
         self.baxter_parameters = BaxterParameters()
 
     def G(self, t):
@@ -94,14 +90,17 @@ class Baxter(DynamicSystem):
     def q_des(self, t):
         # return np.zeros(7)
         return np.array([np.sin(t), np.cos(t), 0, 0, 0, 0, 0]) * 0.1
+        # return np.array([0.5, 0, 0, 0, 0, 0, 0]) * 0.1
 
     def qd_des(self, t):
         # return np.zeros(7)
         return np.array([np.cos(t), -np.sin(t), 0, 0, 0, 0, 0]) * 0.1
+        # return np.array([0.5, 0, 0, 0, 0, 0, 0]) * 0.1
 
     def qdd_des(self, t):
         # return np.zeros(7)
         return np.array([-np.sin(t), -np.cos(t), 0, 0, 0, 0, 0]) * 0.1
+        # return np.array([0.5, 0, 0, 0, 0, 0, 0]) * 0.1
 
     def h(self, e1, e2, t):
         return self.qdd_des(t) - self.alpha @ (self.alpha @ e1) + np.linalg.inv(self.M(t)) @ (

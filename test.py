@@ -124,7 +124,7 @@ def draw_difference(dataset_config):
 if __name__ == '__main__':
     dataset_config, model_config, train_config = get_config(system_='s5')
     # Z0 = tuple([1, 1] + [0] * 12)
-    Z0 = tuple((np.random.random(14)).tolist())
+    Z0 = tuple((np.random.random(14) * 0.3).tolist())
     # Z0 = tuple(np.zeros(14).tolist())
     print('initial point', Z0)
     dataset_config.duration = 10
