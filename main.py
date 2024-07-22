@@ -3,6 +3,7 @@ import os
 import random
 import time
 import uuid
+import warnings
 from typing import Literal, Tuple, List
 
 import matplotlib.pyplot as plt
@@ -14,21 +15,20 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 import config
-import dynamic_systems
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
-from dynamic_systems import solve_integral_eular, solve_integral_nn, solve_integral_ci_nn
+from dynamic_systems import solve_integral_eular, solve_integral_nn, DynamicSystem, solve_integral, \
+    solve_integral_successive_batched
 from model import FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
 from utils import set_size, pad_leading_zeros, metric, check_dir, plot_sample, predict_and_loss, load_lr_scheduler, \
     prepare_datasets, draw_distribution, set_seed, print_result, postprocess, load_model, load_optimizer, shift, \
     print_args, get_time_str, SimulationResult, plot_result, plot_switch_system
-import warnings
 
 
 def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tuple | np.ndarray | List,
                method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling'] = None,
                model=None, img_save_path: str = None, silence: bool = True):
-    system: dynamic_systems.DynamicSystem = dataset_config.system
+    system: DynamicSystem = dataset_config.system
     n_point_delay = dataset_config.n_point_delay
     ts = dataset_config.ts
     Z0 = np.array(Z0)
@@ -75,9 +75,8 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
             # estimate prediction and control signal
             if method == 'numerical':
                 begin = time.time()
-                solution = dynamic_systems.solve_integral(
-                    Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
-                    dataset_config=dataset_config)
+                solution = solve_integral(Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
+                                          dataset_config=dataset_config)
                 P_numerical[t_i, :] = solution.solution
                 P_numerical_n_iters[t_i] = solution.n_iter
                 end = time.time()
@@ -87,26 +86,26 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
             elif method == 'no':
                 U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
                 begin = time.time()
-                P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
+                P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
                 end = time.time()
                 runtime += end - begin
                 if t_i >= n_point_delay:
                     U[t_i] = system.kappa(P_no[t_i, :], t)
             elif method == 'numerical_no':
-                solution = dynamic_systems.solve_integral(
+                solution = solve_integral(
                     Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
                     dataset_config=dataset_config)
                 P_numerical[t_i, :] = solution.solution
                 P_numerical_n_iters[t_i] = solution.n_iter
 
                 U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
-                P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
+                P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
                 if t_i >= n_point_delay:
                     U[t_i] = system.kappa(P_numerical[t_i, :], t)
             elif method == 'switching':
                 U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
                 begin = time.time()
-                P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t)
+                P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
                 if t_i >= n_point_delay:
                     if t_i >= 2 * n_point_delay:
                         # System switching
@@ -145,7 +144,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                             P_switching[t_i, :] = P_no[t_i, :]
                             p_no_count += 1
                         else:
-                            P_numerical[t_i, :] = dynamic_systems.solve_integral(
+                            P_numerical[t_i, :] = solve_integral(
                                 Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
                                 dataset_config=dataset_config).solution
                             P_switching[t_i, :] = P_numerical[t_i, :]
@@ -156,7 +155,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                         e_ts[t_i] = e_t
                     else:
                         # Warm start
-                        P_numerical[t_i, :] = dynamic_systems.solve_integral(
+                        P_numerical[t_i, :] = solve_integral(
                             Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
                             dataset_config=dataset_config).solution
                         P_switching[t_i, :] = P_numerical[t_i, :]
@@ -168,13 +167,13 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
             elif method == 'scheduled_sampling':
                 if np.random.binomial(n=1, p=train_config.scheduled_sampling_p) == 1:
                     # Teacher Forcing
-                    solution = dynamic_systems.solve_integral(
+                    solution = solve_integral(
                         Z_t=Z_t, P_D=P_no[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t, dataset_config=dataset_config)
                     P_no[t_i, :] = solution.solution
                 else:
                     # Not Teacher Forcing
-                    P_no[t_i, :] = solve_integral_nn(
-                        model=model, U_D=pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t)
+                    P_no[t_i, :] = solve_integral_nn(model=model, U_D=pad_leading_zeros(
+                        segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t, t=t)
                 if t_i >= n_point_delay:
                     U[t_i] = system.kappa(P_no[t_i, :], t)
             else:
@@ -217,7 +216,7 @@ def model_train(model, optimizer, scheduler, device, training_dataloader, predic
             inputs_grad[~mask] = 0
 
             adversarial_inputs = inputs + torch.rand((1,), device=device) * adversarial_epsilon * inputs_grad.sign()
-            adversarial_labels = dynamic_systems.solve_integral_successive_batched(
+            adversarial_labels = solve_integral_successive_batched(
                 Z_t=np.array(adversarial_inputs[:, 1:1 + n_state].detach().cpu().numpy()),
                 U_D=np.array(adversarial_inputs[:, 1 + n_state:].detach().cpu().numpy()),
                 dt=dataset_config.dt, n_state=dataset_config.system.n_state, n_points=dataset_config.n_point_delay,
@@ -388,12 +387,12 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
             training_loss_arr.append(0)
             continue
         if dataset_config.integral_method == 'successive':
-            P_batched = dynamic_systems.solve_integral_successive_batched(
+            P_batched = solve_integral_successive_batched(
                 Z_t=true_values_array, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state,
                 dt=dataset_config.dt, U_D=U_array, f=dataset_config.system.dynamic,
                 n_iterations=dataset_config.successive_approximation_n_iteration, adaptive=False)
         else:
-            P_batched, n_iter = dynamic_systems.solve_integral_successive_batched(
+            P_batched, n_iter = solve_integral_successive_batched(
                 Z_t=true_values_array, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state,
                 dt=dataset_config.dt, U_D=U_array, f=dataset_config.system.dynamic,
                 threshold=dataset_config.successive_approximation_threshold, adaptive=True)
@@ -926,11 +925,11 @@ if __name__ == '__main__':
     )
     set_seed(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s1')
+    parser.add_argument('-s', type=str, default='s5')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
-    parser.add_argument('-training_type', type=str, default='switching')
-    # parser.add_argument('-training_type', type=str, default='offline')
+    # parser.add_argument('-training_type', type=str, default='switching')
+    parser.add_argument('-training_type', type=str, default='offline')
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n, args.delay)
     assert torch.cuda.is_available()
@@ -943,10 +942,12 @@ if __name__ == '__main__':
         train_config.cp_adaptive = True
         train_config.cp_switching_type = 'switching'
 
+        dataset_config.recreate_training_dataset = True
+        dataset_config.n_dataset = 1
         dataset_config.random_test_upper_bound = 1.
         dataset_config.random_test_lower_bound = 0
-        train_config.do_training = False
-        train_config.load_model = True
+        train_config.do_training = True
+        train_config.load_model = False
         # train_config.cp_switching_type = 'alternating'
     elif args.training_type == 'scheduled sampling':
         train_config.lr_scheduler_type = 'none'

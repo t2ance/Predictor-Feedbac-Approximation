@@ -57,7 +57,7 @@ class DynamicSystem:
 
 class Baxter(DynamicSystem):
     '''
-    A dynamic system class for the 2 DOF Baxter robot manipulator with input delay,
+    A dynamic system class for the Baxter robot manipulator with input delay,
     implementing the dynamics based on the equations described in the paper.
     '''
 
@@ -74,11 +74,11 @@ class Baxter(DynamicSystem):
         return self.dof * 2  # dof dimensions for e1 and dof dimensions for e2
 
     def __init__(self, delay: float, alpha=None, beta=None, dof: int = 7):
-        assert 1 < dof <= 7
+        assert 1 <= dof <= 7
         super().__init__(delay)
         self.dof = dof
-        self.alpha = np.eye(dof) * 10 if alpha is None else alpha
-        self.beta = np.eye(dof) * 10 if beta is None else beta
+        self.alpha = np.eye(dof) if alpha is None else alpha
+        self.beta = np.eye(dof) if beta is None else beta
         self.baxter_parameters = BaxterParameters(dof=dof)
 
     @lru_cache(maxsize=128)
@@ -95,35 +95,47 @@ class Baxter(DynamicSystem):
 
     @lru_cache(maxsize=128)
     def q_des(self, t):
-        return np.array([np.sin(t), np.cos(t), 0, 0, 0, 0, 0])[:self.dof]
+        return np.array([np.sin(0.2 * t), np.cos(0.2 * t), 0, 0, 0, 0, 0])[:self.dof]
+        # return np.array([0.01 * t, -0.01 * t, 0, 0, 0, 0, 0])[:self.dof]
+        # return np.array([5, 5, 0, 0, 0, 0, 0])[:self.dof]
 
     @lru_cache(maxsize=128)
     def qd_des(self, t):
-        return np.array([np.cos(t), -np.sin(t), 0, 0, 0, 0, 0])[:self.dof]
+        return np.array([0.2 * np.cos(0.2 * t), -0.2 * np.sin(0.2 * t), 0, 0, 0, 0, 0])[:self.dof]
+        # return np.array([0.01, -0.01, 0, 0, 0, 0, 0])[:self.dof]
+        # return np.array([0, 0, 0, 0, 0, 0, 0])[:self.dof]
 
     @lru_cache(maxsize=128)
     def qdd_des(self, t):
-        return np.array([-np.sin(t), -np.cos(t), 0, 0, 0, 0, 0])[:self.dof]
+        return np.array([-0.04 * np.sin(0.2 * t), -0.04 * np.cos(0.2 * t), 0, 0, 0, 0, 0])[:self.dof]
+        # return np.array([0, 0, 0, 0, 0, 0, 0])[:self.dof]
+        # return np.array([0, 0, 0, 0, 0, 0, 0])[:self.dof]
 
     def h(self, e1, e2, t):
         return self.qdd_des(t) - self.alpha @ (self.alpha @ e1) + np.linalg.inv(self.M(t)) @ (
                 self.C(t) @ self.qd_des(t) + self.G(t) + self.C(t) @ (self.alpha @ e1) - self.C(t) @ e2)
 
     def dynamic(self, E_t, t, U_delay):
-        if E_t.ndim == 1:
-            E_t = E_t[np.newaxis, :]
-            batch_mode = False
-        else:
-            batch_mode = True
+        # if E_t.ndim == 1:
+        #     E_t = E_t[np.newaxis, :]
+        #     batch_mode = False
+        # else:
+        #     batch_mode = True
+        #
+        # e1_t, e2_t = E_t[:, :self.dof], E_t[:, self.dof:]
+        # h = np.array([self.h(e[:self.dof], e[self.dof:], t) for e in E_t])
+        #
+        # e1_t_dot = e2_t - np.matmul(e1_t, self.alpha.T)
+        # e2_t_dot = np.matmul(e2_t, self.alpha.T) + h - np.matmul(U_delay, np.linalg.inv(self.M(t)).T)
+        # dynamics = np.concatenate([e1_t_dot, e2_t_dot], axis=1)
+        #
+        # return dynamics if batch_mode else dynamics[0]
+        e1_t, e2_t = E_t[:self.dof], E_t[self.dof:]
+        h = self.h(e1_t, e2_t, t)
 
-        e1_t, e2_t = E_t[:, :self.dof], E_t[:, self.dof:]
-        e1_t_dot = e2_t - np.matmul(e1_t, self.alpha.T)
-        h = np.array([self.h(e[:self.dof], e[self.dof:], t) for e in E_t])
-        e2_t_dot = np.matmul(e2_t, self.alpha.T) + h - np.matmul(U_delay, np.linalg.inv(self.M(t)).T)
-
-        dynamics = np.concatenate([e1_t_dot, e2_t_dot], axis=1)
-
-        return dynamics if batch_mode else dynamics[0]
+        e1_t_dot = e2_t - self.alpha @ e1_t
+        e2_t_dot = self.alpha @ e2_t + h - np.linalg.inv(self.M(t)) @ U_delay
+        return np.concatenate([e1_t_dot, e2_t_dot])
 
     def kappa(self, E_t, t):
         e1, e2 = E_t[:self.dof], E_t[self.dof:]
@@ -370,11 +382,45 @@ class VanDerPolOscillator(DynamicSystem):
         raise NotImplementedError()
 
 
-def solve_integral_nn(model, U_D, Z_t):
+class DynamicSystem3(DynamicSystem):
+
+    @property
+    def name(self):
+        return 's6'
+
+    @property
+    def n_input(self):
+        return 2
+
+    @property
+    def n_state(self):
+        return 3  # dof dimensions for e1 and dof dimensions for e2
+
+    def __init__(self, delay: float):
+        super().__init__(delay)
+
+    def dynamic(self, X_t, t, U_delay):
+        assert X_t.ndim == 1
+        X1_t, X2_t, X3_t = X_t
+        U1_delay, U2_delay = U_delay
+        return np.array([U2_delay * np.cos(X3_t), U2_delay * np.sin(X3_t), U1_delay])
+
+    def kappa(self, X_t, t):
+        X1_t, X2_t, X3_t = X_t
+        M_t = X1_t * np.cos(X3_t) + X2_t * np.sin(X3_t)
+        Q_t = X1_t * np.sin(X3_t) - X2_t * np.cos(X3_t)
+        U1 = -M_t ** 2 * np.cos(t) - M_t * Q_t * (1 + np.cos(t) ** 2) - X3_t
+        U2 = -M_t + Q_t * (np.sin(t) - np.cos(t)) + Q_t * U1
+        return np.array([U1, U2])
+
+
+def solve_integral_nn(model, U_D, Z_t, t):
     device = next(model.parameters()).device
     u_tensor = torch.tensor(U_D, dtype=torch.float32, device=device).view(1, -1)
     z_tensor = torch.tensor(Z_t, dtype=torch.float32, device=device).view(1, -1)
-    outputs = model(torch.cat([z_tensor, u_tensor], dim=1))
+    t_tensor = torch.tensor(t, dtype=torch.float32, device=device).view(1, -1)
+    # outputs = model(torch.cat([z_tensor, u_tensor], dim=1))
+    outputs = model(torch.cat([t_tensor, z_tensor, u_tensor], dim=1))
     return outputs.to('cpu').detach().numpy()[0]
 
 
@@ -403,16 +449,17 @@ def solve_integral(Z_t, P_D, U_D, t: float, dataset_config):
     elif dataset_config.integral_method == 'simpson':
         solution.solution = solve_integral_simpson(f=f, Z_t=Z_t, P_D=P_D, U_D=U_D, ts=ts, dt=dt)
     elif dataset_config.integral_method == 'eular':
-        solution.solution = solve_integral_eular(Z_t=Z_t, n_points=n_points, n_state=n_state, dt=dt, U_D=U_D, f=f)
+        solution.solution = solve_integral_eular(Z_t=Z_t, n_points=n_points, n_state=n_state, dt=dt, U_D=U_D, f=f,
+                                                 ts=ts)
     elif dataset_config.integral_method == 'successive':
         solution.solution = solve_integral_successive(Z_t=Z_t, n_points=n_points, n_state=n_state, dt=dt, U_D=U_D, f=f,
                                                       n_iterations=dataset_config.successive_approximation_n_iteration,
-                                                      adaptive=False)
+                                                      adaptive=False, ts=ts)
         solution.n_iter = dataset_config.successive_approximation_n_iteration
     elif dataset_config.integral_method == 'successive adaptive':
         res, n_iter = solve_integral_successive(Z_t=Z_t, n_points=n_points, n_state=n_state, dt=dt, U_D=U_D, f=f,
                                                 threshold=dataset_config.successive_approximation_threshold,
-                                                adaptive=True)
+                                                adaptive=True, ts=ts)
         solution.solution = res
         solution.n_iter = n_iter
     else:
@@ -420,7 +467,7 @@ def solve_integral(Z_t, P_D, U_D, t: float, dataset_config):
     return solution
 
 
-def solve_integral_eular(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f):
+def solve_integral_eular(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f, ts):
     if isinstance(Z_t, np.ndarray):
         P_D = np.zeros((n_points + 1, n_state))
     elif isinstance(Z_t, torch.Tensor):
@@ -428,13 +475,13 @@ def solve_integral_eular(Z_t, n_points: int, n_state: int, dt: float, U_D: np.nd
     else:
         raise NotImplementedError()
     P_D[0, :] = Z_t
-    for j in range(n_points):
-        P_D[j + 1, :] = P_D[j, :] + dt * f(P_D[j, :], j * dt, U_D[j])
+    for j, t in enumerate(ts):
+        P_D[j + 1, :] = P_D[j, :] + dt * f(P_D[j, :], t, U_D[j])
     return P_D[-1]
 
 
-def solve_integral_successive(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f, n_iterations: int = 1,
-                              threshold: float = 1e-5, adaptive: bool = False):
+def solve_integral_successive(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f, ts: np.ndarray,
+                              n_iterations: int = 1, threshold: float = 1e-5, adaptive: bool = False):
     assert n_iterations >= 0
     assert isinstance(Z_t, np.ndarray)
     if adaptive:
@@ -445,11 +492,11 @@ def solve_integral_successive(Z_t, n_points: int, n_state: int, dt: float, U_D: 
         n_iterations = 0
         while True:
             n_iterations += 1
-            for j in range(n_points):
+            for j, t in enumerate(ts):
                 if j == 0:
-                    P_D[1, j + 1, :] = Z_t + dt * f(P_D[0, 0, :], 0 * dt, U_D[0])
+                    P_D[1, j + 1, :] = Z_t + dt * f(P_D[0, 0, :], t, U_D[0])
                 else:
-                    P_D[1, j + 1, :] = P_D[1, j, :] + dt * f(P_D[0, j, :], j * dt, U_D[j])
+                    P_D[1, j + 1, :] = P_D[1, j, :] + dt * f(P_D[0, j, :], t, U_D[j])
 
             # Check for convergence
             if np.all(np.abs(P_D[1] - P_D[0]) < threshold) or n_iterations > 100:
@@ -464,15 +511,15 @@ def solve_integral_successive(Z_t, n_points: int, n_state: int, dt: float, U_D: 
         P_D[0, :, :] = Z_t
         P_D[-1, :, :] = Z_t
         for n in range(n_iterations):
-            for j in range(n_points):
+            for j, t in enumerate(ts):
                 if j == 0:
-                    P_D[n + 1, j + 1, :] = Z_t + dt * f(P_D[n, 0, :], 0 * dt, U_D[0])
+                    P_D[n + 1, j + 1, :] = Z_t + dt * f(P_D[n, 0, :], t, U_D[0])
                 else:
-                    P_D[n + 1, j + 1, :] = P_D[n + 1, j, :] + dt * f(P_D[n, j, :], j * dt, U_D[j])
+                    P_D[n + 1, j + 1, :] = P_D[n + 1, j, :] + dt * f(P_D[n, j, :], t, U_D[j])
         return P_D[-1, -1, :]
 
 
-def solve_integral_successive_batched(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f,
+def solve_integral_successive_batched(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f, ts: np.ndarray,
                                       n_iterations: int = 1, threshold: float = 1e-5, adaptive: bool = False):
     assert n_iterations >= 0
     assert isinstance(Z_t, np.ndarray)
@@ -485,11 +532,11 @@ def solve_integral_successive_batched(Z_t, n_points: int, n_state: int, dt: floa
         n_iterations = 0
         while True:
             n_iterations += 1
-            for j in range(n_points):
+            for j, t in enumerate(ts):
                 if j == 0:
-                    P_D[1, :, j + 1, :] = Z_t + dt * f(P_D[0, :, 0, :], 0 * dt, U_D[:, 0])
+                    P_D[1, :, j + 1, :] = Z_t + dt * f(P_D[0, :, 0, :], t, U_D[:, 0])
                 else:
-                    P_D[1, :, j + 1, :] = P_D[1, :, j, :] + dt * f(P_D[0, :, j, :], j * dt, U_D[:, j])
+                    P_D[1, :, j + 1, :] = P_D[1, :, j, :] + dt * f(P_D[0, :, j, :], t, U_D[:, j])
 
             # Check for convergence
             if np.all(np.abs(P_D[1] - P_D[0]) < threshold):
@@ -504,11 +551,11 @@ def solve_integral_successive_batched(Z_t, n_points: int, n_state: int, dt: floa
         P_D[0, :, :, :] = Z_t[:, np.newaxis, :]
 
         for n in range(n_iterations):
-            for j in range(n_points):
+            for j, t in enumerate(ts):
                 if j == 0:
-                    P_D[n + 1, :, j + 1, :] = Z_t + dt * f(P_D[n, :, 0, :], 0 * dt, U_D[:, 0])
+                    P_D[n + 1, :, j + 1, :] = Z_t + dt * f(P_D[n, :, 0, :], t, U_D[:, 0])
                 else:
-                    P_D[n + 1, :, j + 1, :] = P_D[n + 1, :, j, :] + dt * f(P_D[n, :, j, :], j * dt, U_D[:, j])
+                    P_D[n + 1, :, j + 1, :] = P_D[n + 1, :, j, :] + dt * f(P_D[n, :, j, :], t, U_D[:, j])
 
         return P_D[-1, :, -1, :]
 
@@ -517,7 +564,9 @@ def solve_integral_rectangle(f, Z_t, P_D, U_D, ts, dt: float):
     assert len(P_D) == len(U_D)
     if len(P_D) == 0:
         return 0
-    integrand_values = f(np.array(P_D), np.array(ts), np.array(U_D))
+    # integrand_values = f(np.array(P_D), np.array(ts), np.array(U_D))
+    # integral = integrand_values.sum(0) * dt
+    integrand_values = np.array([f(p, t, u) for p, t, u in zip(np.array(P_D), np.array(ts), np.array(U_D))])
     integral = integrand_values.sum(0) * dt
     return integral + Z_t
 

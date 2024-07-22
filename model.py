@@ -269,7 +269,7 @@ class FNOProjection(torch.nn.Module):
         self.mse_loss = torch.nn.MSELoss()
         self.fno = FNO1d(n_modes_height=n_modes_height, n_layers=n_layers, hidden_channels=hidden_channels,
                          in_channels=1, out_channels=1)
-        in_features = n_state + n_point_delay * n_input
+        in_features = 1 + n_state + n_point_delay * n_input
         out_features = n_state
         self.projection = torch.nn.Linear(in_features=in_features, out_features=out_features)
 

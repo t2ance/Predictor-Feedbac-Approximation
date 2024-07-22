@@ -267,11 +267,11 @@ def check_dir(path):
 
 
 def predict_and_loss(inputs, labels, model):
-    return model(inputs[:, 1:], labels)
+    return model(inputs, labels)
 
 
 def quantile_predict_and_loss(inputs, labels, model):
-    outputs = model(inputs[:, 1:])
+    outputs = model(inputs)
     loss = quantile_loss(outputs, labels, model.quantiles)
     return outputs, loss
 

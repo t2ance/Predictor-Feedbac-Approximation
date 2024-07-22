@@ -245,6 +245,8 @@ class DatasetConfig:
             return dynamic_systems.VanDerPolOscillator(delay=self.delay)
         elif self.system_ == 's5':
             return dynamic_systems.Baxter(dof=self.baxter_dof, delay=self.delay)
+        elif self.system_ == 's6':
+            return dynamic_systems.DynamicSystem3(delay=self.delay)
         else:
             raise NotImplementedError()
 
@@ -310,6 +312,16 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                    load_model=False, do_testing=False, scheduled_sampling_type='inverse sigmoid',
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's5':
+        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=.5,
+                                       duration=12, dt=0.05, n_dataset=25, n_sample_per_dataset=-1, n_plot_sample=20,
+                                       ic_lower_bound=-0.5, ic_upper_bound=0.5, integral_method='successive adaptive',
+                                       baxter_dof=2)
+        model_config = ModelConfig(model_name='FNO', n_layer=3, fno_n_modes_height=16, fno_hidden_channels=16)
+        train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=2000, batch_size=64,
+                                   weight_decay=1e-3, log_step=-1, lr_scheduler_type='none', cp_alpha=0.01,
+                                   scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
+                                   scheduled_sampling_k=1e-2)
+    elif system_ == 's6':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=.5,
                                        duration=32, dt=0.01, n_dataset=25, n_sample_per_dataset=-1, n_plot_sample=20,
                                        ic_lower_bound=-0.5, ic_upper_bound=0.5, integral_method='successive adaptive')

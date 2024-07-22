@@ -46,7 +46,7 @@ class ZUPDataset(Dataset):
         z_features = self.Z[idx]
         u_features = self.U[idx - self.n_point_delay:idx]
         label = self.P[idx]
-        features = sample_to_tensor(z_features, u_features, idx * self.dt)
+        features = sample_to_tensor(z_features, u_features, (idx - self.n_point_delay) * self.dt)
         return features, label
 
 

@@ -3,7 +3,7 @@ import numpy as np
 
 class BaxterParameters:
     def __init__(self, dof: int = 7, link_masses=None, inertia_tensors=None, com_positions=None, dh_parameters=None):
-        assert 1 < dof <= 7
+        assert 1 <= dof <= 7
         if link_masses is None:
             link_masses = [5.70044, 3.22698, 4.31272, 2.07206, 2.24665, 1.60979, 0.54218]
 
@@ -46,6 +46,7 @@ class BaxterParameters:
         if dh_parameters is None:
             dh_parameters = [
                 (0, 0.2703, 0.069, -np.pi / 2),
+                # (np.pi / 2, 0, 0, np.pi / 2),
                 (0, 0, 0, np.pi / 2),
                 (0, 0.3644, 0.069, -np.pi / 2),
                 (0, 0, 0, np.pi / 2),
@@ -82,7 +83,7 @@ class BaxterParameters:
         Compute ^iT_j
         '''
         Tij = np.eye(4)
-        for l in range(i, j + 1):
+        for l in range(i, j):
             theta, d, a, alpha = self.dh_parameters[l]
             Tij = Tij @ self.get_transform_matrix(theta + q[l], d, a, alpha)
         return Tij
@@ -94,8 +95,8 @@ class BaxterParameters:
         for i in range(num_links):
             for j in range(num_links):
                 if j <= i:
-                    Uij[i, j] = self.get_transform_matrix_compose(0, j - 1, q) \
-                                @ self.Q() @ self.get_transform_matrix_compose(j - 1, i, q)
+                    Uij[i, j] = self.get_transform_matrix_compose(0, j, q) \
+                                @ self.Q() @ self.get_transform_matrix_compose(j, i, q)
         return Uij
 
     def compute_Uijk(self, q):
@@ -106,13 +107,13 @@ class BaxterParameters:
             for j in range(num_links):
                 for k in range(num_links):
                     if i >= k >= j:
-                        Uijk[i, j, k] = self.get_transform_matrix_compose(0, j - 1, q) \
-                                        @ self.Q() @ self.get_transform_matrix_compose(j - 1, k - 1, q) \
-                                        @ self.Q() @ self.get_transform_matrix_compose(k - 1, i, q)
+                        Uijk[i, j, k] = self.get_transform_matrix_compose(0, j, q) \
+                                        @ self.Q() @ self.get_transform_matrix_compose(j, k, q) \
+                                        @ self.Q() @ self.get_transform_matrix_compose(k, i, q)
                     if i >= j >= k:
-                        Uijk[i, j, k] = self.get_transform_matrix_compose(0, k - 1, q) \
-                                        @ self.Q() @ self.get_transform_matrix_compose(k - 1, j - 1, q) \
-                                        @ self.Q() @ self.get_transform_matrix_compose(j - 1, i, q)
+                        Uijk[i, j, k] = self.get_transform_matrix_compose(0, k, q) \
+                                        @ self.Q() @ self.get_transform_matrix_compose(k, j, q) \
+                                        @ self.Q() @ self.get_transform_matrix_compose(j, i, q)
         return Uijk
 
     def compute_Ji(self, inertia_tensor, mass, com_position):
