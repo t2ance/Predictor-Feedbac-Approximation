@@ -340,22 +340,17 @@ def plot_switch_segments(ts, result: SimulationResult, save_path):
     U, switching_indicator = result.U, result.switching_indicator
     fig = plt.figure(figsize=set_size())
     marked_indices = np.where(np.logical_xor(switching_indicator[:-1], switching_indicator[1:]))[0]
-    marked_x = ts[marked_indices]
-    marked_y = U[marked_indices]
-    plt.scatter(marked_x, marked_y, color='red', zorder=3)
 
-    colors = ['green', 'red']
-    color_labels = ['NO', 'Numerical']
-
-    plt.plot(ts[:marked_indices[0] + 1], U[:marked_indices[0] + 1], color=colors[0], label=color_labels[0])
-
-    for i in range(len(marked_indices) - 1):
-        plt.plot(ts[marked_indices[i]:marked_indices[i + 1] + 1],
-                 U[marked_indices[i]:marked_indices[i + 1] + 1],
-                 color=colors[(i + 1) % 2],
-                 label=color_labels[(i + 1) % 2] if i == 0 else "")
-
-    plt.plot(ts[marked_indices[-1]:], U[marked_indices[-1]:], color=colors[len(marked_indices) % 2])
+    color_labels = ['$U_{NO}$', '$U_{Numerical}$']
+    for j in range(U.shape[-1]):
+        u = U[:, j]
+        plt.plot(ts[:marked_indices[0] + 1], u[:marked_indices[0] + 1], linestyle=styles[0], label=color_labels[0],
+                 color=colors[j])
+        for i in range(len(marked_indices) - 1):
+            plt.plot(ts[marked_indices[i]:marked_indices[i + 1] + 1], u[marked_indices[i]:marked_indices[i + 1] + 1],
+                     linestyle=styles[(i + 1) % 2], label=color_labels[(i + 1) % 2] if i == 0 else "", color=colors[j])
+        plt.plot(ts[marked_indices[-1]:], u[marked_indices[-1]:], linestyle=styles[len(marked_indices) % 2],
+                 color=colors[j])
 
     plt.xlabel('Time t')
     plt.legend(loc=legend_loc, fontsize=legend_fontsize)

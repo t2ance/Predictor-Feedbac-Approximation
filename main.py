@@ -415,7 +415,7 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
         wandb.log({
             'sampling rate': train_config.scheduled_sampling_p,
             'training loss': training_loss_t,
-            'lr': optimizer.param_groups[0]['lr'],
+            'learning rate': optimizer.param_groups[0]['lr'],
         }, step=epoch)
         training_loss_arr.append(training_loss_t)
     fig = plt.figure(figsize=set_size())
@@ -887,14 +887,6 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     torch.save(model.state_dict(), f'{train_config.model_save_path}/{model_config.model_name}.pth')
     test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
 
-    bound = 2.5
-    # run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
-    #          test_points=[((bound, -bound), 'test')], method='no')
-    # run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
-    #          test_points=[((bound, -bound), 'test')], method='switching')
-    # run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
-    #          test_points=[((bound, -bound), 'test')], method='numerical')
-    # exit(0)
     if train_config.training_type == 'switching':
         return {
             'no': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
@@ -928,21 +920,23 @@ if __name__ == '__main__':
     parser.add_argument('-s', type=str, default='s5')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
-    # parser.add_argument('-training_type', type=str, default='switching')
-    parser.add_argument('-training_type', type=str, default='offline')
+    parser.add_argument('-training_type', type=str, default='switching')
+    # parser.add_argument('-training_type', type=str, default='offline')
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n, args.delay)
     assert torch.cuda.is_available()
     train_config.training_type = args.training_type
-    if args.training_type == 'offline' or args.training_type == 'switching':
+    if args.training_type == 'offline':
         train_config.lr_scheduler_type = 'exponential'
-        train_config.n_epoch = 1000
-
-        # train_config.cp_alpha = 0.1
-        # train_config.cp_gamma = 0.01
-        # train_config.do_training = True
-        # train_config.load_model = False
-        # train_config.cp_switching_type = 'alternating'
+        train_config.n_epoch = 1500
+    elif args.training_type == 'switching':
+        dataset_config.recreate_training_dataset = False
+        train_config.cp_alpha = 0.5
+        train_config.cp_gamma = 0.01
+        train_config.do_training = False
+        train_config.load_model = True
+        dataset_config.random_test_lower_bound = 0.5
+        dataset_config.random_test_upper_bound = 1
     elif args.training_type == 'scheduled sampling':
         train_config.lr_scheduler_type = 'none'
     else:

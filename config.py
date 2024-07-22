@@ -314,10 +314,10 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
     elif system_ == 's5':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=.5,
                                        duration=8, dt=0.05, n_dataset=100, n_sample_per_dataset=-1, n_plot_sample=20,
-                                       ic_lower_bound=-0.5, ic_upper_bound=0.5, integral_method='successive adaptive',
+                                       ic_lower_bound=0, ic_upper_bound=0.5, integral_method='successive adaptive',
                                        baxter_dof=2, random_test_lower_bound=-0.5, random_test_upper_bound=0.5)
         model_config = ModelConfig(model_name='FNO', n_layer=4, fno_n_modes_height=16, fno_hidden_channels=16)
-        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=2000, batch_size=64,
+        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=1000, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='none', cp_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2)
