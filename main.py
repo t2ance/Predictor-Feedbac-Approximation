@@ -937,17 +937,11 @@ if __name__ == '__main__':
     if args.training_type == 'offline' or args.training_type == 'switching':
         train_config.lr_scheduler_type = 'exponential'
         train_config.n_epoch = 300
-        train_config.cp_alpha = 0.1
-        train_config.cp_gamma = 0.01
-        train_config.cp_adaptive = True
-        train_config.cp_switching_type = 'switching'
 
-        dataset_config.recreate_training_dataset = True
-        dataset_config.n_dataset = 1
-        dataset_config.random_test_upper_bound = 1.
-        dataset_config.random_test_lower_bound = 0
-        train_config.do_training = True
-        train_config.load_model = False
+        # train_config.cp_alpha = 0.1
+        # train_config.cp_gamma = 0.01
+        # train_config.do_training = True
+        # train_config.load_model = False
         # train_config.cp_switching_type = 'alternating'
     elif args.training_type == 'scheduled sampling':
         train_config.lr_scheduler_type = 'none'
