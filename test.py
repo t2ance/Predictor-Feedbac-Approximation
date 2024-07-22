@@ -6,8 +6,8 @@ def baxter_test2dof():
     dataset_config, model_config, train_config = get_config(system_='s5')
     Z0 = tuple([1, 1, 0, 0])
     print('initial point', Z0)
-    dataset_config.duration = 10
-    dataset_config.delay = 0.1
+    dataset_config.duration = 20
+    dataset_config.delay = 0.05
     dataset_config.dt = 0.01
     dataset_config.baxter_dof = 2
     result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,

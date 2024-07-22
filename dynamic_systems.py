@@ -74,12 +74,12 @@ class Baxter(DynamicSystem):
         return self.dof * 2  # dof dimensions for e1 and dof dimensions for e2
 
     def __init__(self, delay: float, alpha=None, beta=None, dof: int = 7):
-        assert 1 <= dof <= 7
+        assert 1 < dof <= 7
         super().__init__(delay)
         self.dof = dof
         self.alpha = np.eye(dof) * 10 if alpha is None else alpha
         self.beta = np.eye(dof) * 10 if beta is None else beta
-        self.baxter_parameters = BaxterParameters()
+        self.baxter_parameters = BaxterParameters(dof=dof)
 
     @lru_cache(maxsize=128)
     def G(self, t):

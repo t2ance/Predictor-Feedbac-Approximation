@@ -3,7 +3,7 @@ import numpy as np
 
 class BaxterParameters:
     def __init__(self, dof: int = 7, link_masses=None, inertia_tensors=None, com_positions=None, dh_parameters=None):
-        assert 1 <= dof <= 7
+        assert 1 < dof <= 7
         if link_masses is None:
             link_masses = [5.70044, 3.22698, 4.31272, 2.07206, 2.24665, 1.60979, 0.54218]
 
@@ -58,7 +58,7 @@ class BaxterParameters:
         self.inertia_tensors = inertia_tensors[:dof]
         self.com_positions = com_positions[:dof]
         self.dh_parameters = dh_parameters[:dof]
-        self.num_links = len(link_masses)
+        self.num_links = dof
         self.gravity = np.array([0, 0, -9.81, 0])
 
     def Q(self):
