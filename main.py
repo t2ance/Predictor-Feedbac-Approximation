@@ -936,7 +936,7 @@ if __name__ == '__main__':
     train_config.training_type = args.training_type
     if args.training_type == 'offline' or args.training_type == 'switching':
         train_config.lr_scheduler_type = 'exponential'
-        train_config.n_epoch = 300
+        train_config.n_epoch = 1000
 
         # train_config.cp_alpha = 0.1
         # train_config.cp_gamma = 0.01
