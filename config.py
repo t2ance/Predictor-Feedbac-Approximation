@@ -116,6 +116,7 @@ class DatasetConfig:
     ood_sample_bound: Optional[float] = field(default=0.1)
     system_c: Optional[float] = field(default=1.)
     system_n: Optional[float] = field(default=2.)
+    baxter_dof: Optional[int] = field(default=2)
     postprocess: Optional[bool] = field(default=False)
     n_plot_sample: Optional[int] = field(default=0)
     filter_ood_sample: Optional[bool] = field(default=False)
@@ -200,22 +201,7 @@ class DatasetConfig:
                     np.linspace(-1, 1, 6),
                 )]
             elif self.system_ == 's5':
-                return list(itertools.product(
-                    np.linspace(-0.5, 0.5, 6),
-                    np.linspace(-0.5, 0.5, 6),
-                    [0],
-                    [0],
-                    [0],
-                    [0],
-                    [0],
-                    [0],
-                    [0],
-                    [0],
-                    [0],
-                    [0],
-                    [0],
-                    [0]
-                ))
+                raise NotImplementedError('Please use random test points instead.')
             else:
                 raise NotImplementedError()
 
@@ -258,7 +244,7 @@ class DatasetConfig:
         elif self.system_ == 's4':
             return dynamic_systems.VanDerPolOscillator(delay=self.delay)
         elif self.system_ == 's5':
-            return dynamic_systems.Baxter(delay=self.delay)
+            return dynamic_systems.Baxter(dof=self.baxter_dof, delay=self.delay)
         else:
             raise NotImplementedError()
 

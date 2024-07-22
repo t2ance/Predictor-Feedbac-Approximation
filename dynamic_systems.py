@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from dataclasses import dataclass
+from functools import lru_cache
 
 import numpy as np
 import torch
@@ -56,7 +57,7 @@ class DynamicSystem:
 
 class Baxter(DynamicSystem):
     '''
-    A dynamic system class for the Baxter robot manipulator with input delay,
+    A dynamic system class for the 2 DOF Baxter robot manipulator with input delay,
     implementing the dynamics based on the equations described in the paper.
     '''
 
@@ -66,41 +67,43 @@ class Baxter(DynamicSystem):
 
     @property
     def n_input(self):
-        return 7
+        return self.dof
 
     @property
     def n_state(self):
-        return 14  # 7 dimensions for e1 and 7 dimensions for e2
+        return self.dof * 2  # dof dimensions for e1 and dof dimensions for e2
 
-    def __init__(self, delay: float, alpha=None, beta=None):
+    def __init__(self, delay: float, alpha=None, beta=None, dof: int = 7):
+        assert 1 <= dof <= 7
         super().__init__(delay)
-        self.alpha = np.eye(7) * 1 if alpha is None else alpha
-        self.beta = np.eye(7) * 1 if beta is None else beta
+        self.dof = dof
+        self.alpha = np.eye(dof) * 10 if alpha is None else alpha
+        self.beta = np.eye(dof) * 10 if beta is None else beta
         self.baxter_parameters = BaxterParameters()
 
+    @lru_cache(maxsize=128)
     def G(self, t):
         return self.baxter_parameters.compute_gravity_vector(self.q_des(t))
 
+    @lru_cache(maxsize=128)
     def C(self, t):
         return self.baxter_parameters.compute_coriolis_centrifugal_matrix(self.q_des(t), self.qd_des(t))
 
+    @lru_cache(maxsize=128)
     def M(self, t):
         return self.baxter_parameters.compute_inertia_matrix(self.q_des(t))
 
+    @lru_cache(maxsize=128)
     def q_des(self, t):
-        # return np.zeros(7)
-        return np.array([np.sin(t), np.cos(t), 0, 0, 0, 0, 0]) * 0.1
-        # return np.array([0.5, 0, 0, 0, 0, 0, 0]) * 0.1
+        return np.array([np.sin(t), np.cos(t), 0, 0, 0, 0, 0])[:self.dof]
 
+    @lru_cache(maxsize=128)
     def qd_des(self, t):
-        # return np.zeros(7)
-        return np.array([np.cos(t), -np.sin(t), 0, 0, 0, 0, 0]) * 0.1
-        # return np.array([0.5, 0, 0, 0, 0, 0, 0]) * 0.1
+        return np.array([np.cos(t), -np.sin(t), 0, 0, 0, 0, 0])[:self.dof]
 
+    @lru_cache(maxsize=128)
     def qdd_des(self, t):
-        # return np.zeros(7)
-        return np.array([-np.sin(t), -np.cos(t), 0, 0, 0, 0, 0]) * 0.1
-        # return np.array([0.5, 0, 0, 0, 0, 0, 0]) * 0.1
+        return np.array([-np.sin(t), -np.cos(t), 0, 0, 0, 0, 0])[:self.dof]
 
     def h(self, e1, e2, t):
         return self.qdd_des(t) - self.alpha @ (self.alpha @ e1) + np.linalg.inv(self.M(t)) @ (
@@ -113,9 +116,9 @@ class Baxter(DynamicSystem):
         else:
             batch_mode = True
 
-        e1_t, e2_t = E_t[:, :7], E_t[:, 7:]
+        e1_t, e2_t = E_t[:, :self.dof], E_t[:, self.dof:]
         e1_t_dot = e2_t - np.matmul(e1_t, self.alpha.T)
-        h = np.array([self.h(e[:7], e[7:], t) for e in E_t])
+        h = np.array([self.h(e[:self.dof], e[self.dof:], t) for e in E_t])
         e2_t_dot = np.matmul(e2_t, self.alpha.T) + h - np.matmul(U_delay, np.linalg.inv(self.M(t)).T)
 
         dynamics = np.concatenate([e1_t_dot, e2_t_dot], axis=1)
@@ -123,7 +126,7 @@ class Baxter(DynamicSystem):
         return dynamics if batch_mode else dynamics[0]
 
     def kappa(self, E_t, t):
-        e1, e2 = E_t[:7], E_t[7:]
+        e1, e2 = E_t[:self.dof], E_t[self.dof:]
         h = self.h(e1, e2, t)
         return self.M(t) @ (h + (self.beta + self.alpha) @ e2)
 
