@@ -533,12 +533,22 @@ def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_c
     if create_dataset:
         print('Creating training dataset')
         check_dir(dataset_config.dataset_base_path)
+        train_points = list(
+            np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
+                              (int(dataset_config.n_dataset * train_config.training_ratio), dataset_config.n_state)))
+        validation_points = list(
+            np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
+                              (dataset_config.n_dataset - int(dataset_config.n_dataset * train_config.training_ratio),
+                               dataset_config.n_state)))
         if dataset_config.data_generation_strategy == 'trajectory':
-            training_samples = create_trajectory_dataset(dataset_config)
+            training_samples = create_trajectory_dataset(dataset_config, train_points)
+            validation_samples = create_trajectory_dataset(dataset_config, validation_points)
         elif dataset_config.data_generation_strategy == 'random':
             training_samples = create_random_dataset(dataset_config)
+            validation_samples = None
         elif dataset_config.data_generation_strategy == 'nn':
             training_samples = create_nn_dataset(dataset_config)
+            validation_samples = None
         else:
             raise NotImplementedError()
 
@@ -559,8 +569,11 @@ def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_c
     for i, (feature, label) in enumerate(training_samples[:dataset_config.n_plot_sample]):
         plot_sample(feature, label, dataset_config, f'{str(i)}.png')
     draw_distribution(training_samples, dataset_config.n_state, dataset_config.dataset_base_path)
+
     training_dataloader, validating_dataloader = prepare_datasets(
-        training_samples, train_config.training_ratio, train_config.batch_size)
+        training_samples, train_config.batch_size, training_ratio=train_config.training_ratio,
+        validation_samples=validation_samples)
+
     print(f'#Training sample: {int(len(training_samples) * train_config.training_ratio)}')
     print(f'#Validating sample: {len(training_samples) - int(len(training_samples) * train_config.training_ratio)}')
     path = dataset_config.training_dataset_file
@@ -597,7 +610,7 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, initial_conditions:
         bar = tqdm(list(np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
                                           (dataset_config.n_dataset, dataset_config.n_state))))
     else:
-        bar = initial_conditions
+        bar = tqdm(initial_conditions)
     for i, Z0 in enumerate(bar):
         img_save_path = f'{dataset_config.dataset_base_path}/example/{str(i)}'
         check_dir(img_save_path)

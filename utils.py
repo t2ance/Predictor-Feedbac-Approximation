@@ -131,8 +131,16 @@ def split_dataset(dataset, ratio):
     return dataset[:n_sample], dataset[n_sample:]
 
 
-def prepare_datasets(samples, training_ratio: float, batch_size: int):
-    train_dataset, validate_dataset = split_dataset(samples, training_ratio)
+def prepare_datasets(training_samples, batch_size: int, training_ratio: float = None, validation_samples=None):
+    assert training_ratio is not None or validation_samples is not None
+    if validation_samples is not None:
+        print(f'training and validation datasets are both provided: '
+              f'#train {len(training_samples)} and #val {len(validation_samples)}')
+        train_dataset, validate_dataset = training_samples, validation_samples
+    elif training_ratio is not None:
+        train_dataset, validate_dataset = split_dataset(training_samples, training_ratio)
+    else:
+        raise NotImplementedError()
     training_dataloader = DataLoader(PredictionDataset(train_dataset), batch_size=batch_size, shuffle=False)
     if len(validate_dataset) == 0:
         validating_dataloader = None
