@@ -274,17 +274,17 @@ class DatasetConfig:
 
 def get_config(system_, n_iteration=None, duration=None, delay=None):
     if system_ == 's1':
-        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=2,
+        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory', delay=2,
                                        duration=8, dt=0.05, n_dataset=200, n_sample_per_dataset=-1, n_plot_sample=20,
                                        integral_method='successive adaptive', random_test=True,
                                        ic_lower_bound=0, ic_upper_bound=1,
                                        random_test_lower_bound=0, random_test_upper_bound=1
                                        )
         model_config = ModelConfig(model_name='FNO', n_layer=4, fno_n_modes_height=32, fno_hidden_channels=32)
-        train_config = TrainConfig(learning_rate=5e-4, training_ratio=0.8, n_epoch=700, batch_size=64,
+        train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=700, batch_size=64,
                                    do_training=True, do_testing=True, load_model=False,
                                    weight_decay=0.1, log_step=-1, lr_scheduler_type='exponential',
-                                   scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5)
+                                   scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-6)
     elif system_ == 's2':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=1,
                                        duration=8, dt=0.05, n_dataset=100, n_sample_per_dataset=-1, n_plot_sample=20,

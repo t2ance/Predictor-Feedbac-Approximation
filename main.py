@@ -339,7 +339,7 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
                 'training loss': training_loss_t,
                 'validation loss': validating_loss_t,
                 'test loss': testing_loss_t,
-                'lr': scheduler.get_lr()[-1]
+                'learning rate': optimizer.param_groups[0]['lr']
             }, step=epoch)
             if (train_config.log_step > 0 and epoch % train_config.log_step == 0) or epoch == n_epoch - 1:
                 # rl2, l2, _, n_success = run_test(
