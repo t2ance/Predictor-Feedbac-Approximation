@@ -923,11 +923,6 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 
 
 if __name__ == '__main__':
-    wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
-    wandb.init(
-        project="no",
-        name=get_time_str()
-    )
     set_seed(0)
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', type=str, default='s5')
@@ -957,6 +952,11 @@ if __name__ == '__main__':
     print_args(dataset_config)
     print_args(model_config)
     print_args(train_config)
+    wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
+    wandb.init(
+        project="no",
+        name=f'{train_config.system} {get_time_str()}'
+    )
     results = main(dataset_config, model_config, train_config)
     for method, result in results.items():
         print(method)
