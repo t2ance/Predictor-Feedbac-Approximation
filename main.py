@@ -239,14 +239,14 @@ def model_train(model, optimizer, scheduler, device, training_dataloader, predic
     return avg_training_loss, avg_adversarial_loss, lr
 
 
-def model_validate(model, device, validating_dataloader):
+def model_validate(model, device, dataloader):
     with torch.no_grad():
         validating_loss = 0.0
-        for inputs, labels in validating_dataloader:
+        for inputs, labels in dataloader:
             inputs, labels = inputs.to(device), labels.to(device)
             outputs, loss = predict_and_loss(inputs, labels, model)
             validating_loss += loss.item()
-        return validating_loss / len(validating_dataloader)
+        return validating_loss / len(dataloader)
 
 
 def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
@@ -323,10 +323,14 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
                 validating_loss_t = model_validate(model, device, validating_dataloader)
                 validating_loss_arr.append(validating_loss_t)
                 desc += f' || Validation loss: {validating_loss_t:.6f}'
+            else:
+                validating_loss_t = 0
             if do_testing:
                 testing_loss_t = model_validate(model, device, testing_dataloader)
                 testing_loss_arr.append(testing_loss_t)
                 desc += f' || Test loss: {testing_loss_t:.6f}'
+            else:
+                testing_loss_t = 0
             if do_adversarial:
                 adversarial_loss_arr.append(adversarial_loss_t)
                 desc += f' || Adversarial loss: {adversarial_loss_t:.6f}'
@@ -334,6 +338,7 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
             wandb.log({
                 'training loss': training_loss_t,
                 'validation loss': validating_loss_t,
+                'test loss': testing_loss_t,
                 'lr': scheduler.get_lr()[-1]
             }, step=epoch)
             if (train_config.log_step > 0 and epoch % train_config.log_step == 0) or epoch == n_epoch - 1:
