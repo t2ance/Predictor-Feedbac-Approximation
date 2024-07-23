@@ -280,7 +280,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                        random_test=True)
         model_config = ModelConfig(model_name='FNO', n_layer=4, fno_n_modes_height=32, fno_hidden_channels=32)
         train_config = TrainConfig(learning_rate=5e-4, training_ratio=0.8, n_epoch=700, batch_size=64,
-                                   do_training=True, do_testing=False, load_model=False,
+                                   do_training=True, do_testing=True, load_model=False,
                                    weight_decay=1, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5)
     elif system_ == 's2':
@@ -320,7 +320,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
         train_config = TrainConfig(learning_rate=5e-4, training_ratio=0.8, n_epoch=750, batch_size=128,
                                    weight_decay=1, log_step=-1, lr_scheduler_type='exponential', cp_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
-                                   scheduled_sampling_k=1e-2)
+                                   scheduled_sampling_k=1e-2, do_testing=True)
     elif system_ == 's6':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=.5,
                                        duration=32, dt=0.01, n_dataset=25, n_sample_per_dataset=-1, n_plot_sample=20,
