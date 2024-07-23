@@ -279,7 +279,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                        ic_lower_bound=-2, ic_upper_bound=2, integral_method='successive adaptive',
                                        random_test=True)
         model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=32)
-        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=500, batch_size=64,
+        train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=700, batch_size=64,
                                    do_training=True, do_testing=False, load_model=False,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5)
@@ -317,7 +317,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                        ic_lower_bound=0, ic_upper_bound=0.5, integral_method='successive adaptive',
                                        baxter_dof=2, random_test_lower_bound=-0.5, random_test_upper_bound=0.5)
         model_config = ModelConfig(model_name='FNO', n_layer=4, fno_n_modes_height=16, fno_hidden_channels=16)
-        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=1500, batch_size=64,
+        train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=700, batch_size=128,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', cp_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2)
