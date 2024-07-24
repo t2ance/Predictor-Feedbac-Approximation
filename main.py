@@ -939,8 +939,8 @@ if __name__ == '__main__':
         dataset_config.random_test_lower_bound = 2
         dataset_config.random_test_upper_bound = 3
     elif args.training_type == 'scheduled sampling':
-        if dataset_config.system_ =='s1':
-            train_config.n_epoch = 5000
+        if dataset_config.system_ == 's1':
+            train_config.n_epoch = 10000
         else:
             train_config.n_epoch = 3000
         train_config.lr_scheduler_type = 'none'
