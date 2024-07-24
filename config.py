@@ -45,6 +45,7 @@ class TrainConfig:
     scheduler_gamma: Optional[float] = field(default=1.)
     scheduler_min_lr: Optional[float] = field(default=0.)
     scheduler_ratio_warmup: Optional[float] = field(default=0.02)
+    scheduled_sampling_frequency: Optional[int] = field(default=10)
     lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential', 'none']] = field(
         default='linear_with_warmup')
 

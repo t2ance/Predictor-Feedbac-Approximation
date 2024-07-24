@@ -366,64 +366,50 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
     scheduled_sampling_p_arr = []
     check_dir(img_save_path)
     print('Begin Training...')
+    dataloader = None
     for epoch in range(train_config.n_epoch):
-        train_config.set_scheduled_sampling_p(epoch)
-        scheduled_sampling_p_arr.append(train_config.scheduled_sampling_p)
+        if epoch % train_config.scheduled_sampling_frequency == 0 or dataloader is None:
+            train_config.set_scheduled_sampling_p(epoch)
+            scheduled_sampling_p_arr.append(train_config.scheduled_sampling_p)
 
-        Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
-                               size=(dataset_config.n_state,))
-        try:
-            result = simulation(dataset_config, train_config, Z0, 'scheduled_sampling', model,
-                                img_save_path=img_save_path)
-        except Warning as e:
-            print("Warning caught:", e)
-            print(f'Abnormal value encountered at epoch {epoch}, skip this epoch!')
-            continue
-        predictions = shift(result.P_numerical, dataset_config.n_point_delay)
-        true_values = result.Z[dataset_config.n_point_delay:]
+            Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
+                                   size=(dataset_config.n_state,))
+            try:
+                result = simulation(dataset_config, train_config, Z0, 'scheduled_sampling', model,
+                                    img_save_path=img_save_path)
+            except Warning as e:
+                print("Warning caught:", e)
+                print(f'Abnormal value encountered at epoch {epoch}, skip this epoch!')
+                continue
+            predictions = shift(result.P_numerical, dataset_config.n_point_delay)
+            true_values = result.Z[dataset_config.n_point_delay:]
 
-        Ps = np.array(predictions)
-        Zs = np.array(true_values)
-        horizon = np.array(dataset_config.ts[dataset_config.n_point_delay:])
-        Us = np.array([result.U[t_i: t_i + dataset_config.n_point_delay] for t_i in range(len(horizon))])
-        # Ts = np.array([dataset_config.ts[t_i: t_i + dataset_config.n_point_delay] for t_i in range(len(horizon))])
-
-        if np.isnan(Ps).any() or np.isnan(Zs).any() or np.isnan(
-                horizon).any() or np.isnan(Us).any() or np.isinf(Ps).any() or np.isinf(
-            Zs).any() or np.isinf(horizon).any() or np.isinf(Us).any():
-            training_loss_arr.append(0)
-            continue
-        # if dataset_config.integral_method == 'successive':
-        #     P_batched = solve_integral_successive_batched(
-        #         Z_t=Zs, n_points=dataset_config.n_point_delay, ts=Ts,
-        #         dt=dataset_config.dt, U_D=Us, f=dataset_config.system.dynamic,
-        #         n_iterations=dataset_config.successive_approximation_n_iteration, adaptive=False)
-        # else:
-        #     P_batched, n_iter = solve_integral_successive_batched(
-        #         Z_t=Zs, n_points=dataset_config.n_point_delay, ts=Ts,
-        #         dt=dataset_config.dt, U_D=Us, f=dataset_config.system.dynamic,
-        #         threshold=dataset_config.successive_approximation_threshold, adaptive=True)
-
-        samples = []
-        for t_i, (p, z, t) in enumerate(zip(Ps, Zs, horizon)):
-            u = Us[t_i]
-            samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(p)))
-
-        dataloader = DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=False)
+            Ps = np.array(predictions)
+            Zs = np.array(true_values)
+            horizon = np.array(dataset_config.ts[dataset_config.n_point_delay:])
+            Us = np.array([result.U[t_i: t_i + dataset_config.n_point_delay] for t_i in range(len(horizon))])
+            if np.isnan(Ps).any() or np.isnan(Zs).any() or np.isnan(
+                    horizon).any() or np.isnan(Us).any() or np.isinf(Ps).any() or np.isinf(
+                Zs).any() or np.isinf(horizon).any() or np.isinf(Us).any():
+                training_loss_arr.append(0)
+                continue
+            samples = []
+            for t_i, (p, z, t) in enumerate(zip(Ps, Zs, horizon)):
+                u = Us[t_i]
+                samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(p)))
+            dataloader = DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=False)
 
         training_loss_t, _, _ = model_train(model, optimizer, scheduler, device, dataloader, predict_and_loss)
-        if epoch % 10 == 0:
-            desc = f'Epoch [{epoch + 1}/{n_epoch}] ' \
-                   f'|| Scheduled Sampling Rate {train_config.scheduled_sampling_p} ' \
-                   f'|| Training loss: {training_loss_t:.6f}'
-            print(desc)
-        # print('end training', get_time_str())
+        print(f'Epoch [{epoch + 1}/{n_epoch}]'
+              f'|| Scheduled Sampling Rate {train_config.scheduled_sampling_p}'
+              f'|| Training loss: {training_loss_t:.6f}')
         wandb.log({
             'sampling rate': train_config.scheduled_sampling_p,
             'training loss': training_loss_t,
             'learning rate': optimizer.param_groups[0]['lr'],
         }, step=epoch)
         training_loss_arr.append(training_loss_t)
+
     fig = plt.figure(figsize=set_size())
     plt.plot(training_loss_arr, label="Training loss")
     plt.yscale("log")
