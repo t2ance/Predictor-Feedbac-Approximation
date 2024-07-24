@@ -80,8 +80,8 @@ class Baxter(DynamicSystem):
         self.alpha = np.eye(dof) if alpha is None else alpha
         self.beta = np.eye(dof) if beta is None else beta
         self.baxter_parameters = BaxterParameters(dof=dof)
-        self.A = np.block([[-alpha, np.eye(dof)],
-                           [np.zeros((dof, dof)), -beta]])
+        # self.A = np.block([[-alpha, np.eye(dof)],
+        #                    [np.zeros((dof, dof)), -beta]])
 
     @lru_cache(maxsize=128)
     def G(self, t):
@@ -118,33 +118,33 @@ class Baxter(DynamicSystem):
                 self.C(t) @ self.qd_des(t) + self.G(t) + self.C(t) @ (self.alpha @ e1) - self.C(t) @ e2)
 
     def dynamic(self, E_t, t, U_delay):
-        if E_t.ndim == 1:
-            E_t = E_t[np.newaxis, :]
-            t = np.array([t])
-            batch_mode = False
-        else:
-            batch_mode = True
-        E_t = E_t.T
+        # if E_t.ndim == 1:
+        #     E_t = E_t[np.newaxis, :]
+        #     t = np.array([t])
+        #     batch_mode = False
+        # else:
+        #     batch_mode = True
+        # E_t = E_t.T
+        #
+        # e1_t, e2_t = E_t[:self.dof], E_t[self.dof:]
+        # b = []
+        # for i in range(len(t)):
+        #     h = self.h(e1_t[:, i], e2_t[:, i], t[:, i])
+        #     bottom = h - np.linalg.inv(self.M(t)) @ U_delay[i, :]
+        #     b.append(np.concatenate([np.zeros(self.dof), bottom]))
+        # b = np.array(b)
+        # # e1_t_dot = e2_t - np.matmul(e1_t, self.alpha.T)
+        # # e2_t_dot = np.matmul(e2_t, self.alpha.T) + h - np.matmul(U_delay, np.linalg.inv(self.M(t)).T)
+        # dynamics = self.A @ E_t + b
+        #
+        # return dynamics if batch_mode else dynamics[0]
 
         e1_t, e2_t = E_t[:self.dof], E_t[self.dof:]
-        b = []
-        for i in range(len(t)):
-            h = self.h(e1_t[:, i], e2_t[:, i], t[:, i])
-            bottom = h - np.linalg.inv(self.M(t)) @ U_delay[i, :]
-            b.append(np.concatenate([np.zeros(self.dof), bottom]))
-        b = np.array(b)
-        # e1_t_dot = e2_t - np.matmul(e1_t, self.alpha.T)
-        # e2_t_dot = np.matmul(e2_t, self.alpha.T) + h - np.matmul(U_delay, np.linalg.inv(self.M(t)).T)
-        dynamics = self.A @ E_t + b
+        h = self.h(e1_t, e2_t, t)
 
-        return dynamics if batch_mode else dynamics[0]
-
-        # e1_t, e2_t = E_t[:self.dof], E_t[self.dof:]
-        # h = self.h(e1_t, e2_t, t)
-        #
-        # e1_t_dot = e2_t - self.alpha @ e1_t
-        # e2_t_dot = self.alpha @ e2_t + h - np.linalg.inv(self.M(t)) @ U_delay
-        # return np.concatenate([e1_t_dot, e2_t_dot])
+        e1_t_dot = e2_t - self.alpha @ e1_t
+        e2_t_dot = self.alpha @ e2_t + h - np.linalg.inv(self.M(t)) @ U_delay
+        return np.concatenate([e1_t_dot, e2_t_dot])
 
     def kappa(self, E_t, t):
         e1, e2 = E_t[:self.dof], E_t[self.dof:]
