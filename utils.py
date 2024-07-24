@@ -201,7 +201,10 @@ def load_model(train_config, model_config, dataset_config):
         print(f'Model loaded from {pth}')
         loaded = True
     else:
-        print(f'Model not loaded or loading failed')
+        if not train_config.load_model:
+            print("Model doesn't need loading")
+        elif not os.path.exists(pth):
+            print("Model save path doesn't exist")
         loaded = False
     return model.to(device), loaded
 
