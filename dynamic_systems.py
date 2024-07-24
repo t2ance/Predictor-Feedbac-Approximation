@@ -80,6 +80,8 @@ class Baxter(DynamicSystem):
         self.alpha = np.eye(dof) if alpha is None else alpha
         self.beta = np.eye(dof) if beta is None else beta
         self.baxter_parameters = BaxterParameters(dof=dof)
+        self.A = np.block([[-alpha, np.eye(dof)],
+                           [np.zeros((dof, dof)), -beta]])
 
     @lru_cache(maxsize=128)
     def G(self, t):
@@ -116,26 +118,33 @@ class Baxter(DynamicSystem):
                 self.C(t) @ self.qd_des(t) + self.G(t) + self.C(t) @ (self.alpha @ e1) - self.C(t) @ e2)
 
     def dynamic(self, E_t, t, U_delay):
-        # if E_t.ndim == 1:
-        #     E_t = E_t[np.newaxis, :]
-        #     batch_mode = False
-        # else:
-        #     batch_mode = True
-        #
-        # e1_t, e2_t = E_t[:, :self.dof], E_t[:, self.dof:]
-        # h = np.array([self.h(e[:self.dof], e[self.dof:], t) for e in E_t])
-        #
+        if E_t.ndim == 1:
+            E_t = E_t[np.newaxis, :]
+            t = np.array([t])
+            batch_mode = False
+        else:
+            batch_mode = True
+        E_t = E_t.T
+
+        e1_t, e2_t = E_t[:self.dof], E_t[self.dof:]
+        b = []
+        for i in range(len(t)):
+            h = self.h(e1_t[:, i], e2_t[:, i], t[:, i])
+            bottom = h - np.linalg.inv(self.M(t)) @ U_delay[i, :]
+            b.append(np.concatenate([np.zeros(self.dof), bottom]))
+        b = np.array(b)
         # e1_t_dot = e2_t - np.matmul(e1_t, self.alpha.T)
         # e2_t_dot = np.matmul(e2_t, self.alpha.T) + h - np.matmul(U_delay, np.linalg.inv(self.M(t)).T)
-        # dynamics = np.concatenate([e1_t_dot, e2_t_dot], axis=1)
-        #
-        # return dynamics if batch_mode else dynamics[0]
-        e1_t, e2_t = E_t[:self.dof], E_t[self.dof:]
-        h = self.h(e1_t, e2_t, t)
+        dynamics = self.A @ E_t + b
 
-        e1_t_dot = e2_t - self.alpha @ e1_t
-        e2_t_dot = self.alpha @ e2_t + h - np.linalg.inv(self.M(t)) @ U_delay
-        return np.concatenate([e1_t_dot, e2_t_dot])
+        return dynamics if batch_mode else dynamics[0]
+
+        # e1_t, e2_t = E_t[:self.dof], E_t[self.dof:]
+        # h = self.h(e1_t, e2_t, t)
+        #
+        # e1_t_dot = e2_t - self.alpha @ e1_t
+        # e2_t_dot = self.alpha @ e2_t + h - np.linalg.inv(self.M(t)) @ U_delay
+        # return np.concatenate([e1_t_dot, e2_t_dot])
 
     def kappa(self, E_t, t):
         e1, e2 = E_t[:self.dof], E_t[self.dof:]
@@ -519,24 +528,25 @@ def solve_integral_successive(Z_t, n_points: int, n_state: int, dt: float, U_D: 
         return P_D[-1, -1, :]
 
 
-def solve_integral_successive_batched(Z_t, n_points: int, n_state: int, dt: float, U_D: np.ndarray, f, ts: np.ndarray,
+def solve_integral_successive_batched(Z_t, n_points: int, dt: float, U_D: np.ndarray, f, ts: np.ndarray,
                                       n_iterations: int = 1, threshold: float = 1e-5, adaptive: bool = False):
     assert n_iterations >= 0
     assert isinstance(Z_t, np.ndarray)
-    batch_size = Z_t.shape[0]
+    batch_size, n_state = Z_t.shape
 
     if adaptive:
+        # iteration, batch, time, state
         P_D = np.zeros((2, batch_size, n_points + 1, n_state))
         P_D[0, :, :, :] = Z_t[:, np.newaxis, :]
 
         n_iterations = 0
         while True:
             n_iterations += 1
-            for j, t in enumerate(ts):
+            for j in range(n_points):
                 if j == 0:
-                    P_D[1, :, j + 1, :] = Z_t + dt * f(P_D[0, :, 0, :], t, U_D[:, 0])
+                    P_D[1, :, j + 1, :] = Z_t + dt * f(P_D[0, :, 0, :], ts[:, 0], U_D[:, 0])
                 else:
-                    P_D[1, :, j + 1, :] = P_D[1, :, j, :] + dt * f(P_D[0, :, j, :], t, U_D[:, j])
+                    P_D[1, :, j + 1, :] = P_D[1, :, j, :] + dt * f(P_D[0, :, j, :], ts[:, j], U_D[:, j])
 
             # Check for convergence
             if np.all(np.abs(P_D[1] - P_D[0]) < threshold):

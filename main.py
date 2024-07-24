@@ -165,10 +165,11 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                 end = time.time()
                 runtime += end - begin
             elif method == 'scheduled_sampling':
+                solution = solve_integral(
+                    Z_t=Z_t, P_D=P_no[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t, dataset_config=dataset_config)
+                P_numerical[t_i, :] = solution.solution
                 if np.random.binomial(n=1, p=train_config.scheduled_sampling_p) == 1:
                     # Teacher Forcing
-                    solution = solve_integral(
-                        Z_t=Z_t, P_D=P_no[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t, dataset_config=dataset_config)
                     P_no[t_i, :] = solution.solution
                 else:
                     # Not Teacher Forcing
@@ -219,7 +220,7 @@ def model_train(model, optimizer, scheduler, device, training_dataloader, predic
             adversarial_labels = solve_integral_successive_batched(
                 Z_t=np.array(adversarial_inputs[:, 1:1 + n_state].detach().cpu().numpy()),
                 U_D=np.array(adversarial_inputs[:, 1 + n_state:].detach().cpu().numpy()),
-                dt=dataset_config.dt, n_state=dataset_config.system.n_state, n_points=dataset_config.n_point_delay,
+                dt=dataset_config.dt, n_points=dataset_config.n_point_delay,
                 f=dataset_config.system.dynamic, n_iterations=dataset_config.successive_approximation_n_iteration,
                 adaptive=False)
             adversarial_labels = torch.from_numpy(adversarial_labels)
@@ -378,35 +379,35 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
             print("Warning caught:", e)
             print(f'Abnormal value encountered at epoch {epoch}, skip this epoch!')
             continue
-        predictions = shift(result.P_no, dataset_config.n_point_delay)
+        predictions = shift(result.P_numerical, dataset_config.n_point_delay)
         true_values = result.Z[dataset_config.n_point_delay:]
 
-        predictions_array = np.array(predictions)
-        true_values_array = np.array(true_values)
-        timestamps_array = np.array(dataset_config.ts[dataset_config.n_point_delay:])
-        U_array = np.array([result.U[t_i: t_i + dataset_config.n_point_delay] for t_i in range(len(timestamps_array))])
+        Ps = np.array(predictions)
+        Zs = np.array(true_values)
+        horizon = np.array(dataset_config.ts[dataset_config.n_point_delay:])
+        Us = np.array([result.U[t_i: t_i + dataset_config.n_point_delay] for t_i in range(len(horizon))])
+        # Ts = np.array([dataset_config.ts[t_i: t_i + dataset_config.n_point_delay] for t_i in range(len(horizon))])
 
-        if np.isnan(predictions_array).any() or np.isnan(true_values_array).any() or np.isnan(
-                timestamps_array).any() or np.isnan(U_array).any() or np.isinf(predictions_array).any() or np.isinf(
-            true_values_array).any() or np.isinf(timestamps_array).any() or np.isinf(U_array).any():
+        if np.isnan(Ps).any() or np.isnan(Zs).any() or np.isnan(
+                horizon).any() or np.isnan(Us).any() or np.isinf(Ps).any() or np.isinf(
+            Zs).any() or np.isinf(horizon).any() or np.isinf(Us).any():
             training_loss_arr.append(0)
             continue
-        if dataset_config.integral_method == 'successive':
-            P_batched = solve_integral_successive_batched(
-                Z_t=true_values_array, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state,
-                dt=dataset_config.dt, U_D=U_array, f=dataset_config.system.dynamic,
-                n_iterations=dataset_config.successive_approximation_n_iteration, adaptive=False)
-        else:
-            P_batched, n_iter = solve_integral_successive_batched(
-                Z_t=true_values_array, n_points=dataset_config.n_point_delay, n_state=dataset_config.n_state,
-                dt=dataset_config.dt, U_D=U_array, f=dataset_config.system.dynamic,
-                threshold=dataset_config.successive_approximation_threshold, adaptive=True)
+        # if dataset_config.integral_method == 'successive':
+        #     P_batched = solve_integral_successive_batched(
+        #         Z_t=Zs, n_points=dataset_config.n_point_delay, ts=Ts,
+        #         dt=dataset_config.dt, U_D=Us, f=dataset_config.system.dynamic,
+        #         n_iterations=dataset_config.successive_approximation_n_iteration, adaptive=False)
+        # else:
+        #     P_batched, n_iter = solve_integral_successive_batched(
+        #         Z_t=Zs, n_points=dataset_config.n_point_delay, ts=Ts,
+        #         dt=dataset_config.dt, U_D=Us, f=dataset_config.system.dynamic,
+        #         threshold=dataset_config.successive_approximation_threshold, adaptive=True)
 
         samples = []
-        for t_i, (p, z, t) in enumerate(zip(predictions_array, true_values_array, timestamps_array)):
-            u = U_array[t_i]
-            P = P_batched[t_i]
-            samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(P)))
+        for t_i, (p, z, t) in enumerate(zip(Ps, Zs, horizon)):
+            u = Us[t_i]
+            samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(p)))
 
         dataloader = DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=False)
 
@@ -930,10 +931,10 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_seed(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s5')
+    parser.add_argument('-s', type=str, default='s1')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
-    parser.add_argument('-training_type', type=str, default='switching')
+    parser.add_argument('-training_type', type=str, default='scheduled sampling')
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n, args.delay)
     assert torch.cuda.is_available()
@@ -952,7 +953,7 @@ if __name__ == '__main__':
         dataset_config.random_test_lower_bound = 2
         dataset_config.random_test_upper_bound = 3
     elif args.training_type == 'scheduled sampling':
-        train_config.n_epoch = 3000
+        train_config.n_epoch = 1000
         train_config.lr_scheduler_type = 'none'
     else:
         raise NotImplementedError()
