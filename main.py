@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import wandb
-from scipy.integrate import odeint
+from scipy.integrate import odeint, ODEintWarning
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
@@ -375,7 +375,7 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
         try:
             result = simulation(dataset_config, train_config, Z0, 'scheduled_sampling', model,
                                 img_save_path=img_save_path)
-        except RuntimeWarning as e:
+        except (RuntimeWarning, ODEintWarning) as e:
             print("Warning caught:", e)
             print(f'Abnormal value encountered at epoch {epoch}, skip this epoch!')
             continue
