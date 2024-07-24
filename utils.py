@@ -196,12 +196,13 @@ def load_model(train_config, model_config, dataset_config):
     check_dir(train_config.model_save_path)
     np.savetxt(f'{train_config.model_save_path}/{model_config.model_name}.txt', np.array([n_params]))
     pth = f'{train_config.model_save_path}/{model_config.model_name}.pth'
-    loaded = False
     if train_config.load_model and os.path.exists(pth):
         model.load_state_dict(torch.load(f'{train_config.model_save_path}/{model_name}.pth'))
         print(f'Model loaded from {pth}')
         loaded = True
-
+    else:
+        print(f'Model not loaded or loading failed')
+        loaded = False
     return model.to(device), loaded
 
 
