@@ -942,7 +942,7 @@ if __name__ == '__main__':
         if dataset_config.system_ == 's1':
             train_config.n_epoch = 10000
         else:
-            train_config.n_epoch = 3000
+            train_config.n_epoch = 2000
         train_config.lr_scheduler_type = 'none'
     else:
         raise NotImplementedError()
