@@ -195,9 +195,10 @@ def load_model(train_config, model_config, dataset_config):
     print(f'Loading {model_name} model from sketch, with {n_params} parameters')
     check_dir(train_config.model_save_path)
     np.savetxt(f'{train_config.model_save_path}/{model_config.model_name}.txt', np.array([n_params]))
+    print(os.getcwd())
     pth = f'{train_config.model_save_path}/{model_config.model_name}.pth'
     if train_config.load_model and os.path.exists(pth):
-        model.load_state_dict(torch.load(f'{train_config.model_save_path}/{model_name}.pth'))
+        model.load_state_dict(torch.load(pth))
         print(f'Model loaded from {pth}')
         loaded = True
     else:
