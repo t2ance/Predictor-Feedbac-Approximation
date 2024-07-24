@@ -934,7 +934,6 @@ if __name__ == '__main__':
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='switching')
-    # parser.add_argument('-training_type', type=str, default='offline')
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n, args.delay)
     assert torch.cuda.is_available()
@@ -943,12 +942,15 @@ if __name__ == '__main__':
         ...
     elif args.training_type == 'switching':
         dataset_config.recreate_training_dataset = False
-        train_config.cp_alpha = 0.5
         train_config.cp_gamma = 0.01
         train_config.do_training = False
         train_config.load_model = True
-        dataset_config.random_test_lower_bound = 0.5
-        dataset_config.random_test_upper_bound = 1
+        # train_config.cp_alpha = 0.1
+        # dataset_config.random_test_lower_bound = 0
+        # dataset_config.random_test_upper_bound = 1
+        train_config.cp_alpha = 0.5
+        dataset_config.random_test_lower_bound = 2
+        dataset_config.random_test_upper_bound = 3
     elif args.training_type == 'scheduled sampling':
         train_config.n_epoch = 3000
         train_config.lr_scheduler_type = 'none'

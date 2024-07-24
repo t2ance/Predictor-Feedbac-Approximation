@@ -315,7 +315,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's5':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=.5,
-                                       duration=8, dt=0.05, n_dataset=250, n_sample_per_dataset=-1, n_plot_sample=20,
+                                       # duration=8, dt=0.05, n_dataset=250, n_sample_per_dataset=-1, n_plot_sample=20,
+                                       duration=8, dt=0.02, n_dataset=100, n_sample_per_dataset=-1, n_plot_sample=20,
                                        integral_method='successive adaptive', baxter_dof=2, ic_lower_bound=0,
                                        ic_upper_bound=1, random_test_lower_bound=0, random_test_upper_bound=1,
                                        random_test=True)
