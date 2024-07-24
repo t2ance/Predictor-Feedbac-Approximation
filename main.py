@@ -917,10 +917,14 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_seed(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s1')
+    parser.add_argument('-s', type=str, default='s5')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
-    parser.add_argument('-training_type', type=str, default='scheduled sampling')
+    parser.add_argument('-training_type', type=str, default='switching')
+    parser.add_argument('-tlb', type=float, default=0)
+    parser.add_argument('-tub', type=float, default=1)
+    parser.add_argument('-cp_gamma', type=float, default=0.01)
+    parser.add_argument('-cp_alpha', type=float, default=0.1)
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n, args.delay)
     assert torch.cuda.is_available()
@@ -929,15 +933,16 @@ if __name__ == '__main__':
         ...
     elif args.training_type == 'switching':
         dataset_config.recreate_training_dataset = False
-        train_config.cp_gamma = 0.01
         train_config.do_training = False
         train_config.load_model = True
-        # train_config.cp_alpha = 0.1
-        # dataset_config.random_test_lower_bound = 0
-        # dataset_config.random_test_upper_bound = 1
-        train_config.cp_alpha = 0.5
-        dataset_config.random_test_lower_bound = 2
-        dataset_config.random_test_upper_bound = 3
+
+        train_config.cp_gamma = args.cp_gamma
+        train_config.cp_alpha = args.cp_alpha
+        dataset_config.random_test_lower_bound = args.tlb
+        dataset_config.random_test_upper_bound = args.tub
+        # train_config.cp_alpha = 0.5
+        # dataset_config.random_test_lower_bound = 2
+        # dataset_config.random_test_upper_bound = 3
     elif args.training_type == 'scheduled sampling':
         if dataset_config.system_ == 's1':
             train_config.n_epoch = 3000
