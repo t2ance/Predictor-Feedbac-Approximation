@@ -276,7 +276,7 @@ class DatasetConfig:
 def get_config(system_, n_iteration=None, duration=None, delay=None):
     if system_ == 's1':
         dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory', delay=1,
-                                       duration=8, dt=0.1, n_dataset=1000, n_sample_per_dataset=40, n_plot_sample=20,
+                                       duration=6, dt=0.1, n_dataset=1000, n_sample_per_dataset=40, n_plot_sample=20,
                                        integral_method='successive adaptive', random_test=True, ic_lower_bound=0,
                                        ic_upper_bound=1, random_test_lower_bound=0, random_test_upper_bound=1)
         model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=32)
