@@ -204,7 +204,7 @@ def load_model(train_config, model_config, dataset_config):
         if not train_config.load_model:
             print("Model doesn't need loading")
         elif not os.path.exists(pth):
-            print("Model save path doesn't exist")
+            print(f"Model save path {pth} doesn't exist")
         loaded = False
     return model.to(device), loaded
 
