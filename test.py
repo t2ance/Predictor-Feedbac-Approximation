@@ -71,9 +71,22 @@ def baxter_test_s6():
     print(result.runtime)
 
 
+def baxter_test_unicycle():
+    dataset_config, model_config, train_config = get_config(system_='s7')
+    Z0 = tuple([1, 1, 1])
+    print('initial point', Z0)
+    dataset_config.duration = 10
+    dataset_config.delay = 0.
+    dataset_config.dt = 0.0025
+    result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
+                        img_save_path='./misc', silence=False)
+    print(result.runtime)
+
+
 if __name__ == '__main__':
     # baxter_test1dof()
-    baxter_test2dof()
+    # baxter_test2dof()
     # baxter_test3dof()
     # baxter_test7dof()
     # baxter_test_s6()
+    baxter_test_unicycle()

@@ -92,6 +92,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                 if t_i >= n_point_delay:
                     U[t_i] = system.kappa(P_no[t_i, :], t)
             elif method == 'numerical_no':
+                begin = time.time()
                 solution = solve_integral(
                     Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
                     dataset_config=dataset_config)
@@ -100,6 +101,8 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
 
                 U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
                 P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
+                end = time.time()
+                runtime += end - begin
                 if t_i >= n_point_delay:
                     U[t_i] = system.kappa(P_numerical[t_i, :], t)
             elif method == 'switching':
@@ -186,7 +189,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
         U=U, Z=Z, P_explicit=P_explicit, P_no=P_no, P_no_ci=P_no_ci, P_numerical=P_numerical, P_switching=P_switching,
         runtime=runtime, P_numerical_n_iters=P_numerical_n_iters, p_numerical_count=p_numerical_count,
         p_no_count=p_no_count, P_no_Ri=P_no_Ri, alpha_ts=alpha_ts, q_ts=q_ts, e_ts=e_ts,
-        switching_indicator=switching_indicator)
+        switching_indicator=switching_indicator, avg_prediction_time=runtime / n_point)
 
 
 def model_train(model, optimizer, scheduler, device, training_dataloader, predict_and_loss,
@@ -438,7 +441,7 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
     bar = test_points if silence else tqdm(test_points)
     rl2_list = []
     l2_list = []
-    runtime_list = []
+    prediction_time = []
     n_iter_list = []
     for test_point, name in bar:
         if not silence:
@@ -478,12 +481,12 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
         np.savetxt(f'{img_save_path}/test_point.txt', test_point)
         rl2_list.append(rl2)
         l2_list.append(l2)
-        runtime_list.append(result.runtime)
+        prediction_time.append(result.avg_prediction_time)
         n_iter_list.append(result.P_numerical_n_iters)
     rl2 = np.nanmean(rl2_list).item()
     l2 = np.nanmean(l2_list).item()
-    runtime = np.nanmean(runtime_list).item()
-    to_save = [rl2, l2, runtime]
+    prediction = np.nanmean(prediction_time).item()
+    to_save = [rl2, l2, prediction]
     if method == 'numerical':
         n_iter = np.concatenate(n_iter_list).mean()
         to_save.append(n_iter)
@@ -508,7 +511,7 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
                     xlabel='Relative L2 error', path=f'{base_path}/rl2.png')
         plot_result(data=l2_list, label=f'L2 error', title='L2 error', xlabel='L2 error',
                     path=f'{base_path}/l2.png')
-    return rl2, l2, runtime, len(rl2_list)
+    return rl2, l2, prediction, len(rl2_list)
 
 
 def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_config: TrainConfig):
@@ -933,8 +936,6 @@ if __name__ == '__main__':
     # parser.add_argument('-cp_gamma', type=float, default=0.01)
     # parser.add_argument('-cp_alpha', type=float, default=0.3)
     args = parser.parse_args()
-    # 717e4aca-1dc0-4c12-a4fc-39b2320a1f93
-    # 2ee1b3cb-6ddd-4294-9267-d5c324c8a88b
     dataset_config, model_config, train_config = config.get_config(args.s, args.n, args.delay)
     assert torch.cuda.is_available()
     train_config.training_type = args.training_type
@@ -970,3 +971,5 @@ if __name__ == '__main__':
     for method, result in results.items():
         print(method)
         print_result(result, dataset_config)
+        speedup = results["numerical"][2] / result[2]
+        print(f'Speedup w.r.t numerical: {speedup :.3f}; $\\times {speedup:.3f}$')

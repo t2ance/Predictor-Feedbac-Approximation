@@ -189,22 +189,14 @@ class DatasetConfig:
                     np.linspace(-0.3, 0.3, 3),
                     np.linspace(-0.3, 0.3, 3)
                 )]
-            elif self.system_ == 's3':
-                return [(x, y, z, w) for x, y, z, w in itertools.product(
-                    np.linspace(-0.2, 0.2, 2),
-                    np.linspace(-0.2, 0.2, 2),
-                    np.linspace(-0.2, 0.2, 2),
-                    np.linspace(-0.2, 0.2, 2)
-                )]
             elif self.system_ == 's4':
                 return [(x, y) for x, y in itertools.product(
                     np.linspace(-1, 1, 6),
                     np.linspace(-1, 1, 6),
                 )]
-            elif self.system_ == 's5':
-                raise NotImplementedError('Please use random test points instead.')
             else:
-                raise NotImplementedError()
+                raise NotImplementedError(f'No test points have been assigned to system {self.system_} instead,'
+                                          f' please use random test points instead.')
 
     @property
     def n_state(self):
@@ -248,6 +240,8 @@ class DatasetConfig:
             return dynamic_systems.Baxter(dof=self.baxter_dof, delay=self.delay)
         elif self.system_ == 's6':
             return dynamic_systems.DynamicSystem3(delay=self.delay)
+        elif self.system_ == 's7':
+            return dynamic_systems.Unicycle(delay=self.delay)
         else:
             raise NotImplementedError()
 
@@ -325,6 +319,15 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2, do_testing=True)
     elif system_ == 's6':
+        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=.5,
+                                       duration=32, dt=0.01, n_dataset=25, n_sample_per_dataset=-1, n_plot_sample=20,
+                                       ic_lower_bound=-0.5, ic_upper_bound=0.5, integral_method='successive adaptive')
+        model_config = ModelConfig(model_name='FNO', n_layer=3, fno_n_modes_height=16, fno_hidden_channels=16)
+        train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=2000, batch_size=128,
+                                   weight_decay=1e-3, log_step=-1, lr_scheduler_type='none', cp_alpha=0.01,
+                                   scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
+                                   scheduled_sampling_k=1e-2)
+    elif system_ == 's7':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=.5,
                                        duration=32, dt=0.01, n_dataset=25, n_sample_per_dataset=-1, n_plot_sample=20,
                                        ic_lower_bound=-0.5, ic_upper_bound=0.5, integral_method='successive adaptive')

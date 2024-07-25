@@ -26,9 +26,9 @@ class DynamicSystem:
     def Z_explicit(self, t, Z0):
         raise NotImplementedError()
 
-    @abstractmethod
+    @property
     def name(self):
-        ...
+        raise NotImplementedError()
 
     @property
     def n_state(self):
@@ -53,6 +53,36 @@ class DynamicSystem:
     @abstractmethod
     def dynamic_tensor_batched2(self, Z_t, t, U_delay):
         ...
+
+
+class Unicycle(DynamicSystem):
+    @property
+    def name(self):
+        return 's7'
+
+    @property
+    def n_state(self):
+        return 3
+
+    @property
+    def n_input(self):
+        return 2
+
+    def dynamic(self, Z_t, t, U_delay):
+        x, y, theta = Z_t
+        omega, nu = U_delay
+        x_dot = nu * np.cos(theta)
+        y_dot = nu * np.sin(theta)
+        theta_dot = omega
+        return np.array([x_dot, y_dot, theta_dot])
+
+    def kappa(self, Z_t, t):
+        x, y, theta = Z_t
+        p = x * np.cos(theta) + y * np.sin(theta)
+        q = x * np.sin(theta) + y * np.cos(theta)
+        omega = -5 * p ** 2 * np.cos(3 * t) - p * q * (1 + 25 * np.cos(3 * t) ** 2) - theta
+        nu = -p + 5 * q * (np.sin(3 * t) - np.cos(3 * t)) + q * omega
+        return np.array([omega, nu])
 
 
 class Baxter(DynamicSystem):
@@ -80,8 +110,6 @@ class Baxter(DynamicSystem):
         self.alpha = np.eye(dof) if alpha is None else alpha
         self.beta = np.eye(dof) if beta is None else beta
         self.baxter_parameters = BaxterParameters(dof=dof)
-        # self.A = np.block([[-alpha, np.eye(dof)],
-        #                    [np.zeros((dof, dof)), -beta]])
 
     @lru_cache(maxsize=128)
     def G(self, t):
@@ -98,47 +126,20 @@ class Baxter(DynamicSystem):
     @lru_cache(maxsize=128)
     def q_des(self, t):
         return np.array([np.sin(0.2 * t), np.cos(0.2 * t), 0, 0, 0, 0, 0])[:self.dof]
-        # return np.array([0.01 * t, -0.01 * t, 0, 0, 0, 0, 0])[:self.dof]
-        # return np.array([5, 5, 0, 0, 0, 0, 0])[:self.dof]
 
     @lru_cache(maxsize=128)
     def qd_des(self, t):
         return np.array([0.2 * np.cos(0.2 * t), -0.2 * np.sin(0.2 * t), 0, 0, 0, 0, 0])[:self.dof]
-        # return np.array([0.01, -0.01, 0, 0, 0, 0, 0])[:self.dof]
-        # return np.array([0, 0, 0, 0, 0, 0, 0])[:self.dof]
 
     @lru_cache(maxsize=128)
     def qdd_des(self, t):
         return np.array([-0.04 * np.sin(0.2 * t), -0.04 * np.cos(0.2 * t), 0, 0, 0, 0, 0])[:self.dof]
-        # return np.array([0, 0, 0, 0, 0, 0, 0])[:self.dof]
-        # return np.array([0, 0, 0, 0, 0, 0, 0])[:self.dof]
 
     def h(self, e1, e2, t):
         return self.qdd_des(t) - self.alpha @ (self.alpha @ e1) + np.linalg.inv(self.M(t)) @ (
                 self.C(t) @ self.qd_des(t) + self.G(t) + self.C(t) @ (self.alpha @ e1) - self.C(t) @ e2)
 
     def dynamic(self, E_t, t, U_delay):
-        # if E_t.ndim == 1:
-        #     E_t = E_t[np.newaxis, :]
-        #     t = np.array([t])
-        #     batch_mode = False
-        # else:
-        #     batch_mode = True
-        # E_t = E_t.T
-        #
-        # e1_t, e2_t = E_t[:self.dof], E_t[self.dof:]
-        # b = []
-        # for i in range(len(t)):
-        #     h = self.h(e1_t[:, i], e2_t[:, i], t[:, i])
-        #     bottom = h - np.linalg.inv(self.M(t)) @ U_delay[i, :]
-        #     b.append(np.concatenate([np.zeros(self.dof), bottom]))
-        # b = np.array(b)
-        # # e1_t_dot = e2_t - np.matmul(e1_t, self.alpha.T)
-        # # e2_t_dot = np.matmul(e2_t, self.alpha.T) + h - np.matmul(U_delay, np.linalg.inv(self.M(t)).T)
-        # dynamics = self.A @ E_t + b
-        #
-        # return dynamics if batch_mode else dynamics[0]
-
         e1_t, e2_t = E_t[:self.dof], E_t[self.dof:]
         h = self.h(e1_t, e2_t, t)
 

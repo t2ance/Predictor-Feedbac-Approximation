@@ -35,6 +35,7 @@ class SimulationResult:
     P_numerical: np.ndarray = None
     P_switching: np.ndarray = None
     runtime: float = None
+    avg_prediction_time: float = None
     P_numerical_n_iters: np.ndarray = None
     p_numerical_count: int = None
     p_no_count: int = None
@@ -437,11 +438,11 @@ def plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_
     # difference_full = f'{img_save_path}/difference_full.png'
     # comparison_zoom = f'{img_save_path}/comparison_zoom.png'
     # difference_zoom = f'{img_save_path}/difference_zoom.png'
-    comparison_full = f'{img_save_path}/{method}_comparison_fit.png'
-    difference_full = f'{img_save_path}/{method}_comparison_fit.png'
-    comparison_zoom = f'{img_save_path}/{method}_comparison.png'
-    difference_zoom = f'{img_save_path}/{method}_comparison.png'
-    u_path = f'{img_save_path}/u.png'
+    comparison_full = f'{img_save_path}/{method}_comp_fit.png'
+    difference_full = f'{img_save_path}/{method}_diff_fit.png'
+    comparison_zoom = f'{img_save_path}/{method}_comp.png'
+    difference_zoom = f'{img_save_path}/{method}_diff.png'
+    u_path = f'{img_save_path}/{method}_u.png'
     if method == 'explicit':
         plot_comparison(ts, [P_explicit], Z, delay, n_point_delay, comparison_full, n_state)
         plot_difference(ts, [P_explicit], Z, delay, n_point_delay, difference_full, n_state)
@@ -564,7 +565,7 @@ def plot_control(ts, U, save_path, n_point_delay, ylim=None):
     assert U.ndim == 2
     U = U.T
     for i, u in enumerate(U):
-        plt.plot(ts[n_point_delay:], u[n_point_delay:], label=f'$U_{i}(t)$', color=colors[i])
+        plt.plot(ts[n_point_delay:], u[n_point_delay:], label=f'$U_{i + 1}(t)$', color=colors[i])
     plt.xlabel('Time t')
     if ylim is not None:
         plt.ylim(ylim)
@@ -692,6 +693,14 @@ def print_result(result, dataset_config):
     print(f'Relative L2 error: {result[0]}'
           f' || L2 error: {result[1]}'
           f' || Runtime: {result[2]}'
+          f' || Successful cases: [{result[3]}/{len(dataset_config.test_points)}]')
+    print(f'Relative L2 error: {result[0]:.3f}'
+          f' || L2 error: {result[1]:.3f}'
+          f' || Runtime: {result[2]:.3f}'
+          f' || Successful cases: [{result[3]}/{len(dataset_config.test_points):.3f}]')
+    print(f'Relative L2 error: ${result[0]:.3f}$'
+          f' || L2 error: ${result[1]:.3f}$'
+          f' || Runtime: ${result[2]:.3f}$'
           f' || Successful cases: [{result[3]}/{len(dataset_config.test_points)}]')
 
 
