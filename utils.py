@@ -22,6 +22,7 @@ colors = ['red', 'green', 'blue', 'yellow', 'black', 'cyan', 'magenta', 'white',
 styles = ['-', '--', '-.', ':']
 legend_loc = 'upper right'
 legend_fontsize = 8
+fig_width = 469.75502
 
 
 @dataclass
@@ -303,7 +304,7 @@ def quantile_loss(predictions, targets, quantiles):
 
 
 def plot_system(title, ts, Z, U, P, img_save_path):
-    fig = plt.figure(figsize=set_size())
+    fig = plt.figure(figsize=set_size(width=fig_width))
     plt.title(title)
 
     plt.subplot(511)
@@ -351,7 +352,7 @@ def shift(p, n_point_delay):
 
 def plot_switch_segments(ts, result: SimulationResult, save_path):
     U, switching_indicator = result.U, result.switching_indicator
-    fig = plt.figure(figsize=set_size())
+    fig = plt.figure(figsize=set_size(width=fig_width))
     marked_indices = np.where(np.logical_xor(switching_indicator[:-1], switching_indicator[1:]))[0]
 
     color_labels = ['$U_{NO}$', '$U_{Numerical}$']
@@ -432,29 +433,33 @@ def plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_
     n_point_delay = dataset_config.n_point_delay
     n_state = dataset_config.n_state
 
-    comparison_full = f'{img_save_path}/comparison_full.png'
-    difference_full = f'{img_save_path}/difference_full.png'
-    comparison_zoom = f'{img_save_path}/comparison_zoom.png'
-    difference_zoom = f'{img_save_path}/difference_zoom.png'
+    # comparison_full = f'{img_save_path}/comparison_full.png'
+    # difference_full = f'{img_save_path}/difference_full.png'
+    # comparison_zoom = f'{img_save_path}/comparison_zoom.png'
+    # difference_zoom = f'{img_save_path}/difference_zoom.png'
+    comparison_full = f'{img_save_path}/{method}_comparison_fit.png'
+    difference_full = f'{img_save_path}/{method}_comparison_fit.png'
+    comparison_zoom = f'{img_save_path}/{method}_comparison.png'
+    difference_zoom = f'{img_save_path}/{method}_comparison.png'
     u_path = f'{img_save_path}/u.png'
     if method == 'explicit':
         plot_comparison(ts, [P_explicit], Z, delay, n_point_delay, comparison_full, n_state)
         plot_difference(ts, [P_explicit], Z, delay, n_point_delay, difference_full, n_state)
         plot_comparison(ts, [P_explicit], Z, delay, n_point_delay, comparison_zoom, n_state, ylim=[-5, 5])
         plot_difference(ts, [P_explicit], Z, delay, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
-        plot_control(ts, U, u_path)
+        plot_control(ts, U, u_path, n_point_delay)
     elif method == 'no' or method == 'scheduled_sampling':
         plot_comparison(ts, [P_no], Z, delay, n_point_delay, comparison_full, n_state)
         plot_difference(ts, [P_no], Z, delay, n_point_delay, difference_full, n_state)
         plot_comparison(ts, [P_no], Z, delay, n_point_delay, comparison_zoom, n_state, ylim=[-5, 5])
         plot_difference(ts, [P_no], Z, delay, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
-        plot_control(ts, U, u_path)
+        plot_control(ts, U, u_path, n_point_delay)
     elif method == 'numerical':
         plot_comparison(ts, [P_numerical], Z, delay, n_point_delay, comparison_full, n_state)
         plot_difference(ts, [P_numerical], Z, delay, n_point_delay, difference_full, n_state)
         plot_comparison(ts, [P_numerical], Z, delay, n_point_delay, comparison_zoom, n_state, ylim=[-5, 5])
         plot_difference(ts, [P_numerical], Z, delay, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
-        plot_control(ts, U, u_path)
+        plot_control(ts, U, u_path, n_point_delay)
     elif method == 'numerical_no':
         plot_comparison(ts, [P_numerical, P_no], Z, delay, n_point_delay, comparison_full, n_state,
                         Ps_labels=['numerical', 'no'])
@@ -464,19 +469,19 @@ def plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_
                         Ps_labels=['numerical', 'no'], ylim=[-5, 5])
         plot_difference(ts, [P_numerical, P_no], Z, delay, n_point_delay, difference_zoom, n_state,
                         Ps_labels=['numerical', 'no'], ylim=[-5, 5])
-        plot_control(ts, U, u_path)
+        plot_control(ts, U, u_path, n_point_delay)
     elif method == 'switching':
         plot_comparison(ts, [P_switching], Z, delay, n_point_delay, comparison_full, n_state)
         plot_difference(ts, [P_switching], Z, delay, n_point_delay, difference_full, n_state)
         plot_comparison(ts, [P_switching], Z, delay, n_point_delay, comparison_zoom, n_state, ylim=[-5, 5])
         plot_difference(ts, [P_switching], Z, delay, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
-        plot_control(ts, U, u_path)
+        plot_control(ts, U, u_path, n_point_delay)
     else:
         raise NotImplementedError()
 
 
 def plot_uncertainty(ts, P, P_ci, Z, delay, n_point_delay, save_path, n_state: int, ylim=None):
-    fig = plt.figure(figsize=set_size())
+    fig = plt.figure(figsize=set_size(width=fig_width))
     # plt.title('Uncertainty')
 
     for state in range(n_state):
@@ -500,7 +505,7 @@ def plot_uncertainty(ts, P, P_ci, Z, delay, n_point_delay, save_path, n_state: i
 
 
 def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, ylim=None, Ps_labels=None):
-    fig = plt.figure(figsize=set_size())
+    fig = plt.figure(figsize=set_size(width=fig_width))
     if Ps_labels is None:
         Ps_labels = ['' for _ in range(len(Ps))]
     # plt.title('Comparison')
@@ -528,7 +533,7 @@ def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
 
 
 def plot_difference(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, ylim=None, Ps_labels=None):
-    fig = plt.figure(figsize=set_size())
+    fig = plt.figure(figsize=set_size(width=fig_width))
     # plt.title('Difference')
     if Ps_labels is None:
         Ps_labels = ['' for _ in range(len(Ps))]
@@ -554,12 +559,12 @@ def plot_difference(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
         plt.show()
 
 
-def plot_control(ts, U, save_path, ylim=None):
-    fig = plt.figure(figsize=set_size())
+def plot_control(ts, U, save_path, n_point_delay, ylim=None):
+    fig = plt.figure(figsize=set_size(width=fig_width))
     assert U.ndim == 2
     U = U.T
     for i, u in enumerate(U):
-        plt.plot(ts, u, label=f'U_{i}(t)')
+        plt.plot(ts[n_point_delay:], u[n_point_delay:], label=f'$U_{i}(t)$', color=colors[i])
     plt.xlabel('Time t')
     if ylim is not None:
         plt.ylim(ylim)

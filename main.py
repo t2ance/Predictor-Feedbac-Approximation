@@ -448,8 +448,7 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
         img_save_path = f'{base_path}/{name}'
         check_dir(img_save_path)
         result = simulation(dataset_config=dataset_config, train_config=train_config, model=m, Z0=test_point,
-                            method=method,
-                            img_save_path=img_save_path)
+                            method=method, img_save_path=img_save_path)
         plt.close()
         n_point_delay = dataset_config.n_point_delay
         if method == 'no':
@@ -921,19 +920,21 @@ if __name__ == '__main__':
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='switching')
-    # parser.add_argument('-tlb', type=float, default=0)
-    # parser.add_argument('-tub', type=float, default=1)
-    # parser.add_argument('-cp_gamma', type=float, default=0.01)
-    # parser.add_argument('-cp_alpha', type=float, default=0.1)
-    parser.add_argument('-tlb', type=float, default=1)
-    parser.add_argument('-tub', type=float, default=1.5)
+    parser.add_argument('-tlb', type=float, default=0)
+    parser.add_argument('-tub', type=float, default=1)
     parser.add_argument('-cp_gamma', type=float, default=0.01)
     parser.add_argument('-cp_alpha', type=float, default=0.1)
+    # parser.add_argument('-tlb', type=float, default=1)
+    # parser.add_argument('-tub', type=float, default=1.5)
+    # parser.add_argument('-cp_gamma', type=float, default=0.01)
+    # parser.add_argument('-cp_alpha', type=float, default=0.1)
     # parser.add_argument('-tlb', type=float, default=1.5)
     # parser.add_argument('-tub', type=float, default=2)
     # parser.add_argument('-cp_gamma', type=float, default=0.01)
     # parser.add_argument('-cp_alpha', type=float, default=0.3)
     args = parser.parse_args()
+    # 717e4aca-1dc0-4c12-a4fc-39b2320a1f93
+    # 2ee1b3cb-6ddd-4294-9267-d5c324c8a88b
     dataset_config, model_config, train_config = config.get_config(args.s, args.n, args.delay)
     assert torch.cuda.is_available()
     train_config.training_type = args.training_type
@@ -948,9 +949,7 @@ if __name__ == '__main__':
         train_config.cp_alpha = args.cp_alpha
         dataset_config.random_test_lower_bound = args.tlb
         dataset_config.random_test_upper_bound = args.tub
-        # train_config.cp_alpha = 0.5
-        # dataset_config.random_test_lower_bound = 2
-        # dataset_config.random_test_upper_bound = 3
+        dataset_config.duration = 15
     elif args.training_type == 'scheduled sampling':
         if dataset_config.system_ == 's1':
             train_config.n_epoch = 3000
