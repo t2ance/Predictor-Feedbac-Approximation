@@ -76,8 +76,8 @@ def baxter_test_unicycle():
     Z0 = tuple([1, 1, 1])
     print('initial point', Z0)
     dataset_config.duration = 10
-    dataset_config.delay = 0.
-    dataset_config.dt = 0.0025
+    dataset_config.delay = 1
+    dataset_config.dt = 0.01
     result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
                         img_save_path='./misc', silence=False)
     print(result.runtime)

@@ -351,8 +351,11 @@ def shift(p, n_point_delay):
         return p[:-n_point_delay]
 
 
-def plot_switch_segments(ts, result: SimulationResult, save_path):
+def plot_switch_segments(ts, result: SimulationResult, save_path, n_point_delay):
     U, switching_indicator = result.U, result.switching_indicator
+    ts = ts[n_point_delay:]
+    U = U[n_point_delay:]
+    switching_indicator = switching_indicator[n_point_delay:]
     fig = plt.figure(figsize=set_size(width=fig_width))
     marked_indices = np.where(np.logical_xor(switching_indicator[:-1], switching_indicator[1:]))[0]
 
@@ -369,7 +372,7 @@ def plot_switch_segments(ts, result: SimulationResult, save_path):
 
     plt.xlabel('Time t')
     plt.legend(loc=legend_loc, fontsize=legend_fontsize)
-    plt.savefig(f'{save_path}/u_marked.png')
+    plt.savefig(f'{save_path}/switching_u.png')
     fig.clear()
     plt.close(fig)
 
@@ -422,7 +425,7 @@ def plot_switch_system(train_config, dataset_config, result: SimulationResult, n
     plt.savefig(f'{img_save_path}/I.png')
     plt.close()
 
-    plot_switch_segments(dataset_config.ts, result, img_save_path)
+    plot_switch_segments(dataset_config.ts, result, img_save_path, n_point_delay)
 
 
 def plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_switching, Z, U,

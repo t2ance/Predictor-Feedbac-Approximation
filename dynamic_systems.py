@@ -79,7 +79,7 @@ class Unicycle(DynamicSystem):
     def kappa(self, Z_t, t):
         x, y, theta = Z_t
         p = x * np.cos(theta) + y * np.sin(theta)
-        q = x * np.sin(theta) + y * np.cos(theta)
+        q = x * np.sin(theta) - y * np.cos(theta)
         omega = -5 * p ** 2 * np.cos(3 * t) - p * q * (1 + 25 * np.cos(3 * t) ** 2) - theta
         nu = -p + 5 * q * (np.sin(3 * t) - np.cos(3 * t)) + q * omega
         return np.array([omega, nu])
