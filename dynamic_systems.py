@@ -16,15 +16,6 @@ class IntegralSolution:
 
 
 class DynamicSystem:
-    def __init__(self, delay):
-        super().__init__()
-        self.delay = delay
-
-    def U_explicit(self, t, Z0):
-        raise NotImplementedError()
-
-    def Z_explicit(self, t, Z0):
-        raise NotImplementedError()
 
     @property
     def name(self):
@@ -44,14 +35,6 @@ class DynamicSystem:
 
     @abstractmethod
     def kappa(self, Z_t, t):
-        ...
-
-    @abstractmethod
-    def dynamic_tensor_batched1(self, Z_t, t, U_delay):
-        ...
-
-    @abstractmethod
-    def dynamic_tensor_batched2(self, Z_t, t, U_delay):
         ...
 
 
@@ -103,9 +86,8 @@ class Baxter(DynamicSystem):
     def n_state(self):
         return self.dof * 2  # dof dimensions for e1 and dof dimensions for e2
 
-    def __init__(self, delay: float, alpha=None, beta=None, dof: int = 7):
+    def __init__(self, alpha=None, beta=None, dof: int = 7):
         assert 1 <= dof <= 7
-        super().__init__(delay)
         self.dof = dof
         self.alpha = np.eye(dof) if alpha is None else alpha
         self.beta = np.eye(dof) if beta is None else beta
@@ -166,10 +148,10 @@ class DynamicSystem1(DynamicSystem):
     def n_state(self):
         return 2
 
-    def __init__(self, c, n, delay):
-        super().__init__(delay)
+    def __init__(self, c, n, delay=None):
         self.c = c
         self.n = n
+        self.delay = delay
 
     def dynamic(self, Z_t, t, U_delay):
         if len(Z_t.shape) < 2:
@@ -246,9 +228,6 @@ class DynamicSystem2(DynamicSystem):
     def n_state(self):
         return 3
 
-    def __init__(self, delay):
-        super().__init__(delay)
-
     def dynamic(self, Z_t, t, U_delay):
         if len(Z_t.shape) < 2:
             Z1_t, Z2_t, Z3_t = Z_t
@@ -294,7 +273,9 @@ class DynamicSystem2(DynamicSystem):
 
 
 class InvertedPendulum(DynamicSystem):
-    def __init__(self, delay: float, M=1.0, m=0.1, l=1.0, g=9.81, desired_poles=[-2, -2.5, -3, -3.5]):
+    def __init__(self, M=1.0, m=0.1, l=1.0, g=9.81, desired_poles=None):
+        if desired_poles is None:
+            desired_poles = [-2, -2.5, -3, -3.5]
         self.M = M
         self.m = m
         self.l = l
@@ -313,7 +294,6 @@ class InvertedPendulum(DynamicSystem):
             [1 / self.M]
         ])
         self.K = self.calculate_feedback_gain()
-        super().__init__(delay)
 
     @property
     def n_state(self):
@@ -355,8 +335,9 @@ class VanDerPolOscillator(DynamicSystem):
     def n_state(self):
         return 2
 
-    def __init__(self, delay: float, mu=1.0, desired_poles=[-2, -3]):
-        super().__init__(delay)
+    def __init__(self, mu=1.0, desired_poles=None):
+        if desired_poles is None:
+            desired_poles = [-2, -3]
         self.mu = mu
         self.desired_poles = desired_poles
         self.A = np.array([[0, 1], [0, -1]])
@@ -406,9 +387,6 @@ class DynamicSystem3(DynamicSystem):
     def n_state(self):
         return 3  # dof dimensions for e1 and dof dimensions for e2
 
-    def __init__(self, delay: float):
-        super().__init__(delay)
-
     def dynamic(self, X_t, t, U_delay):
         assert X_t.ndim == 1
         X1_t, X2_t, X3_t = X_t
@@ -422,6 +400,57 @@ class DynamicSystem3(DynamicSystem):
         U1 = -M_t ** 2 * np.cos(t) - M_t * Q_t * (1 + np.cos(t) ** 2) - X3_t
         U2 = -M_t + Q_t * (np.sin(t) - np.cos(t)) + Q_t * U1
         return np.array([U1, U2])
+
+
+class Delay:
+    @abstractmethod
+    def __call__(self, t):
+        ...
+
+    @abstractmethod
+    def phi(self, t):
+        ...
+
+    @abstractmethod
+    def phi_prime(self, t):
+        ...
+
+    @abstractmethod
+    def phi_inverse(self, t):
+        ...
+
+
+class ConstantDelay(Delay):
+
+    def __init__(self, delay:float):
+        self.delay = delay
+
+    def __call__(self, t=None):
+        return self.delay
+
+    def phi(self, t):
+        return t - self.delay
+
+    def phi_prime(self, t):
+        return 1
+
+    def phi_inverse(self, t):
+        return t + self.delay
+
+
+class TimeVaryingDelay(Delay):
+
+    def __call__(self, t):
+        return (1 + t) / (1 + 2 * t)
+
+    def phi(self, t):
+        return t - (1 + t) / (1 + 2 * t)
+
+    def phi_prime(self, t):
+        return 1 + 1 / (1 + 2 * t) ** 2
+
+    def phi_inverse(self, t):
+        return t + (1 + t) / (((1 + t) ** 2 + 1) ** 0.5 + t)
 
 
 def solve_integral_nn(model, U_D, Z_t, t):
@@ -616,10 +645,4 @@ def solve_integral_equation_explicit(t, delay, Z1_t, Z2_t, U_D, ts_D, dt):
 
 
 if __name__ == '__main__':
-    from config import DatasetConfig
-
-    dataset_config = DatasetConfig()
-    solve_integral_eular(np.array([0, 1]), dataset_config.n_point_delay, dataset_config.n_state, dataset_config.dt,
-                         np.random.randn(dataset_config.n_point_delay),
-                         f=dataset_config.system.dynamic)
     ...

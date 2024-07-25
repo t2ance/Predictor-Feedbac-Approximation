@@ -5,6 +5,7 @@ from typing import Optional, Tuple, List, Literal
 import numpy as np
 
 import dynamic_systems
+from dynamic_systems import ConstantDelay, TimeVaryingDelay
 
 
 @dataclass
@@ -94,7 +95,8 @@ class TrainConfig:
 class DatasetConfig:
     append_training_dataset: Optional[bool] = field(default=False)
     append_testing_dataset: Optional[bool] = field(default=False)
-    delay: Optional[float] = field(default=3.)
+    # delay: Optional[float] = field(default=3.)
+    delay: dynamic_systems.Delay = field(default=dynamic_systems.ConstantDelay(3))
     duration: Optional[int] = field(default=8)
     dt: Optional[float] = field(default=0.125)
     integral_method: Optional[
@@ -229,33 +231,32 @@ class DatasetConfig:
     @property
     def system(self):
         if self.system_ == 's1':
-            return dynamic_systems.DynamicSystem1(c=self.system_c, n=self.system_n, delay=self.delay)
+            return dynamic_systems.DynamicSystem1(c=self.system_c, n=self.system_n)
         elif self.system_ == 's2':
-            return dynamic_systems.DynamicSystem2(delay=self.delay)
+            return dynamic_systems.DynamicSystem2()
         elif self.system_ == 's3':
-            return dynamic_systems.InvertedPendulum(delay=self.delay)
+            return dynamic_systems.InvertedPendulum()
         elif self.system_ == 's4':
-            return dynamic_systems.VanDerPolOscillator(delay=self.delay)
+            return dynamic_systems.VanDerPolOscillator()
         elif self.system_ == 's5':
-            return dynamic_systems.Baxter(dof=self.baxter_dof, delay=self.delay)
+            return dynamic_systems.Baxter(dof=self.baxter_dof, )
         elif self.system_ == 's6':
-            return dynamic_systems.DynamicSystem3(delay=self.delay)
+            return dynamic_systems.DynamicSystem3()
         elif self.system_ == 's7':
-            return dynamic_systems.Unicycle(delay=self.delay)
+            return dynamic_systems.Unicycle()
         else:
             raise NotImplementedError()
 
     @property
     def ts(self) -> np.ndarray:
-        return np.linspace(-self.delay, self.duration, self.n_point)
+        return np.linspace(-self.delay(0), self.duration, self.n_point)
 
     @property
     def n_point(self) -> int:
-        return self.n_point_delay + self.n_point_duration
+        return self.delay(0) + self.n_point_duration
 
-    @property
-    def n_point_delay(self) -> int:
-        return int(round(self.delay / self.dt))
+    def n_point_delay(self, t=0) -> int:
+        return int(round(self.delay(t) / self.dt))
 
     @property
     def n_point_duration(self) -> int:
@@ -269,19 +270,21 @@ class DatasetConfig:
 
 def get_config(system_, n_iteration=None, duration=None, delay=None):
     if system_ == 's1':
-        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=1,
-                                       duration=6, dt=0.1, n_dataset=1000, n_sample_per_dataset=40, n_plot_sample=20,
-                                       integral_method='successive adaptive', random_test=True, ic_lower_bound=0,
-                                       ic_upper_bound=1, random_test_lower_bound=0, random_test_upper_bound=1)
+        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
+                                       delay=ConstantDelay(1), duration=6, dt=0.1, n_dataset=1000,
+                                       n_sample_per_dataset=40, n_plot_sample=20, integral_method='successive adaptive',
+                                       random_test=True, ic_lower_bound=0, ic_upper_bound=1, random_test_lower_bound=0,
+                                       random_test_upper_bound=1)
         model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=32)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=500, batch_size=128,
                                    do_training=True, do_testing=True, load_model=False,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-6)
     elif system_ == 's2':
-        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=1,
-                                       duration=8, dt=0.05, n_dataset=100, n_sample_per_dataset=-1, n_plot_sample=20,
-                                       ic_lower_bound=-1, ic_upper_bound=1, successive_approximation_n_iteration=5)
+        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
+                                       delay=ConstantDelay(1), duration=8, dt=0.05, n_dataset=100,
+                                       n_sample_per_dataset=-1, n_plot_sample=20, ic_lower_bound=-1, ic_upper_bound=1,
+                                       successive_approximation_n_iteration=5)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=2000, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, do_testing=False, scheduled_sampling_warm_start=500,
                                    scheduled_sampling_type='linear', scheduled_sampling_k=1e-2)
@@ -289,8 +292,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
                                    ffn_layer_width=8)
     elif system_ == 's3':
         dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
-                                       delay=0.3, duration=8, dt=0.05, n_dataset=250, n_sample_per_dataset=-1,
-                                       n_plot_sample=20, ic_lower_bound=-1, ic_upper_bound=1,
+                                       delay=ConstantDelay(0.3), duration=8, dt=0.05, n_dataset=250,
+                                       n_sample_per_dataset=-1, n_plot_sample=20, ic_lower_bound=-1, ic_upper_bound=1,
                                        successive_approximation_n_iteration=5)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=2000, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, do_testing=False, scheduled_sampling_warm_start=500,
@@ -298,38 +301,41 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
         model_config = ModelConfig(n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64,
                                    ffn_layer_width=8)
     elif system_ == 's4':
-        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory', delay=1,
-                                       duration=8, dt=0.05, n_dataset=200, n_sample_per_dataset=-1, n_plot_sample=20,
-                                       ic_lower_bound=-2, ic_upper_bound=2, successive_approximation_n_iteration=5)
+        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
+                                       delay=ConstantDelay(1), duration=8, dt=0.05, n_dataset=200,
+                                       n_sample_per_dataset=-1, n_plot_sample=20, ic_lower_bound=-2, ic_upper_bound=2,
+                                       successive_approximation_n_iteration=5)
         model_config = ModelConfig(model_name='FFN', n_layer=4, fno_n_modes_height=8, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=1000, batch_size=64,
                                    weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential', cp_alpha=0.01,
                                    load_model=False, do_testing=False, scheduled_sampling_type='inverse sigmoid',
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's5':
-        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=.5,
-                                       duration=10, dt=0.02, n_dataset=500, n_sample_per_dataset=-1, n_plot_sample=20,
-                                       integral_method='successive adaptive', baxter_dof=2, ic_lower_bound=0,
-                                       ic_upper_bound=1, random_test_lower_bound=0, random_test_upper_bound=1,
-                                       random_test=True)
+        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
+                                       delay=ConstantDelay(.5), duration=10, dt=0.02, n_dataset=500,
+                                       n_sample_per_dataset=-1, n_plot_sample=20, integral_method='successive adaptive',
+                                       baxter_dof=2, ic_lower_bound=0, ic_upper_bound=1, random_test_lower_bound=0,
+                                       random_test_upper_bound=1, random_test=True)
         model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=16, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=750, batch_size=128,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', cp_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2, do_testing=True)
     elif system_ == 's6':
-        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=.5,
-                                       duration=32, dt=0.01, n_dataset=25, n_sample_per_dataset=-1, n_plot_sample=20,
-                                       ic_lower_bound=-0.5, ic_upper_bound=0.5, integral_method='successive adaptive')
+        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
+                                       delay=ConstantDelay(.5), duration=32, dt=0.01, n_dataset=25,
+                                       n_sample_per_dataset=-1, n_plot_sample=20, ic_lower_bound=-0.5,
+                                       ic_upper_bound=0.5, integral_method='successive adaptive')
         model_config = ModelConfig(model_name='FNO', n_layer=3, fno_n_modes_height=16, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=2000, batch_size=128,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='none', cp_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's7':
-        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory', delay=.5,
-                                       duration=32, dt=0.01, n_dataset=25, n_sample_per_dataset=-1, n_plot_sample=20,
-                                       ic_lower_bound=-0.5, ic_upper_bound=0.5, integral_method='successive adaptive')
+        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
+                                       delay=ConstantDelay(1.), duration=32, dt=0.01, n_dataset=25,
+                                       n_sample_per_dataset=-1, n_plot_sample=20, ic_lower_bound=-0.5,
+                                       ic_upper_bound=0.5, integral_method='successive adaptive')
         model_config = ModelConfig(model_name='FNO', n_layer=3, fno_n_modes_height=16, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=2000, batch_size=128,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='none', cp_alpha=0.01,
