@@ -950,7 +950,6 @@ if __name__ == '__main__':
         train_config.cp_alpha = args.cp_alpha
         dataset_config.random_test_lower_bound = args.tlb
         dataset_config.random_test_upper_bound = args.tub
-        dataset_config.duration = 15
     elif args.training_type == 'scheduled sampling':
         if dataset_config.system_ == 's1':
             train_config.n_epoch = 3000
