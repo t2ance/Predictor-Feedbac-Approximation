@@ -20,9 +20,9 @@ from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import solve_integral_eular, solve_integral_nn, DynamicSystem, solve_integral, \
     solve_integral_successive_batched
 from model import FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
-from utils import set_size, pad_leading_zeros, metric, check_dir, plot_sample, predict_and_loss, load_lr_scheduler, \
-    prepare_datasets, draw_distribution, set_seed, print_result, postprocess, load_model, load_optimizer, shift, \
-    print_args, get_time_str, SimulationResult, plot_result, plot_switch_system
+from plot_utils import plot_result, set_size, plot_switch_system, plot_sample, plot_distribution
+from utils import pad_leading_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, set_seed, \
+    print_result, postprocess, load_model, load_optimizer, shift, print_args, get_time_str, SimulationResult
 
 
 def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tuple | np.ndarray | List,
@@ -562,7 +562,7 @@ def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_c
 
     for i, (feature, label) in enumerate(training_samples[:dataset_config.n_plot_sample]):
         plot_sample(feature, label, dataset_config, f'{str(i)}.png')
-    draw_distribution(training_samples, dataset_config.n_state, dataset_config.dataset_base_path)
+    plot_distribution(training_samples, dataset_config.n_state, dataset_config.dataset_base_path)
 
     training_dataloader, validating_dataloader = prepare_datasets(
         training_samples, train_config.batch_size, training_ratio=train_config.training_ratio,
@@ -919,22 +919,18 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_seed(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s5')
+    parser.add_argument('-s', type=str, default='s1')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='switching')
-    parser.add_argument('-tlb', type=float, default=0)
-    parser.add_argument('-tub', type=float, default=1)
-    parser.add_argument('-cp_gamma', type=float, default=0.01)
-    parser.add_argument('-cp_alpha', type=float, default=0.1)
-    # parser.add_argument('-tlb', type=float, default=1)
-    # parser.add_argument('-tub', type=float, default=1.5)
+    # parser.add_argument('-tlb', type=float, default=0)
+    # parser.add_argument('-tub', type=float, default=1)
     # parser.add_argument('-cp_gamma', type=float, default=0.01)
     # parser.add_argument('-cp_alpha', type=float, default=0.1)
-    # parser.add_argument('-tlb', type=float, default=1.5)
-    # parser.add_argument('-tub', type=float, default=2)
-    # parser.add_argument('-cp_gamma', type=float, default=0.01)
-    # parser.add_argument('-cp_alpha', type=float, default=0.3)
+    parser.add_argument('-tlb', type=float, default=1)
+    parser.add_argument('-tub', type=float, default=1.5)
+    parser.add_argument('-cp_gamma', type=float, default=0.01)
+    parser.add_argument('-cp_alpha', type=float, default=0.1)
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n, args.delay)
     assert torch.cuda.is_available()
@@ -958,6 +954,7 @@ if __name__ == '__main__':
         train_config.lr_scheduler_type = 'none'
     else:
         raise NotImplementedError()
+
     print_args(dataset_config)
     print_args(model_config)
     print_args(train_config)
