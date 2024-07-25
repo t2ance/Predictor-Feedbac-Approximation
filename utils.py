@@ -693,17 +693,20 @@ def set_seed(seed: int):
 
 
 def print_result(result, dataset_config):
-    print(f'Relative L2 error: {result[0]}'
-          f' || L2 error: {result[1]}'
-          f' || Runtime: {result[2]}'
+    rl2 = result[0]
+    l2 = result[1]
+    prediction_time = result[2] * 1000
+    print(f'Relative L2 error: {rl2}'
+          f' || L2 error: {l2}'
+          f' || Runtime: {prediction_time}'
           f' || Successful cases: [{result[3]}/{len(dataset_config.test_points)}]')
-    print(f'Relative L2 error: {result[0]:.3f}'
-          f' || L2 error: {result[1]:.3f}'
-          f' || Runtime: {result[2]:.3f}'
+    print(f'Relative L2 error: {rl2 :.3f}'
+          f' || L2 error: {l2 :.3f}'
+          f' || Runtime: {prediction_time :.3f}'
           f' || Successful cases: [{result[3]}/{len(dataset_config.test_points):.3f}]')
-    print(f'Relative L2 error: ${result[0]:.3f}$'
-          f' || L2 error: ${result[1]:.3f}$'
-          f' || Runtime: ${result[2]:.3f}$'
+    print(f'Relative L2 error: ${rl2 :.3f}$'
+          f' || L2 error: ${l2 :.3f}$'
+          f' || Runtime: ${prediction_time :.3f}$'
           f' || Successful cases: [{result[3]}/{len(dataset_config.test_points)}]')
 
 
