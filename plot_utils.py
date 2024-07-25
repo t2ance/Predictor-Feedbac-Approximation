@@ -1,3 +1,4 @@
+from dynamic_systems import Delay, ConstantDelay
 from utils import check_dir, SimulationResult, shift
 from typing import Literal
 
@@ -206,11 +207,6 @@ def plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_
     delay = dataset_config.delay
     n_point_delay = dataset_config.n_point_delay
     n_state = dataset_config.n_state
-
-    # comparison_full = f'{img_save_path}/comparison_full.png'
-    # difference_full = f'{img_save_path}/difference_full.png'
-    # comparison_zoom = f'{img_save_path}/comparison_zoom.png'
-    # difference_zoom = f'{img_save_path}/difference_zoom.png'
     comparison_full = f'{img_save_path}/{method}_comp_fit.png'
     difference_full = f'{img_save_path}/{method}_diff_fit.png'
     comparison_zoom = f'{img_save_path}/{method}_comp.png'
@@ -256,7 +252,6 @@ def plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_
 
 def plot_uncertainty(ts, P, P_ci, Z, delay, n_point_delay, save_path, n_state: int, ylim=None):
     fig = plt.figure(figsize=set_size(width=fig_width))
-    # plt.title('Uncertainty')
 
     for state in range(n_state):
         plt.plot(ts[n_point_delay:], shift(P, n_point_delay)[:, state], linestyle=styles[state], color=colors[state],
@@ -280,14 +275,24 @@ def plot_uncertainty(ts, P, P_ci, Z, delay, n_point_delay, save_path, n_state: i
 
 def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, ylim=None, Ps_labels=None):
     fig = plt.figure(figsize=set_size(width=fig_width))
+    n_point_start = n_point_delay(0)
     if Ps_labels is None:
         Ps_labels = ['' for _ in range(len(Ps))]
-    # plt.title('Comparison')
+    Ps_ = []
+    for P in Ps:
+        P_ = np.zeros_like(Z[n_point_start:])
+        for ti, t in enumerate(ts[n_point_start:]):
+            P_[ti] = P[ti + n_point_start - n_point_delay(t)]
+        Ps_.append(P_)
+    Ps = Ps_
+
+    delay_label = str(delay(0)) if isinstance(delay, ConstantDelay) else 'D(t)'
+
     for i in range(n_state):
         for j, (P, label) in enumerate(zip(Ps, Ps_labels)):
-            plt.plot(ts[n_point_delay:], shift(P, n_point_delay)[:, i], linestyle=styles[j], color=colors[i],
-                     label=f'$P^{{{label}}}_{i + 1}(t-{delay})$')
-        plt.plot(ts[n_point_delay:], Z[n_point_delay:, i], label=f'$Z_{i + 1}(t)$', linestyle='--', color=colors[i])
+            plt.plot(ts[n_point_start:], P[:, i], linestyle=styles[j], color=colors[i],
+                     label=f'$P^{{{label}}}_{i + 1}(t-{delay_label})$')
+        plt.plot(ts[n_point_start:], Z[n_point_start:, i], label=f'$Z_{i + 1}(t)$', linestyle='--', color=colors[i])
     plt.xlabel('Time t')
     if ylim is not None:
         plt.ylim(ylim)
@@ -296,8 +301,7 @@ def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
     else:
         plt.legend(handles=[plt.Line2D([0], [0], color='black', linestyle='--'),
                             plt.Line2D([0], [0], color='black', linestyle='-')],
-                   labels=[f'$P(t-{delay})$', f'$Z(t)$'],
-                   loc='best')
+                   labels=[f'$P(t-{delay_label})$', f'$Z(t)$'], loc='best')
     if save_path is not None:
         plt.savefig(save_path)
         fig.clear()
@@ -308,13 +312,21 @@ def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
 
 def plot_difference(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, ylim=None, Ps_labels=None):
     fig = plt.figure(figsize=set_size(width=fig_width))
-    # plt.title('Difference')
     if Ps_labels is None:
         Ps_labels = ['' for _ in range(len(Ps))]
+    n_point_start = n_point_delay(0)
+    Ps_ = []
+    for P in Ps:
+        P_ = np.zeros_like(Z[n_point_start:])
+        for ti, t in enumerate(ts[n_point_start:]):
+            P_[ti] = P[ti + n_point_start - n_point_delay(t)]
+        Ps_.append(P_)
+    Ps = Ps_
+
     for i in range(n_state):
         for j, (P, label) in enumerate(zip(Ps, Ps_labels)):
-            difference = shift(P, n_point_delay) - Z[n_point_delay:]
-            plt.plot(ts[n_point_delay:], difference[:, i], linestyle=styles[j], color=colors[i],
+            difference = P - Z[n_point_start:]
+            plt.plot(ts[n_point_start:], difference[:, i], linestyle=styles[j], color=colors[i],
                      label=f'$\Delta P^{{{label}}}_{i + 1}$')
 
     plt.xlabel('Time t')
@@ -336,9 +348,10 @@ def plot_difference(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
 def plot_control(ts, U, save_path, n_point_delay, ylim=None):
     fig = plt.figure(figsize=set_size(width=fig_width))
     assert U.ndim == 2
+    n_point_start = n_point_delay(0)
     U = U.T
     for i, u in enumerate(U):
-        plt.plot(ts[n_point_delay:], u[n_point_delay:], label=f'$U_{i + 1}(t)$', color=colors[i])
+        plt.plot(ts[n_point_start:], u[n_point_start:], label=f'$U_{i + 1}(t)$', color=colors[i])
     plt.xlabel('Time t')
     if ylim is not None:
         plt.ylim(ylim)

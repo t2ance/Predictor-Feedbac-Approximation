@@ -29,10 +29,11 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling'] = None,
                model=None, img_save_path: str = None, silence: bool = True):
     system: DynamicSystem = dataset_config.system
-    n_point_delay = dataset_config.n_point_delay
     ts = dataset_config.ts
     Z0 = np.array(Z0)
     n_point = dataset_config.n_point
+    n_point_start = dataset_config.n_point_start()
+    max_n_point_delay = dataset_config.max_n_point_delay()
     alpha = train_config.cp_alpha
     alpha_t = train_config.cp_alpha
     U = np.zeros((n_point, system.n_input))
@@ -51,23 +52,24 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
 
     p_numerical_count = 0
     p_no_count = 0
-    Z[n_point_delay, :] = Z0
+    Z[n_point_start, :] = Z0
     runtime = 0.
     if silence:
         bar = range(dataset_config.n_point)
     else:
         bar = tqdm(range(dataset_config.n_point))
     for t_i in bar:
-        t_minus_D_i = max(t_i - n_point_delay, 0)
+        # t_i_delayed = max(t_i - n_point_start, 0)
         t = ts[t_i]
+        t_i_delayed = max(t_i - dataset_config.n_point_delay(t), 0)
         if method == 'explicit':
             U[t_i] = system.U_explicit(t, Z0)
-            if t_i > n_point_delay:
+            if t_i > n_point_start:
                 Z[t_i, :] = system.Z_explicit(t, Z0)
         else:
             # estimate system state
-            if t_i > n_point_delay:
-                Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_minus_D_i - 1],))[1]
+            if t_i > n_point_start:
+                Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_i_delayed - 1],))[1]
                 Z_t = Z[t_i, :]
             else:
                 Z_t = Z0 + dataset_config.noise()
@@ -75,49 +77,49 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
             # estimate prediction and control signal
             if method == 'numerical':
                 begin = time.time()
-                solution = solve_integral(Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
-                                          dataset_config=dataset_config)
+                solution = solve_integral(Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
+                                          dataset_config=dataset_config, delay=dataset_config.delay)
                 P_numerical[t_i, :] = solution.solution
                 P_numerical_n_iters[t_i] = solution.n_iter
                 end = time.time()
                 runtime += end - begin
-                if t_i >= n_point_delay:
+                if t_i >= n_point_start:
                     U[t_i] = system.kappa(P_numerical[t_i, :], t)
             elif method == 'no':
-                U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
+                U_D = pad_leading_zeros(segment=U[t_i_delayed:t_i], length=max_n_point_delay)
                 begin = time.time()
                 P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
                 end = time.time()
                 runtime += end - begin
-                if t_i >= n_point_delay:
+                if t_i >= n_point_start:
                     U[t_i] = system.kappa(P_no[t_i, :], t)
             elif method == 'numerical_no':
                 begin = time.time()
                 solution = solve_integral(
-                    Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
-                    dataset_config=dataset_config)
+                    Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
+                    dataset_config=dataset_config, delay=dataset_config.delay)
                 P_numerical[t_i, :] = solution.solution
                 P_numerical_n_iters[t_i] = solution.n_iter
 
-                U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
+                U_D = pad_leading_zeros(segment=U[t_i_delayed:t_i], length=n_point_start)
                 P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
                 end = time.time()
                 runtime += end - begin
-                if t_i >= n_point_delay:
+                if t_i >= n_point_start:
                     U[t_i] = system.kappa(P_numerical[t_i, :], t)
             elif method == 'switching':
-                U_D = pad_leading_zeros(segment=U[t_minus_D_i:t_i], length=n_point_delay)
+                U_D = pad_leading_zeros(segment=U[t_i_delayed:t_i], length=max_n_point_delay)
                 begin = time.time()
                 P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
-                if t_i >= n_point_delay:
-                    if t_i >= 2 * n_point_delay:
+                if t_i >= n_point_start:
+                    if t_i >= 2 * n_point_start:
                         # System switching
                         # (1) Get the uncertainty of no model
-                        P_no_Ri[t_i] = np.linalg.norm(P_no[t_i - n_point_delay, :] - Z_t)
+                        P_no_Ri[t_i] = np.linalg.norm(P_no[t_i - n_point_start, :] - Z_t)
                         if train_config.cp_adaptive:
-                            Q = np.percentile(P_no_Ri[2 * n_point_delay:t_i + 1], (1 - min(1, max(alpha_t, 0))) * 100)
+                            Q = np.percentile(P_no_Ri[2 * n_point_start:t_i + 1], (1 - min(1, max(alpha_t, 0))) * 100)
                         else:
-                            Q = np.percentile(P_no_Ri[2 * n_point_delay:t_i + 1], (1 - alpha) * 100)
+                            Q = np.percentile(P_no_Ri[2 * n_point_start:t_i + 1], (1 - alpha) * 100)
                         e_t = 0 if P_no_Ri[t_i] <= Q else 1
                         # (2) Assign the indicator
                         if train_config.cp_switching_type == 'switching':
@@ -125,7 +127,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                                 # switch to no scheme if possible
                                 if switching_indicator[t_i - 1] == 1:
                                     t_last_no = np.where(switching_indicator[:t_i] == 0)[0][-1]
-                                    if t_i - t_last_no > n_point_delay:
+                                    if t_i - t_last_no > n_point_start:
                                         # switch back
                                         switching_indicator[t_i] = 0
                                     else:
@@ -148,8 +150,8 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                             p_no_count += 1
                         else:
                             P_numerical[t_i, :] = solve_integral(
-                                Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
-                                dataset_config=dataset_config).solution
+                                Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
+                                dataset_config=dataset_config, delay=dataset_config.delay).solution
                             P_switching[t_i, :] = P_numerical[t_i, :]
                             p_numerical_count += 1
                         alpha_t += train_config.cp_gamma * (train_config.cp_alpha - e_t)
@@ -159,8 +161,8 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                     else:
                         # Warm start
                         P_numerical[t_i, :] = solve_integral(
-                            Z_t=Z_t, P_D=P_numerical[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t,
-                            dataset_config=dataset_config).solution
+                            Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
+                            dataset_config=dataset_config, delay=dataset_config.delay).solution
                         P_switching[t_i, :] = P_numerical[t_i, :]
                         p_numerical_count += 1
                         switching_indicator[t_i] = 1
@@ -169,7 +171,8 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                 runtime += end - begin
             elif method == 'scheduled_sampling':
                 solution = solve_integral(
-                    Z_t=Z_t, P_D=P_no[t_minus_D_i:t_i], U_D=U[t_minus_D_i:t_i], t=t, dataset_config=dataset_config)
+                    Z_t=Z_t, P_D=P_no[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t, dataset_config=dataset_config,
+                    delay=dataset_config.delay)
                 P_numerical[t_i, :] = solution.solution
                 if np.random.binomial(n=1, p=train_config.scheduled_sampling_p) == 1:
                     # Teacher Forcing
@@ -177,8 +180,8 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                 else:
                     # Not Teacher Forcing
                     P_no[t_i, :] = solve_integral_nn(model=model, U_D=pad_leading_zeros(
-                        segment=U[t_minus_D_i:t_i], length=n_point_delay), Z_t=Z_t, t=t)
-                if t_i >= n_point_delay:
+                        segment=U[t_i_delayed:t_i], length=max_n_point_delay), Z_t=Z_t, t=t)
+                if t_i >= n_point_start:
                     U[t_i] = system.kappa(P_no[t_i, :], t)
             else:
                 raise NotImplementedError()
@@ -346,10 +349,6 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
                 'learning rate': optimizer.param_groups[0]['lr']
             }, step=epoch)
             if (train_config.log_step > 0 and epoch % train_config.log_step == 0) or epoch == n_epoch - 1:
-                # rl2, l2, _, n_success = run_test(
-                #     model, dataset_config, method='no', base_path=model_config.base_path, silence=True)
-                # rl2_list.append(rl2)
-                # l2_list.append(l2)
                 ...
         draw()
     print('Finished Training')

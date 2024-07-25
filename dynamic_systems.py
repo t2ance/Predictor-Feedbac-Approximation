@@ -408,6 +408,10 @@ class Delay:
         ...
 
     @abstractmethod
+    def max_delay(self):
+        ...
+
+    @abstractmethod
     def phi(self, t):
         ...
 
@@ -422,10 +426,13 @@ class Delay:
 
 class ConstantDelay(Delay):
 
-    def __init__(self, delay:float):
+    def __init__(self, delay: float):
         self.delay = delay
 
     def __call__(self, t=None):
+        return self.delay
+
+    def max_delay(self):
         return self.delay
 
     def phi(self, t):
@@ -442,6 +449,9 @@ class TimeVaryingDelay(Delay):
 
     def __call__(self, t):
         return (1 + t) / (1 + 2 * t)
+
+    def max_delay(self):
+        return 1
 
     def phi(self, t):
         return t - (1 + t) / (1 + 2 * t)
@@ -471,14 +481,17 @@ def solve_integral_ci_nn(mapie_regressors, U_D, Z_t):
     return mapie_regressors.predict(inputs)
 
 
-def solve_integral(Z_t, P_D, U_D, t: float, dataset_config):
+def solve_integral(Z_t, P_D, U_D, t: float, dataset_config, delay: Delay):
     assert len(P_D) == len(U_D)
     system = dataset_config.system
     dt = dataset_config.dt
-    f = system.dynamic
+
+    def f(p, t, u):
+        return system.dynamic(p, t, u) / delay.phi_prime(delay.phi_inverse(t))
+
     n_state = system.n_state
     n_points = len(P_D)
-    assert n_points <= dataset_config.n_point_delay
+    # assert n_points <= dataset_config.n_point_delay(t)
     ts = np.linspace(t - n_points * dt, t - dt, n_points)
     solution = IntegralSolution()
     if dataset_config.integral_method == 'rectangle':
@@ -604,8 +617,6 @@ def solve_integral_rectangle(f, Z_t, P_D, U_D, ts, dt: float):
     assert len(P_D) == len(U_D)
     if len(P_D) == 0:
         return 0
-    # integrand_values = f(np.array(P_D), np.array(ts), np.array(U_D))
-    # integral = integrand_values.sum(0) * dt
     integrand_values = np.array([f(p, t, u) for p, t, u in zip(np.array(P_D), np.array(ts), np.array(U_D))])
     integral = integrand_values.sum(0) * dt
     return integral + Z_t

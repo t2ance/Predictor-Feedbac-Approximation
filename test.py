@@ -1,4 +1,5 @@
 from config import get_config
+from dynamic_systems import ConstantDelay, TimeVaryingDelay
 from main import simulation
 
 
@@ -75,8 +76,9 @@ def baxter_test_unicycle():
     dataset_config, model_config, train_config = get_config(system_='s7')
     Z0 = tuple([1, 1, 1])
     print('initial point', Z0)
-    dataset_config.duration = 10
-    dataset_config.delay = 1
+    dataset_config.duration = 25
+    # dataset_config.delay = ConstantDelay(1)
+    dataset_config.delay = TimeVaryingDelay()
     dataset_config.dt = 0.01
     result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
                         img_save_path='./misc', silence=False)

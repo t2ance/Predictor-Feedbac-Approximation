@@ -253,10 +253,17 @@ class DatasetConfig:
 
     @property
     def n_point(self) -> int:
-        return self.delay(0) + self.n_point_duration
+        return self.n_point_start() + self.n_point_duration
 
-    def n_point_delay(self, t=0) -> int:
+    def n_point_start(self) -> int:
+        return self.n_point_delay(0)
+
+
+    def n_point_delay(self, t) -> int:
         return int(round(self.delay(t) / self.dt))
+
+    def max_n_point_delay(self) -> int:
+        return int(round(self.delay.max_delay() / self.dt))
 
     @property
     def n_point_duration(self) -> int:
