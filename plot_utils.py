@@ -133,12 +133,12 @@ def plot_switch_segments(ts, result: SimulationResult, save_path, n_point_delay)
     color_labels = ['$U_{NO}$', '$U_{Numerical}$']
     for j in range(U.shape[-1]):
         u = U[:, j]
-        plt.plot(ts[:marked_indices[0] + 1], u[:marked_indices[0] + 1], linestyle=styles[0], label=color_labels[0],
+        plt.plot(ts[:marked_indices[0] + 1], u[:marked_indices[0] + 1], linestyle=styles[1], label=color_labels[0],
                  color=colors[j])
         for i in range(len(marked_indices) - 1):
             plt.plot(ts[marked_indices[i]:marked_indices[i + 1] + 1], u[marked_indices[i]:marked_indices[i + 1] + 1],
-                     linestyle=styles[(i + 1) % 2], label=color_labels[(i + 1) % 2] if i == 0 else "", color=colors[j])
-        plt.plot(ts[marked_indices[-1]:], u[marked_indices[-1]:], linestyle=styles[len(marked_indices) % 2],
+                     linestyle=styles[i % 2], label=color_labels[(i + 1) % 2] if i == 0 else "", color=colors[j])
+        plt.plot(ts[marked_indices[-1]:], u[marked_indices[-1]:], linestyle=styles[(len(marked_indices) + 1) % 2],
                  color=colors[j])
 
     plt.xlabel('Time t')
@@ -385,7 +385,7 @@ def set_size(width=None, fraction=1, subplots=(1, 1), height_add=0.1):
         width_pt = 426.79135
     elif width == 'beamer':
         width_pt = 307.28987
-    elif width == None:
+    elif width is None:
         width_pt = fig_width
     else:
         width_pt = width

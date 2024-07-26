@@ -21,8 +21,10 @@ from dynamic_systems import solve_integral_eular, solve_integral_nn, DynamicSyst
     solve_integral_successive_batched
 from model import FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
 from plot_utils import plot_result, set_size, plot_switch_system, plot_sample, plot_distribution
-from utils import pad_leading_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, set_seed, \
-    print_result, postprocess, load_model, load_optimizer, shift, print_args, get_time_str, SimulationResult
+from utils import pad_leading_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, \
+    set_everything, \
+    print_result, postprocess, load_model, load_optimizer, shift, print_args, get_time_str, SimulationResult, \
+    load_cp_hyperparameters
 
 
 def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tuple | np.ndarray | List,
@@ -452,7 +454,7 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
         result = simulation(dataset_config=dataset_config, train_config=train_config, model=m, Z0=test_point,
                             method=method, img_save_path=img_save_path)
         plt.close()
-        n_point_delay = dataset_config.n_point_delay
+        n_point_delay = dataset_config.n_point_start()
         if method == 'no':
             P = result.P_no
         elif method == 'numerical':
@@ -661,20 +663,17 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 
 
 if __name__ == '__main__':
-    set_seed(0)
+    set_everything(0)
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', type=str, default='s1')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='switching')
-    # parser.add_argument('-tlb', type=float, default=0)
-    # parser.add_argument('-tub', type=float, default=1)
-    # parser.add_argument('-cp_gamma', type=float, default=0.01)
-    # parser.add_argument('-cp_alpha', type=float, default=0.1)
-    parser.add_argument('-tlb', type=float, default=1)
-    parser.add_argument('-tub', type=float, default=1.5)
+    parser.add_argument('-tlb', type=float, default=0.)
+    parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)
     parser.add_argument('-cp_alpha', type=float, default=0.1)
+
     args = parser.parse_args()
     dataset_config, model_config, train_config = config.get_config(args.s, args.n, args.delay)
     assert torch.cuda.is_available()
@@ -685,11 +684,11 @@ if __name__ == '__main__':
         dataset_config.recreate_training_dataset = False
         train_config.do_training = False
         train_config.load_model = True
-
-        train_config.cp_gamma = args.cp_gamma
-        train_config.cp_alpha = args.cp_alpha
-        dataset_config.random_test_lower_bound = args.tlb
-        dataset_config.random_test_upper_bound = args.tub
+        tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('toy_gamma_0.05')
+        train_config.cp_gamma = cp_gamma
+        train_config.cp_alpha = cp_alpha
+        dataset_config.random_test_lower_bound = tlb
+        dataset_config.random_test_upper_bound = tub
     elif args.training_type == 'scheduled sampling':
         if dataset_config.system_ == 's1':
             train_config.n_epoch = 3000

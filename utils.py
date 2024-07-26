@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import torch
+from matplotlib import pyplot as plt
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -99,6 +100,32 @@ def prepare_datasets(training_samples, batch_size: int, training_ratio: float = 
     return training_dataloader, validating_dataloader
 
 
+def load_cp_hyperparameters(case: str):
+    """
+    tlb,tub,cp_gamma,cp_alpha
+    """
+    if case == 'toy_id':
+        return 0., 1., 0.01, 0.1
+    elif case == 'toy_ood':
+        return 1.2, 1.6, 0.01, 0.1
+    elif case == 'baxter_id':
+        return 0., 1., 0.01, 0.1
+    elif case == 'baxter_ood1':
+        return 1., 1.5, 0.01, 0.1
+    elif case == 'baxter_ood2':
+        return 1.5, 2., 0.01, 0.3
+    elif case == 'toy_alpha_0.02':
+        return 1.2, 1.8, 0.01, 0.02
+    elif case == 'toy_alpha_0.5':
+        return 1.2, 1.8, 0.01, 0.5
+    elif case == 'toy_gamma_0.05':
+        return 1.2, 1.8, 0.05, 0.1
+    elif case == 'toy_gamma_0.2':
+        return 1.2, 1.8, 0.2, 0.1
+    else:
+        raise NotImplementedError()
+
+
 def load_model(train_config, model_config, dataset_config):
     model_name = model_config.model_name
     device = train_config.device
@@ -107,7 +134,7 @@ def load_model(train_config, model_config, dataset_config):
     hidden_size = model_config.deeponet_n_hidden_size
     n_hidden = model_config.deeponet_n_hidden
     merge_size = model_config.deeponet_merge_size
-    n_point_delay = dataset_config.n_point_delay
+    n_point_delay = dataset_config.n_point_start()
     n_modes_height = model_config.fno_n_modes_height
     hidden_channels = model_config.fno_hidden_channels
     n_layers = model_config.n_layer
@@ -254,7 +281,7 @@ def pad_leading_zeros(segment, length):
     return segment
 
 
-def set_seed(seed: int):
+def set_everything(seed: int):
     """
     Helper function for reproducible behavior to set the seed in `random`, `numpy`, `torch` and/or `tf` (if installed).
 
@@ -269,6 +296,21 @@ def set_seed(seed: int):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+
+    tex_fonts = {
+        # Use LaTeX to write all text
+        # "text.usetex": True,
+        # "font.family": "times",
+        # Use 10pt font in plots, to match 10pt font in document
+        "axes.labelsize": 12,
+        "font.size": 12,
+        # Make the legend/label fonts a little smaller
+        "legend.fontsize": 8,
+        "xtick.labelsize": 10,
+        "ytick.labelsize": 10
+    }
+
+    plt.rcParams.update(tex_fonts)
 
 
 def print_result(result, dataset_config):
