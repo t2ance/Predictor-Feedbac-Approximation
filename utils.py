@@ -108,20 +108,27 @@ def load_cp_hyperparameters(case: str):
         return 0., 1., 0.01, 0.1
     elif case == 'toy_ood':
         return 1.2, 1.6, 0.01, 0.1
+
     elif case == 'baxter_id':
         return 0., 1., 0.01, 0.1
     elif case == 'baxter_ood1':
         return 1., 1.5, 0.01, 0.1
     elif case == 'baxter_ood2':
         return 1.5, 2., 0.01, 0.3
-    elif case == 'toy_alpha_0.02':
-        return 1.2, 1.8, 0.01, 0.02
+
+    elif case == 'toy_alpha_0.01':
+        return 1.2, 1.6, 0.01, 0.01
+    elif case == 'toy_alpha_0.1':
+        return 1.2, 1.6, 0.01, 0.1
     elif case == 'toy_alpha_0.5':
-        return 1.2, 1.8, 0.01, 0.5
+        return 1.2, 1.6, 0.01, 0.5
+
     elif case == 'toy_gamma_0.05':
-        return 1.2, 1.8, 0.05, 0.1
+        return 1.2, 1.6, 0.05, 0.1
+    elif case == 'toy_gamma_0.1':
+        return 1.2, 1.6, 0.1, 0.1
     elif case == 'toy_gamma_0.2':
-        return 1.2, 1.8, 0.2, 0.1
+        return 1.2, 1.6, 0.2, 0.1
     else:
         raise NotImplementedError()
 

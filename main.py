@@ -684,7 +684,14 @@ if __name__ == '__main__':
         dataset_config.recreate_training_dataset = False
         train_config.do_training = False
         train_config.load_model = True
-        tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('toy_gamma_0.05')
+        # tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('toy_id')
+        # tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('toy_ood')
+        # tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('baxter_id')
+        # tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('baxter_ood1')
+        # tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('baxter_ood2')
+        tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('toy_alpha_0.01')
+        tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('toy_alpha_0.1')
+        tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('toy_alpha_0.5')
         train_config.cp_gamma = cp_gamma
         train_config.cp_alpha = cp_alpha
         dataset_config.random_test_lower_bound = tlb
