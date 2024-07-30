@@ -20,7 +20,7 @@ from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import solve_integral_eular, solve_integral_nn, DynamicSystem, solve_integral, \
     solve_integral_successive_batched
 from model import FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
-from plot_utils import plot_result, set_size, plot_switch_system, plot_sample, plot_distribution
+from plot_utils import plot_result, set_size, plot_switch_system, plot_sample, plot_distribution, difference
 from utils import pad_leading_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, \
     set_everything, \
     print_result, postprocess, load_model, load_optimizer, shift, print_args, get_time_str, SimulationResult, \
@@ -190,11 +190,16 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
 
     plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_switching, Z, U, method)
 
+    D_explicit = difference(Z, P_explicit, n_point_start, dataset_config.n_point_delay, ts)
+    D_no = difference(Z, P_no, n_point_start, dataset_config.n_point_delay, ts)
+    D_numerical = difference(Z, P_numerical, n_point_start, dataset_config.n_point_delay, ts)
+    D_switching = difference(Z, P_switching, n_point_start, dataset_config.n_point_delay, ts)
     return SimulationResult(
-        U=U, Z=Z, P_explicit=P_explicit, P_no=P_no, P_no_ci=P_no_ci, P_numerical=P_numerical, P_switching=P_switching,
-        runtime=runtime, P_numerical_n_iters=P_numerical_n_iters, p_numerical_count=p_numerical_count,
-        p_no_count=p_no_count, P_no_Ri=P_no_Ri, alpha_ts=alpha_ts, q_ts=q_ts, e_ts=e_ts,
-        switching_indicator=switching_indicator, avg_prediction_time=runtime / n_point)
+        U=U, Z=Z, D_explicit=D_explicit, D_no=D_no, D_numerical=D_numerical, D_switching=D_switching,
+        P_explicit=P_explicit, P_no=P_no, P_no_ci=P_no_ci, P_numerical=P_numerical,
+        P_switching=P_switching, runtime=runtime, P_numerical_n_iters=P_numerical_n_iters,
+        p_numerical_count=p_numerical_count, p_no_count=p_no_count, P_no_Ri=P_no_Ri, alpha_ts=alpha_ts, q_ts=q_ts,
+        e_ts=e_ts, switching_indicator=switching_indicator, avg_prediction_time=runtime / n_point)
 
 
 def model_train(model, optimizer, scheduler, device, training_dataloader, predict_and_loss,
@@ -639,7 +644,8 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         raise NotImplementedError()
     torch.save(model.state_dict(), f'{train_config.model_save_path}/{model_config.model_name}.pth')
     test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
-
+    print('All test points:')
+    print(test_points)
     if train_config.training_type == 'switching':
         return {
             'no': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
@@ -665,7 +671,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_everything(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s1')
+    parser.add_argument('-s', type=str, default='s5')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='switching')
@@ -684,18 +690,20 @@ if __name__ == '__main__':
         dataset_config.recreate_training_dataset = False
         train_config.do_training = False
         train_config.load_model = True
-        # tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('toy_id')
-        # tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('toy_ood')
-        # tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('baxter_id')
-        # tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('baxter_ood1')
-        # tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('baxter_ood2')
-        tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('toy_alpha_0.01')
-        tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('toy_alpha_0.1')
-        tlb, tub, cp_gamma, cp_alpha = load_cp_hyperparameters('toy_alpha_0.5')
+        # tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('toy_id')
+        # tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('toy_ood')
+        tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('baxter_id')
+        # tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('baxter_ood1')
+        # tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('baxter_ood2')
+        # tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('toy_alpha_0.01')
+        # tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('toy_alpha_0.1')
+        # tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('toy_alpha_0.2')
+        # tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('toy_alpha_0.5')
         train_config.cp_gamma = cp_gamma
         train_config.cp_alpha = cp_alpha
         dataset_config.random_test_lower_bound = tlb
         dataset_config.random_test_upper_bound = tub
+        dataset_config.system_ = system
     elif args.training_type == 'scheduled sampling':
         if dataset_config.system_ == 's1':
             train_config.n_epoch = 3000

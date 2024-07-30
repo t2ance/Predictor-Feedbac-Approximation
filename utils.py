@@ -20,6 +20,10 @@ from model import FNOProjection, FNOTwoStage, PIFNO, FNN
 class SimulationResult:
     U: np.ndarray = None
     Z: np.ndarray = None
+    D_explicit: np.ndarray = None
+    D_no: np.ndarray = None
+    D_numerical: np.ndarray = None
+    D_switching: np.ndarray = None
     P_explicit: np.ndarray = None
     P_no: np.ndarray = None
     P_no_ci: np.ndarray = None
@@ -105,23 +109,27 @@ def load_cp_hyperparameters(case: str):
     tlb,tub,cp_gamma,cp_alpha
     """
     if case == 'toy_id':
-        return 0., 1., 0.01, 0.1
+        return 0., 1., 0.01, 0.1, 's1'
     elif case == 'toy_ood':
-        return 1.2, 1.6, 0.01, 0.1
+        return 1.2, 1.6, 0.01, 0.1, 's1'
 
     elif case == 'baxter_id':
-        return 0., 1., 0.01, 0.1
+        return 0., 1., 0.01, 0.1, 's5'
     elif case == 'baxter_ood1':
-        return 1., 1.5, 0.01, 0.1
+        return 1., 1.5, 0.01, 0.1, 's5'
     elif case == 'baxter_ood2':
-        return 1.5, 2., 0.01, 0.3
+        return 1.5, 2., 0.01, 0.3, 's5'
 
     elif case == 'toy_alpha_0.01':
-        return 1.2, 1.6, 0.01, 0.01
+        return 1.4, 1.6, 0.01, 0.01, 's1'
+    elif case == 'toy_alpha_0.05':
+        return 1.4, 1.6, 0.01, 0.05, 's1'
     elif case == 'toy_alpha_0.1':
-        return 1.2, 1.6, 0.01, 0.1
+        return 1.4, 1.6, 0.01, 0.1, 's1'
+    elif case == 'toy_alpha_0.2':
+        return 1.4, 1.6, 0.01, 0.2, 's1'
     elif case == 'toy_alpha_0.5':
-        return 1.2, 1.6, 0.01, 0.5
+        return 1.4, 1.6, 0.01, 0.5, 's1'
 
     elif case == 'toy_gamma_0.05':
         return 1.2, 1.6, 0.05, 0.1

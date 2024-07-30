@@ -121,6 +121,11 @@ class Baxter(DynamicSystem):
         return self.qdd_des(t) - self.alpha @ (self.alpha @ e1) + np.linalg.inv(self.M(t)) @ (
                 self.C(t) @ self.qd_des(t) + self.G(t) + self.C(t) @ (self.alpha @ e1) - self.C(t) @ e2)
 
+    def q(self, E_t, t):
+        e1_t, e2_t = E_t[:self.dof], E_t[self.dof:]
+        q = self.q_des(t) - e1_t
+        return q
+
     def dynamic(self, E_t, t, U_delay):
         e1_t, e2_t = E_t[:self.dof], E_t[self.dof:]
         h = self.h(e1_t, e2_t, t)
