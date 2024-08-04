@@ -321,6 +321,7 @@ def plot_uncertainty(ts, P, P_ci, Z, delay, n_point_delay, save_path, n_state: i
     if figure is not None and save_path is not None:
         figure.savefig(save_path)
         figure.clear()
+        plt.close(figure)
 
 
 def plot_q(ts, qs, q_des, save_path, n_state: int, ylim=None, ax=None, comment=True, figure=None):
@@ -351,6 +352,7 @@ def plot_q(ts, qs, q_des, save_path, n_state: int, ylim=None, ax=None, comment=T
     if figure is not None and save_path is not None:
         figure.savefig(save_path)
         figure.clear()
+        plt.close(figure)
 
 
 def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, ylim=None, Ps_labels=None, ax=None,
@@ -395,6 +397,7 @@ def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
     if figure is not None and save_path is not None:
         figure.savefig(save_path)
         figure.clear()
+        plt.close(figure)
 
 
 def difference(Z, P, n_point_start, n_point_delay, ts):
@@ -440,6 +443,7 @@ def plot_difference(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
     if figure is not None and save_path is not None:
         figure.savefig(save_path)
         figure.clear()
+        plt.close(figure)
 
 
 def plot_control(ts, U, save_path, n_point_delay, ylim=None, ax=None, comment=True, figure=None):
@@ -465,6 +469,7 @@ def plot_control(ts, U, save_path, n_point_delay, ylim=None, ax=None, comment=Tr
     if figure is not None and save_path is not None:
         figure.savefig(save_path)
         figure.clear()
+        plt.close(figure)
 
 
 def set_size(width=None, fraction=1, subplots=(1, 1), height_add=0.1):

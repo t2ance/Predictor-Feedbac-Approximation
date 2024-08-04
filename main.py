@@ -444,7 +444,7 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
     return model
 
 
-def run_gru_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
+def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
     warnings.filterwarnings('error')
     device = train_config.device
     img_save_path = model_config.base_path
@@ -728,7 +728,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         model = run_offline_training(dataset_config=dataset_config, model_config=model_config,
                                      train_config=train_config)
     elif train_config.training_type == 'sequence':
-        model = run_gru_training(dataset_config=dataset_config, model_config=model_config, train_config=train_config)
+        model = run_sequence_training(dataset_config=dataset_config, model_config=model_config, train_config=train_config)
     elif train_config.training_type == 'scheduled sampling':
         model = run_scheduled_sampling_training(dataset_config=dataset_config, model_config=model_config,
                                                 train_config=train_config)
