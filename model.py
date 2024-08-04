@@ -326,22 +326,41 @@ class PIFNO(torch.nn.Module):
         return outputs, loss_mse
 
 
+def fft_transform(input_tensor, target_length):
+    fft_result = torch.fft.fft(input_tensor)
+
+    current_length = fft_result.shape[1]
+
+    if current_length > target_length:
+        output = fft_result[:, :target_length]
+    elif current_length < target_length:
+        padding = torch.zeros((input_tensor.shape[0], target_length - current_length), dtype=torch.complex64)
+        output = torch.cat((fft_result, padding), dim=1)
+    else:
+        output = fft_result
+
+    return output
+
+
 class FNOProjection(torch.nn.Module):
     def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, n_input: int, n_state: int,
                  n_point_delay: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.mse_loss = torch.nn.MSELoss()
+        self.n_modes_height = n_modes_height
         self.fno = FNO1d(n_modes_height=n_modes_height, n_layers=n_layers, hidden_channels=hidden_channels,
                          in_channels=1, out_channels=1)
         in_features = 1 + n_state + n_point_delay * n_input
         out_features = n_state
-        self.projection = torch.nn.Linear(in_features=in_features, out_features=out_features)
+        # self.projection = torch.nn.Linear(in_features=in_features, out_features=out_features)
+        self.projection = torch.nn.Linear(in_features=n_modes_height, out_features=out_features)
 
     def forward(self, x: torch.Tensor, label: torch.Tensor = None):
         x = x.unsqueeze(-2)
         x = self.fno(x)
-        x = self.projection(x)
-        x = x.squeeze(-2)
+        # x = self.projection(x)
+        # x = x.squeeze(-2)
+        x = fft_transform(x.squeeze(1), self.n_modes_height)
         if label is None:
             return x
         return x, self.mse_loss(x, label)

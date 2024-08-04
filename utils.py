@@ -182,11 +182,11 @@ def load_model(train_config, model_config, dataset_config):
         model = FFN(n_state=n_state, n_point_delay=n_point_delay, n_input=n_input, n_layers=n_layers,
                     layer_width=layer_width)
     elif model_name == 'GRU':
-        model = GRUNet(input_size=n_state + n_point_delay + 1, hidden_size=256, num_layers=n_layers,
-                       output_size=n_state)
+        model = GRUNet(input_size=n_state + n_point_delay + 1, hidden_size=layer_width * (n_state + n_point_delay + 1),
+                       num_layers=n_layers, output_size=n_state)
     elif model_name == 'LSTM':
-        model = LSTMNet(input_size=n_state + n_point_delay + 1, hidden_size=256, num_layers=n_layers,
-                        output_size=n_state)
+        model = LSTMNet(input_size=n_state + n_point_delay + 1, hidden_size=layer_width * (n_state + n_point_delay + 1),
+                        num_layers=n_layers, output_size=n_state)
     else:
         raise NotImplementedError()
     n_params = count_params(model)

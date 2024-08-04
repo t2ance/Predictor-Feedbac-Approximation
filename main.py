@@ -647,9 +647,9 @@ def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_c
     else:
         training_samples = load()
 
-    for i, (feature, label) in enumerate(training_samples[:dataset_config.n_plot_sample]):
-        plot_sample(feature, label, dataset_config, f'{str(i)}.png')
-    plot_distribution(training_samples, dataset_config.n_state, dataset_config.dataset_base_path)
+    # for i, (feature, label) in enumerate(training_samples[:dataset_config.n_plot_sample]):
+    #     plot_sample(feature, label, dataset_config, f'{str(i)}.png')
+    # plot_distribution(training_samples, dataset_config.n_state, dataset_config.dataset_base_path)
 
     training_dataloader, validating_dataloader = prepare_datasets(
         training_samples, train_config.batch_size, training_ratio=train_config.training_ratio,
@@ -700,13 +700,13 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, initial_conditions:
                                 img_save_path=img_save_path)
             dataset = ZUPDataset(
                 torch.tensor(result.Z, dtype=torch.float32), torch.tensor(result.U, dtype=torch.float32),
-                torch.tensor(result.P_numerical, dtype=torch.float32), dataset_config.n_point_delay, dataset_config.dt)
+                torch.tensor(result.P_numerical, dtype=torch.float32), dataset_config.n_point_delay(0), dataset_config.dt)
         else:
             result = simulation(method='explicit', Z0=Z0, dataset_config=dataset_config, train_config=train_config,
                                 img_save_path=img_save_path)
             dataset = ZUZDataset(
                 torch.tensor(result.Z, dtype=torch.float32), torch.tensor(result.U, dtype=torch.float32),
-                dataset_config.n_point_delay, dataset_config.dt)
+                dataset_config.n_point_delay(0), dataset_config.dt)
         dataset = list(dataset)
         random.shuffle(dataset)
         if dataset_config.n_sample_per_dataset >= 0:
@@ -767,10 +767,10 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_everything(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s1')
+    parser.add_argument('-s', type=str, default='s3')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
-    parser.add_argument('-training_type', type=str, default='sequence')
+    parser.add_argument('-training_type', type=str, default='offline')
     parser.add_argument('-model_name', type=str, default='FNO')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)

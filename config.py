@@ -303,14 +303,14 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         model_config = ModelConfig(model_name='FFN', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64,
                                    ffn_layer_width=8)
     elif system_ == 's3':
-        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
-                                       delay=ConstantDelay(0.3), duration=8, dt=0.05, n_dataset=250,
+        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
+                                       delay=ConstantDelay(0.3), duration=8, dt=0.05, n_dataset=10,
                                        n_sample_per_dataset=-1, n_plot_sample=20, ic_lower_bound=-1, ic_upper_bound=1,
                                        successive_approximation_n_iteration=5)
-        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=2000, batch_size=64,
+        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=100, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, do_testing=False, scheduled_sampling_warm_start=500,
                                    scheduled_sampling_type='linear', scheduled_sampling_k=1e-2)
-        model_config = ModelConfig(n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64,
+        model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64,
                                    ffn_layer_width=8)
     elif system_ == 's4':
         dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
