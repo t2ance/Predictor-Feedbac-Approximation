@@ -445,7 +445,6 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
 
 
 def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
-    warnings.filterwarnings('error')
     device = train_config.device
     img_save_path = model_config.base_path
     model, model_loaded = load_model(train_config, model_config, dataset_config)
@@ -474,15 +473,10 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         Zs = np.array(true_values)
         horizon = np.array(dataset_config.ts[n_point_start:])
         Us = np.array([result.U[t_i: t_i + n_point_start] for t_i in range(len(horizon))])
-        if np.isnan(Ps).any() or np.isnan(Zs).any() or np.isnan(
-                horizon).any() or np.isnan(Us).any() or np.isinf(Ps).any() or np.isinf(
-            Zs).any() or np.isinf(horizon).any() or np.isinf(Us).any():
-            training_loss_arr.append(0)
-            continue
+
         samples = []
         for t_i, (p, z, t) in enumerate(zip(Ps, Zs, horizon)):
-            u = Us[t_i]
-            samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(p)))
+            samples.append((sample_to_tensor(z, Us[t_i], t.reshape(-1)), torch.from_numpy(p)))
         samples_all_dataset.append(samples)
 
     model.train()
@@ -499,12 +493,13 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
                 inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
                 outputs, loss = predict_and_loss(inputs, labels, model)
                 losses.append(loss)
-            loss = sum(losses)
+            loss = sum(losses) / len(losses)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             training_loss += loss.item()
 
+        training_loss /= (len(samples_all_dataset) // train_config.batch_size)
         scheduler.step()
 
         wandb.log({
@@ -700,7 +695,8 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, initial_conditions:
                                 img_save_path=img_save_path)
             dataset = ZUPDataset(
                 torch.tensor(result.Z, dtype=torch.float32), torch.tensor(result.U, dtype=torch.float32),
-                torch.tensor(result.P_numerical, dtype=torch.float32), dataset_config.n_point_delay(0), dataset_config.dt)
+                torch.tensor(result.P_numerical, dtype=torch.float32), dataset_config.n_point_delay(0),
+                dataset_config.dt)
         else:
             result = simulation(method='explicit', Z0=Z0, dataset_config=dataset_config, train_config=train_config,
                                 img_save_path=img_save_path)
@@ -767,11 +763,11 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_everything(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s3')
+    parser.add_argument('-s', type=str, default='s1')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
-    parser.add_argument('-training_type', type=str, default='offline')
-    parser.add_argument('-model_name', type=str, default='FNO')
+    parser.add_argument('-training_type', type=str, default='sequence')
+    parser.add_argument('-model_name', type=str, default='GRU')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)
