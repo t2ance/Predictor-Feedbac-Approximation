@@ -18,7 +18,7 @@ import config
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral, solve_integral_successive_batched
-from model import GRUNet
+from model import GRUNet, LSTMNet
 from plot_utils import plot_result, set_size, plot_switch_system, plot_sample, plot_distribution, difference
 from utils import pad_leading_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, \
     set_everything, print_result, postprocess, load_model, load_optimizer, shift, print_args, get_time_str, \
@@ -56,7 +56,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
     p_no_count = 0
     Z[n_point_start, :] = Z0
     runtime = 0.
-    if isinstance(model, GRUNet):
+    if isinstance(model, GRUNet) or isinstance(model, LSTMNet):
         model.reset_state()
     if silence:
         bar = range(dataset_config.n_point)
@@ -449,7 +449,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     device = train_config.device
     img_save_path = model_config.base_path
     model, model_loaded = load_model(train_config, model_config, dataset_config)
-    assert isinstance(model, GRUNet)
+    assert isinstance(model, GRUNet) or isinstance(model, LSTMNet)
     optimizer = load_optimizer(model.parameters(), train_config)
     scheduler = load_lr_scheduler(optimizer, train_config)
     training_loss_arr = []
@@ -507,12 +507,9 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
 
         scheduler.step()
 
-        # print(f'Epoch [{epoch + 1}/{n_epoch}]'
-        #       f'|| Training loss: {training_loss:.6f}'
-        #       f'|| Lr: {scheduler.get_last_lr()[-1]:6f}')
         wandb.log({
             'training loss': training_loss,
-            'learning rate': optimizer.param_groups[0]['lr'],
+            'lr': optimizer.param_groups[0]['lr'],
         }, step=epoch)
         training_loss_arr.append(training_loss)
 
@@ -728,7 +725,8 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         model = run_offline_training(dataset_config=dataset_config, model_config=model_config,
                                      train_config=train_config)
     elif train_config.training_type == 'sequence':
-        model = run_sequence_training(dataset_config=dataset_config, model_config=model_config, train_config=train_config)
+        model = run_sequence_training(dataset_config=dataset_config, model_config=model_config,
+                                      train_config=train_config)
     elif train_config.training_type == 'scheduled sampling':
         model = run_scheduled_sampling_training(dataset_config=dataset_config, model_config=model_config,
                                                 train_config=train_config)
@@ -780,7 +778,8 @@ if __name__ == '__main__':
     parser.add_argument('-cp_alpha', type=float, default=0.1)
 
     args = parser.parse_args()
-    dataset_config, model_config, train_config = config.get_config(args.s, args.n, args.delay)
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, delay=args.delay,
+                                                                   model_name=args.model_name)
     assert torch.cuda.is_available()
     train_config.training_type = args.training_type
     if args.training_type == 'offline' or args.training_type == 'sequence':
