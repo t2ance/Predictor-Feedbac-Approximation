@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 from config import DatasetConfig, TrainConfig
 from dataset import PredictionDataset
-from model import FNOProjection, FNOTwoStage, PIFNO, FNN
+from model import FNOProjection, FNOTwoStage, PIFNO, FFN, GRUNet
 
 
 @dataclass
@@ -179,8 +179,14 @@ def load_model(train_config, model_config, dataset_config):
             n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_layers=n_layers, dt=dataset_config.dt,
             n_state=dataset_config.n_state, dynamic=dataset_config.system.dynamic_tensor_batched2)
     elif model_name == 'FFN':
-        model = FNN(n_state=n_state, n_point_delay=n_point_delay, n_input=n_input, n_layers=n_layers,
+        model = FFN(n_state=n_state, n_point_delay=n_point_delay, n_input=n_input, n_layers=n_layers,
                     layer_width=layer_width)
+    elif model_name == 'GRU':
+        model = GRUNet(input_size=n_state + n_point_delay + 1, hidden_size=128, num_layers=n_layers,
+                       output_size=n_state)
+    elif model_name == 'LSTM':
+        model = GRUNet(input_size=n_state + n_point_delay + 1, hidden_size=128, num_layers=n_layers,
+                       output_size=n_state)
     else:
         raise NotImplementedError()
     n_params = count_params(model)

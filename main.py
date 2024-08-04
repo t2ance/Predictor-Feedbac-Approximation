@@ -11,20 +11,20 @@ import numpy as np
 import torch
 import wandb
 from scipy.integrate import odeint
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import config
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
-from dynamic_systems import solve_integral_eular, solve_integral_nn, DynamicSystem, solve_integral, \
-    solve_integral_successive_batched
-from model import FullyConnectedNet, FourierNet, ChebyshevNet, BSplineNet
+from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral, solve_integral_successive_batched
+from model import GRUNet
 from plot_utils import plot_result, set_size, plot_switch_system, plot_sample, plot_distribution, difference
 from utils import pad_leading_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, \
-    set_everything, \
-    print_result, postprocess, load_model, load_optimizer, shift, print_args, get_time_str, SimulationResult, \
-    load_cp_hyperparameters
+    set_everything, print_result, postprocess, load_model, load_optimizer, shift, print_args, get_time_str, \
+    SimulationResult
+
+warnings.filterwarnings('ignore')
 
 
 def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tuple | np.ndarray | List,
@@ -56,6 +56,8 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
     p_no_count = 0
     Z[n_point_start, :] = Z0
     runtime = 0.
+    if isinstance(model, GRUNet):
+        model.reset_state()
     if silence:
         bar = range(dataset_config.n_point)
     else:
@@ -114,14 +116,17 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                 begin = time.time()
                 P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
                 if t_i >= n_point_start:
-                    if t_i >= 2 * n_point_start:
+                    # actuate the controller
+                    start_point = 2 * n_point_start
+                    # start_point = n_point_start
+                    if t_i >= start_point:
                         # System switching
                         # (1) Get the uncertainty of no model
                         P_no_Ri[t_i] = np.linalg.norm(P_no[t_i - n_point_start, :] - Z_t)
                         if train_config.cp_adaptive:
-                            Q = np.percentile(P_no_Ri[2 * n_point_start:t_i + 1], (1 - min(1, max(alpha_t, 0))) * 100)
+                            Q = np.percentile(P_no_Ri[start_point:t_i + 1], (1 - min(1, max(alpha_t, 0))) * 100)
                         else:
-                            Q = np.percentile(P_no_Ri[2 * n_point_start:t_i + 1], (1 - alpha) * 100)
+                            Q = np.percentile(P_no_Ri[start_point:t_i + 1], (1 - alpha) * 100)
                         e_t = 0 if P_no_Ri[t_i] <= Q else 1
                         # (2) Assign the indicator
                         if train_config.cp_switching_type == 'switching':
@@ -168,6 +173,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                         P_switching[t_i, :] = P_numerical[t_i, :]
                         p_numerical_count += 1
                         switching_indicator[t_i] = 1
+
                     U[t_i] = system.kappa(P_switching[t_i, :], t)
                 end = time.time()
                 runtime += end - begin
@@ -438,6 +444,90 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
     return model
 
 
+def run_gru_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
+    warnings.filterwarnings('error')
+    device = train_config.device
+    img_save_path = model_config.base_path
+    model, model_loaded = load_model(train_config, model_config, dataset_config)
+    assert isinstance(model, GRUNet)
+    optimizer = load_optimizer(model.parameters(), train_config)
+    scheduler = load_lr_scheduler(optimizer, train_config)
+    training_loss_arr = []
+    check_dir(img_save_path)
+
+    print('Begin Generating Dataset...')
+    samples_all_dataset = []
+    for n in tqdm(range(dataset_config.n_dataset)):
+        Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
+                               size=(dataset_config.n_state,))
+        try:
+            result = simulation(dataset_config, train_config, Z0, 'numerical', model)
+        except Warning as e:
+            print("Warning caught:", e)
+            print(f'Abnormal value encountered at epoch {n}, skip this epoch!')
+            continue
+        n_point_start = dataset_config.n_point_start()
+        predictions = shift(result.P_numerical, n_point_start)
+        true_values = result.Z[n_point_start:]
+
+        Ps = np.array(predictions)
+        Zs = np.array(true_values)
+        horizon = np.array(dataset_config.ts[n_point_start:])
+        Us = np.array([result.U[t_i: t_i + n_point_start] for t_i in range(len(horizon))])
+        if np.isnan(Ps).any() or np.isnan(Zs).any() or np.isnan(
+                horizon).any() or np.isnan(Us).any() or np.isinf(Ps).any() or np.isinf(
+            Zs).any() or np.isinf(horizon).any() or np.isinf(Us).any():
+            training_loss_arr.append(0)
+            continue
+        samples = []
+        for t_i, (p, z, t) in enumerate(zip(Ps, Zs, horizon)):
+            u = Us[t_i]
+            samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(p)))
+        samples_all_dataset.append(samples)
+
+    model.train()
+    print('Begin Training...')
+    for epoch in tqdm(range(train_config.n_epoch)):
+        training_loss = 0.0
+        for i in range(0, len(samples_all_dataset) - train_config.batch_size, train_config.batch_size):
+            sequences = samples_all_dataset[i:i + train_config.batch_size]
+            model.reset_state()
+            losses = []
+            for batch in zip(*sequences):
+                inputs, labels = torch.vstack([batch[i][0] for i in range(train_config.batch_size)]), torch.vstack(
+                    [batch[i][1] for i in range(train_config.batch_size)])
+                inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
+                outputs, loss = predict_and_loss(inputs, labels, model)
+                losses.append(loss)
+            loss = sum(losses)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            training_loss += loss.item()
+
+        scheduler.step()
+
+        # print(f'Epoch [{epoch + 1}/{n_epoch}]'
+        #       f'|| Training loss: {training_loss:.6f}'
+        #       f'|| Lr: {scheduler.get_last_lr()[-1]:6f}')
+        wandb.log({
+            'training loss': training_loss,
+            'learning rate': optimizer.param_groups[0]['lr'],
+        }, step=epoch)
+        training_loss_arr.append(training_loss)
+
+    fig = plt.figure(figsize=set_size())
+    plt.plot(training_loss_arr, label="Training loss")
+    plt.yscale("log")
+    plt.xlabel('epoch')
+    plt.legend()
+    plt.savefig(f'{img_save_path}/loss.png')
+    fig.clear()
+    plt.close(fig)
+
+    return model
+
+
 def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = None, silence: bool = False,
              test_points: List = None, plot: bool = False):
     base_path = f'{base_path}/{method}'
@@ -637,15 +727,23 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     if train_config.training_type == 'offline' or train_config.training_type == 'switching':
         model = run_offline_training(dataset_config=dataset_config, model_config=model_config,
                                      train_config=train_config)
+    elif train_config.training_type == 'sequence':
+        model = run_gru_training(dataset_config=dataset_config, model_config=model_config, train_config=train_config)
     elif train_config.training_type == 'scheduled sampling':
         model = run_scheduled_sampling_training(dataset_config=dataset_config, model_config=model_config,
                                                 train_config=train_config)
     else:
         raise NotImplementedError()
-    torch.save(model.state_dict(), f'{train_config.model_save_path}/{model_config.model_name}.pth')
+    model_save_path = f'{train_config.model_save_path}/{model_config.model_name}.pth'
+    torch.save(model.state_dict(), model_save_path)
+    arti_model = wandb.Artifact('model', type='model')
+    arti_model.add_file(model_save_path)
+    wandb.log_artifact(arti_model)
+
     test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
     print('All test points:')
     print(test_points)
+
     if train_config.training_type == 'switching':
         return {
             'no': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
@@ -671,10 +769,11 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_everything(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s5')
+    parser.add_argument('-s', type=str, default='s1')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
-    parser.add_argument('-training_type', type=str, default='switching')
+    parser.add_argument('-training_type', type=str, default='sequence')
+    parser.add_argument('-model_name', type=str, default='FNO')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)
@@ -684,26 +783,10 @@ if __name__ == '__main__':
     dataset_config, model_config, train_config = config.get_config(args.s, args.n, args.delay)
     assert torch.cuda.is_available()
     train_config.training_type = args.training_type
-    if args.training_type == 'offline':
+    if args.training_type == 'offline' or args.training_type == 'sequence':
         ...
     elif args.training_type == 'switching':
-        dataset_config.recreate_training_dataset = False
-        train_config.do_training = False
-        train_config.load_model = True
-        # tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('toy_id')
-        # tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('toy_ood')
-        tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('baxter_id')
-        # tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('baxter_ood1')
-        # tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('baxter_ood2')
-        # tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('toy_alpha_0.01')
-        # tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('toy_alpha_0.1')
-        # tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('toy_alpha_0.2')
-        # tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters('toy_alpha_0.5')
-        train_config.cp_gamma = cp_gamma
-        train_config.cp_alpha = cp_alpha
-        dataset_config.random_test_lower_bound = tlb
-        dataset_config.random_test_upper_bound = tub
-        dataset_config.system_ = system
+        ...
     elif args.training_type == 'scheduled sampling':
         if dataset_config.system_ == 's1':
             train_config.n_epoch = 3000
@@ -727,3 +810,4 @@ if __name__ == '__main__':
         print_result(result, dataset_config)
         speedup = results["numerical"][2] / result[2]
         print(f'Speedup w.r.t numerical: {speedup :.3f}; $\\times {speedup:.3f}$')
+    wandb.finish()

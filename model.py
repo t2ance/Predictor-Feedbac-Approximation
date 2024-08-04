@@ -207,7 +207,7 @@ class QuantileRegressionModel(nn.Module):
         return x.view(x.size(0), -1, 2)  # Reshape to (batch_size, output_dim, 2)
 
 
-class FNN(torch.nn.Module):
+class FFN(torch.nn.Module):
     def __init__(self, n_state: int, n_point_delay: int, n_input: int, n_layers: int, layer_width: int, *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -236,6 +236,70 @@ class FNN(torch.nn.Module):
         if label is None:
             return x
         return x, self.mse_loss(x, label)
+
+
+class GRUNet(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, output_size):
+        super(GRUNet, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+
+        self.gru = nn.GRU(input_size, hidden_size, num_layers, batch_first=True)
+
+        self.fc = nn.Linear(hidden_size, output_size)
+
+        self.mse_loss = torch.nn.MSELoss()
+        self.hidden = None
+
+    def forward(self, x: torch.Tensor, labels: torch.Tensor = None):
+        if self.hidden is None:
+            self.hidden = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        if x.ndim == 2:
+            x = x[:, None, :]
+
+        out, self.hidden = self.gru(x, self.hidden)
+        self.hidden = self.hidden.detach()
+
+        out = self.fc(out[:, -1, :])
+        if labels is None:
+            return out
+        return out, self.mse_loss(out, labels)
+
+    def reset_state(self):
+        self.hidden = None
+
+
+class LSTMNet(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, output_size):
+        super(LSTMNet, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+
+        self.fc = nn.Linear(hidden_size, output_size)
+
+        self.hidden = None
+        self.cell = None
+        self.mse_loss = torch.nn.MSELoss()
+
+    def forward(self, x: torch.Tensor, labels: torch.Tensor = None):
+        if self.hidden is None or self.cell is None:
+            self.hidden = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+            self.cell = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+
+        out, (self.hidden, self.cell) = self.lstm(x, (self.hidden, self.cell))
+        self.hidden = self.hidden.detach()
+        self.cell = self.cell.detach()
+
+        out = self.fc(out[:, -1, :])
+        if labels is None:
+            return out
+        return out, self.mse_loss(out, labels)
+
+    def reset_state(self):
+        self.hidden = None
+        self.cell = None
 
 
 class PIFNO(torch.nn.Module):

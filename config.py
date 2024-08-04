@@ -18,7 +18,8 @@ class ModelConfig:
     n_layer: Optional[int] = field(default=4)
     ffn_layer_width: Optional[int] = field(default=8)
     fno_end_to_end: Optional[bool] = field(default=True)
-    model_name: Optional[Literal['FFN', 'FNO', 'DeepONet', 'FNOTwoStage', 'PIFNO']] = field(default='FNO')
+    model_name: Optional[Literal['FFN', 'FNO', 'DeepONet', 'FNOTwoStage', 'PIFNO', 'GRU', 'LSTM']] = field(
+        default='FNO')
     system: Optional[str] = field(default='s1')
 
     @property
@@ -258,7 +259,6 @@ class DatasetConfig:
     def n_point_start(self) -> int:
         return self.n_point_delay(0)
 
-
     def n_point_delay(self, t) -> int:
         return int(round(self.delay(t) / self.dt))
 
@@ -275,15 +275,17 @@ class DatasetConfig:
         return np.random.randn() * self.noise_epsilon
 
 
-def get_config(system_, n_iteration=None, duration=None, delay=None):
+def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=None):
     if system_ == 's1':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
-                                       delay=ConstantDelay(1), duration=6, dt=0.1, n_dataset=1000,
+                                       delay=ConstantDelay(1), duration=6, dt=0.1,
+                                       n_dataset=1000,
+                                       # n_dataset=10,
                                        n_sample_per_dataset=40, n_plot_sample=20, integral_method='successive adaptive',
                                        random_test=True, ic_lower_bound=0, ic_upper_bound=1, random_test_lower_bound=0,
                                        random_test_upper_bound=1)
-        model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=32)
-        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=500, batch_size=128,
+        model_config = ModelConfig(model_name='GRU', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=32)
+        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=100, batch_size=128,
                                    do_training=True, do_testing=True, load_model=False,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-6)
@@ -356,6 +358,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None):
         dataset_config.delay = delay
     if duration is not None:
         dataset_config.duration = duration
+    if model_name is not None:
+        dataset_config.model_name = model_name
     dataset_config.system_ = system_
     model_config.system = system_
     train_config.system = system_

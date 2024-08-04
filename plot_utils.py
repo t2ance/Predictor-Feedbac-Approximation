@@ -4,18 +4,20 @@ import numpy as np
 import torch
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.ticker import MaxNLocator
 
 from config import DatasetConfig
 from dynamic_systems import ConstantDelay
 from utils import check_dir, SimulationResult, shift
 
-colors = ['red', 'green', 'blue', 'yellow', 'black', 'cyan', 'magenta', 'white', 'pink', 'orange', 'gray', 'lightblue',
+colors = ['red', 'green', 'blue', 'orange', 'black', 'cyan', 'magenta', 'white', 'pink', 'yellow', 'gray', 'lightblue',
           'lightgreen', 'purple', 'brown', 'teal', 'olive', 'navy', 'lime', 'coral', 'salmon', 'aqua', 'wheat']
 styles = ['-', '--', '-.', ':']
-# legend_loc = 'best'
-legend_loc = 'lower right'
+legend_loc = 'best'
+# legend_loc = 'lower right'
 display_threshold = 1
 fig_width = 469.75502
+n_ticks = 5
 
 
 def plot_distribution(samples, n_state: int, img_save_path: str = None):
@@ -89,6 +91,7 @@ def plot_sample(feature, label, dataset_config: DatasetConfig, name: str = '1.pn
 def plot_system(title, ts, Z, U, P, img_save_path, ax=None):
     if ax is None:
         ax = plt.figure(figsize=set_size(width=fig_width)).gca()
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
     ax.title(title)
 
     ax.subplot(511)
@@ -129,48 +132,70 @@ def plot_system(title, ts, Z, U, P, img_save_path, ax=None):
 def plot_switch_segments(ts, result: SimulationResult, save_path, n_point_delay, ylim=None, ax=None, comment=True):
     if ax is None:
         ax = plt.figure(figsize=set_size(width=fig_width)).gca()
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
     U, switching_indicator = result.U, result.switching_indicator
     ts = ts[n_point_delay:]
     U = U[n_point_delay:]
     n_input = U.shape[-1]
     switching_indicator = switching_indicator[n_point_delay:]
     marked_indices = np.where(np.logical_xor(switching_indicator[:-1], switching_indicator[1:]))[0]
-
+    marked_indices = np.insert(marked_indices, 0, 0)
     color_labels = ['$U_{NO}$', '$U_{Numerical}$', 'Switch Point']
     styles = ['-', ':']
     for j in range(U.shape[-1]):
         u = U[:, j]
-        ax.scatter(ts[marked_indices], u[marked_indices], s=25, color=colors[j], facecolors='none', linewidth=0.5)
+        # ignore the zero
+        ax.scatter(ts[marked_indices][1:], u[marked_indices][1:], s=25, color=colors[j], facecolors='none',
+                   linewidth=0.5)
 
-        ax.plot(ts[:marked_indices[0] + 1], u[:marked_indices[0] + 1], linestyle=styles[1], label=color_labels[1],
+        ax.plot(ts[:marked_indices[0] + 1], u[:marked_indices[0] + 1], linestyle=styles[0], label=color_labels[0],
                 color=colors[j])
         for i in range(len(marked_indices) - 1):
             ax.plot(ts[marked_indices[i]:marked_indices[i + 1] + 1], u[marked_indices[i]:marked_indices[i + 1] + 1],
-                    linestyle=styles[i % 2], label=color_labels[i % 2] if i == 0 else "", color=colors[j])
-        ax.plot(ts[marked_indices[-1]:], u[marked_indices[-1]:], linestyle=styles[(len(marked_indices) + 1) % 2],
+                    linestyle=styles[(i + 1) % 2], label=color_labels[(i + 1) % 2] if i == 0 else "", color=colors[j])
+        ax.plot(ts[marked_indices[-1]:], u[marked_indices[-1]:], linestyle=styles[(len(marked_indices)) % 2],
                 color=colors[j])
     if ylim is not None:
-        ax.set_ylim(ylim)
+        try:
+            ax.set_ylim(ylim)
+        except:
+            ...
     if comment:
         # ax.set_xlabel('Time t')
         ax.legend(loc=legend_loc)
         if n_input < display_threshold:
             ax.legend(loc=legend_loc)
         else:
-            ax.legend(handles=[Line2D([0], [0], color='black', linestyle=styles[1]),
-                               Line2D([0], [0], color='black', linestyle=styles[0]),
+            ax.legend(handles=[Line2D([0], [0], color='black', linestyle=styles[0]),
+                               Line2D([0], [0], color='black', linestyle=styles[1]),
                                Line2D([0], [0], color='black', marker='o')
                                ],
                       labels=color_labels, loc=legend_loc)
-    if save_path is not None:
-        ax.savefig(f'{save_path}/switching_u.png')
-        ax.clear()
+
+
+def plot_quantile(n_point_start, P_no_Ri, cp_alpha, ax, ylim=None, comment=False, legend_loc='best'):
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
+    Q = np.percentile(P_no_Ri[2 * n_point_start:], (1 - cp_alpha) * 100)
+    ax.hist(P_no_Ri[2 * n_point_start:], bins=100, color='blue', alpha=0.7, label='$R$')
+    ax.axvline(x=Q, color='red', linestyle='--', label=f'{(1 - cp_alpha) * 100}% quantile: {Q:.2f}')
+    if comment:
+        ax.legend(loc=legend_loc)
+    if ylim is not None:
+        try:
+            ax.set_ylim(ylim)
+        except:
+            ...
+    # ax.title(f'Distribution of $R$ and the ${1 - cp_alpha}$ quantile')
+    # ax.set_xlabel('$R$')
+    # ax.set_ylabel('frequency')
 
 
 def plot_switch_system(train_config, dataset_config, result: SimulationResult, n_point_delay: int, img_save_path: str,
                        ax=None):
     if ax is None:
         ax = plt.figure(figsize=set_size(width=fig_width)).gca()
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
+
     Q = np.percentile(result.P_no_Ri[2 * n_point_delay:], (1 - train_config.cp_alpha) * 100)
     ax.hist(result.P_no_Ri[2 * n_point_delay:], bins=100, color='blue', alpha=0.7, label='$R$')
     ax.axvline(x=Q, color='red', linestyle='--',
@@ -180,6 +205,13 @@ def plot_switch_system(train_config, dataset_config, result: SimulationResult, n
     ax.set_xlabel('$R$')
     ax.set_ylabel('frequency')
     ax.savefig(f'{img_save_path}/quantile.png')
+    ax.close()
+
+    ax.plot(dataset_config.ts[2 * n_point_delay:], result.q_ts[2 * n_point_delay:], label='$q_t$')
+    ax.set_xlabel('Time t')
+    ax.set_ylabel('$q_t$')
+    ax.legend(loc=legend_loc)
+    ax.savefig(f'{img_save_path}/q.png')
     ax.close()
 
     ax.plot(dataset_config.ts[2 * n_point_delay:], result.P_no_Ri[2 * n_point_delay:], label='$R_t$')
@@ -194,13 +226,6 @@ def plot_switch_system(train_config, dataset_config, result: SimulationResult, n
     ax.set_ylabel('$\\alpha$')
     ax.legend(loc=legend_loc)
     ax.savefig(f'{img_save_path}/alpha.png')
-    ax.close()
-
-    ax.plot(dataset_config.ts[2 * n_point_delay:], result.q_ts[2 * n_point_delay:], label='$q_t$')
-    ax.set_xlabel('Time t')
-    ax.set_ylabel('$q_t$')
-    ax.legend(loc=legend_loc)
-    ax.savefig(f'{img_save_path}/q.png')
     ax.close()
 
     ax.plot(dataset_config.ts[2 * n_point_delay:], result.e_ts[2 * n_point_delay:], label='$e_t$')
@@ -272,9 +297,11 @@ def plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_
         raise NotImplementedError()
 
 
-def plot_uncertainty(ts, P, P_ci, Z, delay, n_point_delay, save_path, n_state: int, ylim=None, ax=None):
+def plot_uncertainty(ts, P, P_ci, Z, delay, n_point_delay, save_path, n_state: int, ylim=None, ax=None, figure=None):
     if ax is None:
-        ax = plt.figure(figsize=set_size(width=fig_width)).gca()
+        figure = plt.figure(figsize=set_size(width=fig_width))
+        ax = figure.gca()
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
 
     for state in range(n_state):
         ax.plot(ts[n_point_delay:], shift(P, n_point_delay)[:, state], linestyle=styles[state], color=colors[state],
@@ -285,19 +312,22 @@ def plot_uncertainty(ts, P, P_ci, Z, delay, n_point_delay, save_path, n_state: i
                         label=f"$C(\hat{{P}}_{state + 1})$")
     ax.set_xlabel('Time t')
     if ylim is not None:
-        ax.set_ylim(ylim)
+        try:
+            ax.set_ylim(ylim)
+        except:
+            ...
     if n_state < display_threshold:
         ax.legend(loc=legend_loc)
-    if save_path is not None:
-        ax.savefig(save_path)
-        ax.clear()
-    else:
-        ...
+    if figure is not None and save_path is not None:
+        figure.savefig(save_path)
+        figure.clear()
 
 
-def plot_q(ts, qs, q_des, save_path, n_state: int, ylim=None, ax=None, comment=True):
+def plot_q(ts, qs, q_des, save_path, n_state: int, ylim=None, ax=None, comment=True, figure=None):
     if ax is None:
-        ax = plt.figure(figsize=set_size(width=fig_width)).gca()
+        figure = plt.figure(figsize=set_size(width=fig_width))
+        ax = figure.gca()
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
 
     for i in range(n_state):
         for j, q in enumerate(qs):
@@ -306,7 +336,10 @@ def plot_q(ts, qs, q_des, save_path, n_state: int, ylim=None, ax=None, comment=T
         ax.plot(ts[:], q_des[:, i], label=f'$q_{{des,{i + 1}}}(t)$', linestyle='-.',
                 color=colors[i])
     if ylim is not None:
-        ax.set_ylim(ylim)
+        try:
+            ax.set_ylim(ylim)
+        except:
+            ...
     if comment:
         # ax.set_xlabel('Time t')
         if n_state < display_threshold:
@@ -315,17 +348,18 @@ def plot_q(ts, qs, q_des, save_path, n_state: int, ylim=None, ax=None, comment=T
             ax.legend(handles=[Line2D([0], [0], color='black', linestyle='-.'),
                                Line2D([0], [0], color='black', linestyle='-')],
                       labels=[f'$q(t)$', f'$q_{{des}}(t)$'], loc=legend_loc)
-    if save_path is not None:
-        ax.savefig(save_path)
-        ax.clear()
-    else:
-        ...
+    if figure is not None and save_path is not None:
+        figure.savefig(save_path)
+        figure.clear()
 
 
 def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, ylim=None, Ps_labels=None, ax=None,
-                    comment=True):
+                    comment=True, figure=None):
     if ax is None:
-        ax = plt.figure(figsize=set_size(width=fig_width)).gca()
+        figure = plt.figure(figsize=set_size(width=fig_width))
+        ax = figure.gca()
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
+
     n_point_start = n_point_delay(0)
     if Ps_labels is None:
         Ps_labels = ['' for _ in range(len(Ps))]
@@ -345,7 +379,11 @@ def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
                     label=f'$P^{{{label}}}_{i + 1}(t-{delay_label})$')
         ax.plot(ts[n_point_start:], Z[n_point_start:, i], label=f'$Z_{i + 1}(t)$', linestyle='--', color=colors[i])
     if ylim is not None:
-        ax.set_ylim(ylim)
+        try:
+            ax.set_ylim(ylim)
+        except:
+            ...
+
     if comment:
         # ax.set_xlabel('Time t')
         if n_state < display_threshold:
@@ -354,11 +392,9 @@ def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
             ax.legend(handles=[Line2D([0], [0], color='black', linestyle='--'),
                                Line2D([0], [0], color='black', linestyle='-')],
                       labels=[f'$P(t-{delay_label})$', f'$Z(t)$'], loc=legend_loc)
-    if save_path is not None:
-        ax.savefig(save_path)
-        ax.clear()
-    else:
-        ...
+    if figure is not None and save_path is not None:
+        figure.savefig(save_path)
+        figure.clear()
 
 
 def difference(Z, P, n_point_start, n_point_delay, ts):
@@ -369,9 +405,12 @@ def difference(Z, P, n_point_start, n_point_delay, ts):
 
 
 def plot_difference(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, ylim=None, Ps_labels=None, ax=None,
-                    comment=True, differences=None):
+                    comment=True, differences=None, figure=None):
     if ax is None:
-        ax = plt.figure(figsize=set_size(width=fig_width)).gca()
+        figure = plt.figure(figsize=set_size(width=fig_width))
+        ax = figure.gca()
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
+
     if Ps_labels is None:
         Ps_labels = ['' for _ in range(len(Ps))]
     n_point_start = n_point_delay(0)
@@ -387,7 +426,10 @@ def plot_difference(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
     delay_label = str(delay(0)) if isinstance(delay, ConstantDelay) else 'D(t)'
 
     if ylim is not None:
-        ax.set_ylim(ylim)
+        try:
+            ax.set_ylim(ylim)
+        except:
+            ...
     if comment:
         # ax.set_xlabel('Time t')
         if n_state < display_threshold:
@@ -395,32 +437,34 @@ def plot_difference(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
         else:
             ax.legend(handles=[Line2D([0], [0], color='black', linestyle='-')],
                       labels=[f'$\Delta P(t-{delay_label})$'], loc=legend_loc)
-    if save_path is not None:
-        ax.savefig(save_path)
-        ax.clear()
-    else:
-        ...
+    if figure is not None and save_path is not None:
+        figure.savefig(save_path)
+        figure.clear()
 
 
-def plot_control(ts, U, save_path, n_point_delay, ylim=None, ax=None, comment=True):
+def plot_control(ts, U, save_path, n_point_delay, ylim=None, ax=None, comment=True, figure=None):
     if ax is None:
-        ax = plt.figure(figsize=set_size(width=fig_width)).gca()
+        figure = plt.figure(figsize=set_size(width=fig_width))
+        ax = figure.gca()
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
+
     assert U.ndim == 2
     n_point_start = n_point_delay(0)
     U = U.T
     for i, u in enumerate(U):
         ax.plot(ts[n_point_start:], u[n_point_start:], label=f'$U_{i + 1}(t)$', color=colors[i])
     if ylim is not None:
-        ax.set_ylim(ylim)
+        try:
+            ax.set_ylim(ylim)
+        except:
+            ...
     if comment:
         # ax.set_xlabel('Time t')
         ax.legend(loc=legend_loc)
 
-    if save_path is not None:
-        ax.savefig(save_path)
-        ax.clear()
-    else:
-        ...
+    if figure is not None and save_path is not None:
+        figure.savefig(save_path)
+        figure.clear()
 
 
 def set_size(width=None, fraction=1, subplots=(1, 1), height_add=0.1):
