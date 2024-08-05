@@ -286,7 +286,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         model_config = ModelConfig(
             model_name='GRU', n_layer=5,
             # model_name='FNO', n_layer=5,
-            fno_n_modes_height=32, fno_hidden_channels=32)
+            fno_n_modes_height=16, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=750, batch_size=128,
                                    do_training=True, do_testing=False, load_model=False,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
