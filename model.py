@@ -287,7 +287,8 @@ class LSTMNet(nn.Module):
         if self.hidden is None or self.cell is None:
             self.hidden = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
             self.cell = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
-
+        if x.ndim == 2:
+            x = x[:, None, :]
         out, (self.hidden, self.cell) = self.lstm(x, (self.hidden, self.cell))
         # self.hidden = self.hidden.detach()
         # self.cell = self.cell.detach()

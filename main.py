@@ -485,7 +485,8 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         training_loss = 0.0
         for i in range(0, len(samples_all_dataset) - train_config.batch_size, train_config.batch_size):
             sequences = samples_all_dataset[i:i + train_config.batch_size]
-            model.reset_state()
+            if isinstance(model, GRUNet) or isinstance(model, LSTMNet):
+                model.reset_state()
             losses = []
             for batch in zip(*sequences):
                 inputs, labels = torch.vstack([batch[i][0] for i in range(train_config.batch_size)]), torch.vstack(
