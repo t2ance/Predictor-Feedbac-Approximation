@@ -8,7 +8,7 @@ from matplotlib.ticker import MaxNLocator
 
 from config import DatasetConfig
 from dynamic_systems import ConstantDelay
-from utils import check_dir, SimulationResult, head_points
+from utils import check_dir, SimulationResult
 
 colors = ['red', 'green', 'blue', 'orange', 'black', 'cyan', 'magenta', 'white', 'pink', 'yellow', 'gray', 'lightblue',
           'lightgreen', 'purple', 'brown', 'teal', 'olive', 'navy', 'lime', 'coral', 'salmon', 'aqua', 'wheat']
@@ -295,33 +295,6 @@ def plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_
         plot_control(ts, U, u_path, n_point_delay)
     else:
         raise NotImplementedError()
-
-
-def plot_uncertainty(ts, P, P_ci, Z, delay, n_point_delay, save_path, n_state: int, ylim=None, ax=None, figure=None):
-    if ax is None:
-        figure = plt.figure(figsize=set_size(width=fig_width))
-        ax = figure.gca()
-    ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
-
-    for state in range(n_state):
-        ax.plot(ts[n_point_delay:], head_points(P, n_point_delay)[:, state], linestyle=styles[state], color=colors[state],
-                label=f'$\hat{{P}}_{state + 1}(t-{delay})$')
-        ax.plot(ts[n_point_delay:], Z[n_point_delay:, state], label=f'$Z_{state + 1}(t)$', color=colors[state])
-        ax.fill_between(ts[n_point_delay:], head_points(P_ci, n_point_delay)[:, state, 0],
-                        head_points(P_ci, n_point_delay)[:, state, 1], color=colors[state], alpha=0.3,
-                        label=f"$C(\hat{{P}}_{state + 1})$")
-    ax.set_xlabel('Time t')
-    if ylim is not None:
-        try:
-            ax.set_ylim(ylim)
-        except:
-            ...
-    if n_state < display_threshold:
-        ax.legend(loc=legend_loc)
-    if figure is not None and save_path is not None:
-        figure.savefig(save_path)
-        figure.clear()
-        plt.close(figure)
 
 
 def plot_q(ts, qs, q_des, save_path, n_state: int, ylim=None, ax=None, comment=True, figure=None):

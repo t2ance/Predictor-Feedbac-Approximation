@@ -12,41 +12,45 @@ def sample_to_tensor(z_features, u_features, time_step_position):
 
 
 class ZUZDataset(Dataset):
-    def __init__(self, Z, U, D_steps, dt):
+    def __init__(self, Z, U, n_point_delay, dt):
         self.Z = Z
         self.U = U
-        self.D_steps = D_steps
+        self.n_point_delay = n_point_delay
         self.dt = dt
+        raise NotImplementedError()
 
     def __len__(self):
-        return len(self.U) - 2 * self.D_steps
+        return len(self.U) - 2 * self.n_point_delay
 
     def __getitem__(self, idx):
-        idx += self.D_steps
+        idx += self.n_point_delay
         z_features = self.Z[idx]
-        u_features = self.U[idx - self.D_steps:idx].view(-1)
-        label = self.Z[idx + self.D_steps]
+        u_features = self.U[idx - self.n_point_delay:idx].view(-1)
+        label = self.Z[idx + self.n_point_delay]
         features = sample_to_tensor(z_features, u_features, idx * self.dt)
         return features, label
 
 
 class ZUPDataset(Dataset):
-    def __init__(self, Z, U, P, n_point_delay, dt):
+    def __init__(self, Z, U, P, n_point_delay, dt, ts):
         self.Z = Z
         self.U = U
         self.P = P
         self.dt = dt
+        self.ts = ts
         self.n_point_delay = n_point_delay
+        self.n_point_start = n_point_delay(0)
 
     def __len__(self):
-        return len(self.U) - self.n_point_delay
+        return len(self.U) - self.n_point_start
 
     def __getitem__(self, idx):
-        idx += self.n_point_delay
+        idx += self.n_point_start
+        t = self.ts[idx]
         z_features = self.Z[idx]
-        u_features = self.U[idx - self.n_point_delay:idx]
+        u_features = self.U[idx - self.n_point_delay(t):idx]
         label = self.P[idx]
-        features = sample_to_tensor(z_features, u_features, (idx - self.n_point_delay) * self.dt)
+        features = sample_to_tensor(z_features, u_features, t)
         return features, label
 
 

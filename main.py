@@ -21,8 +21,8 @@ from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral, so
 from model import GRUNet, LSTMNet
 from plot_utils import plot_result, set_size, plot_switch_system, difference
 from utils import pad_leading_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, \
-    set_everything, print_result, postprocess, load_model, load_optimizer, head_points, print_args, get_time_str, \
-    SimulationResult
+    set_everything, print_result, postprocess, load_model, load_optimizer, prediction_comparison, print_args, \
+    get_time_str, SimulationResult
 
 warnings.filterwarnings('ignore')
 
@@ -63,8 +63,8 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
     else:
         bar = tqdm(range(dataset_config.n_point))
     for t_i in bar:
-        # t_i_delayed = max(t_i - n_point_start, 0)
         t = ts[t_i]
+        # t_i_delayed = max(t_i - n_point_start, 0)
         t_i_delayed = max(t_i - dataset_config.n_point_delay(t), 0)
         if method == 'explicit':
             U[t_i] = system.U_explicit(t, Z0)
@@ -208,8 +208,8 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
         e_ts=e_ts, switching_indicator=switching_indicator, avg_prediction_time=runtime / n_point)
 
 
-def model_train(model, optimizer, scheduler, device, training_dataloader, predict_and_loss,
-                adversarial_epsilon: float = 0., n_state: int = None):
+def model_train(dataset_config: DatasetConfig, train_config: TrainConfig, model, optimizer, scheduler, device,
+                training_dataloader, predict_and_loss, adversarial_epsilon: float = 0., n_state: int = None):
     model.train()
     training_loss = 0.0
     adversarial_loss = 0.0
@@ -335,8 +335,8 @@ def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfi
 
         for epoch in bar:
             training_loss_t, adversarial_loss_t, lr = model_train(
-                model, optimizer, scheduler, device, training_dataloader, predict_and_loss, adversarial_epsilon,
-                dataset_config.n_state)
+                dataset_config, train_config, model, optimizer, scheduler, device, training_dataloader,
+                predict_and_loss, adversarial_epsilon, dataset_config.n_state)
             training_loss_arr.append(training_loss_t)
             desc = f'Epoch [{epoch + 1}/{n_epoch}] || Lr: {lr:6f} || Training loss: {training_loss_t:.6f}'
             if do_validation:
@@ -396,13 +396,13 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
                 print("Warning caught:", e)
                 print(f'Abnormal value encountered at epoch {epoch}, skip this epoch!')
                 continue
-            predictions = head_points(result.P_numerical, dataset_config.n_point_delay)
-            true_values = result.Z[dataset_config.n_point_delay:]
+            predictions = prediction_comparison(result.P_numerical, dataset_config.n_point_delay, dataset_config.ts)
+            true_values = result.Z[dataset_config.n_point_delay(0):]
 
             Ps = np.array(predictions)
             Zs = np.array(true_values)
-            horizon = np.array(dataset_config.ts[dataset_config.n_point_delay:])
-            Us = np.array([result.U[t_i: t_i + dataset_config.n_point_delay] for t_i in range(len(horizon))])
+            horizon = np.array(dataset_config.ts[dataset_config.n_point_delay(0):])
+            Us = np.array([result.U[t_i: t_i + dataset_config.n_point_delay(0)] for t_i in range(len(horizon))])
             if np.isnan(Ps).any() or np.isnan(Zs).any() or np.isnan(
                     horizon).any() or np.isnan(Us).any() or np.isinf(Ps).any() or np.isinf(
                 Zs).any() or np.isinf(horizon).any() or np.isinf(Us).any():
@@ -414,7 +414,8 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
                 samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(p)))
             dataloader = DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=False)
 
-        training_loss_t, _, _ = model_train(model, optimizer, scheduler, device, dataloader, predict_and_loss)
+        training_loss_t, _, _ = model_train(dataset_config, train_config, model, optimizer, scheduler, device,
+                                            dataloader, predict_and_loss)
         print(f'Epoch [{epoch + 1}/{n_epoch}]'
               f'|| Scheduled Sampling Rate {train_config.scheduled_sampling_p}'
               f'|| Training loss: {training_loss_t:.6f}')
@@ -448,7 +449,6 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     device = train_config.device
     img_save_path = model_config.base_path
     model, model_loaded = load_model(train_config, model_config, dataset_config)
-    # assert isinstance(model, GRUNet) or isinstance(model, LSTMNet)
     optimizer = load_optimizer(model.parameters(), train_config)
     scheduler = load_lr_scheduler(optimizer, train_config)
     training_loss_arr = []
@@ -456,24 +456,21 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
 
     print('Begin Generating Dataset...')
     samples_all_dataset = []
-    for n in tqdm(range(dataset_config.n_dataset)):
+    for _ in tqdm(range(dataset_config.n_dataset)):
         Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
                                size=(dataset_config.n_state,))
-        try:
-            result = simulation(dataset_config, train_config, Z0, 'numerical', model)
-        except Warning as e:
-            print("Warning caught:", e)
-            print(f'Abnormal value encountered at epoch {n}, skip this epoch!')
-            continue
+        result = simulation(dataset_config, train_config, Z0, 'numerical', model)
+
         n_point_start = dataset_config.n_point_start()
         # predictions = head_points(result.P_numerical, n_point_start)
-        predictions = result.P_numerical[n_point_start:]
+        n_point_delay = dataset_config.n_point_delay
+        predictions = prediction_comparison(result.P_numerical, n_point_delay, dataset_config.ts)
         true_values = result.Z[n_point_start:]
 
         Ps = np.array(predictions)
         Zs = np.array(true_values)
         horizon = np.array(dataset_config.ts[n_point_start:])
-        Us = np.array([result.U[t_i: t_i + n_point_start] for t_i in range(len(horizon))])
+        Us = [result.U[idx: idx + n_point_delay(t)] for idx, t in enumerate(horizon)]
 
         samples = []
         for t_i, (p, z, t) in enumerate(zip(Ps, Zs, horizon)):
@@ -523,8 +520,8 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     return model
 
 
-def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = None, silence: bool = False,
-             test_points: List = None, plot: bool = False):
+def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method: str, base_path: str = None,
+             silence: bool = False, test_points: List = None, plot: bool = False):
     base_path = f'{base_path}/{method}'
     if test_points is None:
         test_points = dataset_config.test_points
@@ -544,7 +541,7 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
         result = simulation(dataset_config=dataset_config, train_config=train_config, model=m, Z0=test_point,
                             method=method, img_save_path=img_save_path)
         plt.close()
-        n_point_delay = dataset_config.n_point_start()
+        n_point_start = dataset_config.n_point_start()
         if method == 'no':
             P = result.P_no
         elif method == 'numerical':
@@ -556,7 +553,7 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
         else:
             raise NotImplementedError()
 
-        rl2, l2 = metric(P[n_point_delay:-n_point_delay], result.Z[2 * n_point_delay:])
+        rl2, l2 = metric(P, result.Z, dataset_config.n_point_delay, dataset_config.ts)
         if np.isinf(rl2) or np.isnan(rl2):
             if not silence:
                 print(f'[WARNING] Running with initial condition Z = {test_point} with method [{method}] failed.')
@@ -564,7 +561,7 @@ def run_test(m, dataset_config: DatasetConfig, method: str, base_path: str = Non
 
         if method == 'switching':
             print()
-            plot_switch_system(train_config, dataset_config, result, n_point_delay, img_save_path)
+            plot_switch_system(train_config, dataset_config, result, n_point_start, img_save_path)
             print('no count:', result.p_no_count)
             print('numerical count:', result.p_numerical_count)
 
@@ -626,8 +623,8 @@ def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_c
                               (dataset_config.n_dataset - int(dataset_config.n_dataset * train_config.training_ratio),
                                dataset_config.n_state)))
         if dataset_config.data_generation_strategy == 'trajectory':
-            training_samples = create_trajectory_dataset(dataset_config, train_points)
-            validation_samples = create_trajectory_dataset(dataset_config, validation_points)
+            training_samples = create_trajectory_dataset(dataset_config, train_config, train_points)
+            validation_samples = create_trajectory_dataset(dataset_config, train_config, validation_points)
         else:
             raise NotImplementedError()
 
@@ -665,7 +662,7 @@ def load_test_datasets(dataset_config, train_config):
         return None
     if not os.path.exists(dataset_config.testing_dataset_file) or dataset_config.recreate_testing_dataset:
         print('Creating testing dataset')
-        testing_samples = create_trajectory_dataset(dataset_config, initial_conditions=dataset_config.test_points)
+        testing_samples = create_trajectory_dataset(dataset_config, train_config, dataset_config.test_points)
     else:
         print('Loading testing dataset')
         testing_samples = torch.load(dataset_config.testing_dataset_file)
@@ -675,7 +672,8 @@ def load_test_datasets(dataset_config, train_config):
     return testing_dataloader
 
 
-def create_trajectory_dataset(dataset_config: DatasetConfig, initial_conditions: List = None):
+def create_trajectory_dataset(dataset_config: DatasetConfig, train_config: TrainConfig,
+                              initial_conditions: List = None):
     all_samples = []
     if dataset_config.z_u_p_pair:
         print('creating datasets of Z(t), U(t-D~t), P(t) pairs')
@@ -691,13 +689,13 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, initial_conditions:
             result = simulation(method='numerical', Z0=Z0, dataset_config=dataset_config, train_config=train_config)
             dataset = ZUPDataset(
                 torch.tensor(result.Z, dtype=torch.float32), torch.tensor(result.U, dtype=torch.float32),
-                torch.tensor(result.P_numerical, dtype=torch.float32), dataset_config.n_point_delay(0),
-                dataset_config.dt)
+                torch.tensor(result.P_numerical, dtype=torch.float32), dataset_config.n_point_delay,
+                dataset_config.dt, dataset_config.ts)
         else:
             result = simulation(method='explicit', Z0=Z0, dataset_config=dataset_config, train_config=train_config)
             dataset = ZUZDataset(
                 torch.tensor(result.Z, dtype=torch.float32), torch.tensor(result.U, dtype=torch.float32),
-                dataset_config.n_point_delay(0), dataset_config.dt)
+                dataset_config.n_point_delay, dataset_config.dt)
         dataset = list(dataset)
         random.shuffle(dataset)
         if dataset_config.n_sample_per_dataset >= 0:
@@ -735,69 +733,69 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 
     if train_config.training_type == 'switching':
         return {
-            'no': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
-                           test_points=test_points, method='no'),
-            'switching': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
-                                  test_points=test_points, method='switching'),
-            'numerical': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
-                                  test_points=test_points, method='numerical'),
-            'numerical_no': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
-                                     test_points=test_points, method='numerical_no')
+            'no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                           base_path=model_config.base_path, test_points=test_points, method='no'),
+            'switching': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                  base_path=model_config.base_path, test_points=test_points, method='switching'),
+            'numerical': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                  base_path=model_config.base_path, test_points=test_points, method='numerical'),
+            'numerical_no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                     base_path=model_config.base_path, test_points=test_points, method='numerical_no')
         }
     else:
         return {
-            'no': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
-                           test_points=test_points, method='no'),
-            'numerical': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
-                                  test_points=test_points, method='numerical'),
-            'numerical_no': run_test(m=model, dataset_config=dataset_config, base_path=model_config.base_path,
-                                     test_points=test_points, method='numerical_no')
+            'no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                           base_path=model_config.base_path, test_points=test_points, method='no'),
+            'numerical': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                  base_path=model_config.base_path, test_points=test_points, method='numerical'),
+            'numerical_no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                     base_path=model_config.base_path, test_points=test_points, method='numerical_no')
         }
 
 
 if __name__ == '__main__':
     set_everything(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s1')
+    parser.add_argument('-s', type=str, default='s7')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='sequence')
-    parser.add_argument('-model_name', type=str, default='GRU')
+    parser.add_argument('-model_name', type=str, default='FFN')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)
     parser.add_argument('-cp_alpha', type=float, default=0.1)
 
     args = parser.parse_args()
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, delay=args.delay,
-                                                                   model_name=args.model_name)
+    dataset_config_, model_config_, train_config_ = config.get_config(system_=args.s, delay=args.delay,
+                                                                      model_name=args.model_name)
     assert torch.cuda.is_available()
-    train_config.training_type = args.training_type
+    train_config_.training_type = args.training_type
     if args.training_type == 'offline' or args.training_type == 'sequence':
         ...
     elif args.training_type == 'switching':
         ...
     elif args.training_type == 'scheduled sampling':
-        if dataset_config.system_ == 's1':
-            train_config.n_epoch = 3000
+        if dataset_config_.system_ == 's1':
+            train_config_.n_epoch = 3000
         else:
-            train_config.n_epoch = 2000
-        train_config.lr_scheduler_type = 'none'
+            train_config_.n_epoch = 2000
+        train_config_.lr_scheduler_type = 'none'
     else:
         raise NotImplementedError()
 
-    print_args(dataset_config)
-    print_args(model_config)
-    print_args(train_config)
+    print_args(dataset_config_)
+    print_args(model_config_)
+    print_args(train_config_)
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     wandb.init(
         project="no",
-        name=f'{train_config.system} {model_config.model_name} {get_time_str()}'
+        name=f'{train_config_.system} {model_config_.model_name} {get_time_str()}'
     )
-    results = main(dataset_config, model_config, train_config)
-    for method, result in results.items():
-        print(method)
-        print_result(result, dataset_config)
-        speedup = results["numerical"][2] / result[2]
+    results_ = main(dataset_config_, model_config_, train_config_)
+    for method_, result_ in results_.items():
+        print(method_)
+        print_result(result_, dataset_config_)
+        speedup = results_["numerical"][2] / result_[2]
         print(f'Speedup w.r.t numerical: {speedup :.3f}; $\\times {speedup:.3f}$')
     wandb.finish()

@@ -239,12 +239,16 @@ def load_lr_scheduler(optimizer: torch.optim.Optimizer, config):
         raise NotImplementedError()
 
 
-def metric(preds, trues):
-    N = trues.shape[0]
-    preds = np.atleast_2d(preds)
-    trues = np.atleast_2d(trues)
-    l2 = np.sum(np.linalg.norm(preds - trues, axis=1)) / N
-    rl2 = np.sum(np.linalg.norm(preds - trues, axis=1) / np.linalg.norm(trues, axis=1)) / N
+def metric(P, Z, n_point_delay, ts):
+    P = prediction_comparison(P, n_point_delay, ts)[n_point_delay(0):]
+    Z = Z[2 * n_point_delay(0):]
+    # P = prediction_comparison(P, n_point_delay, ts)
+    # Z = Z[ n_point_delay(0):]
+    N = Z.shape[0]
+    P = np.atleast_2d(P)
+    Z = np.atleast_2d(Z)
+    l2 = np.sum(np.linalg.norm(P - Z, axis=1)) / N
+    rl2 = np.sum(np.linalg.norm(P - Z, axis=1) / np.linalg.norm(Z, axis=1)) / N
     return rl2, l2
 
 
@@ -257,11 +261,16 @@ def predict_and_loss(inputs, labels, model):
     return model(inputs, labels)
 
 
-def head_points(p, n_point_delay):
+def prediction_comparison(P, n_point_delay, ts):
+    P_ = np.zeros_like(P[n_point_delay(0):])
+    for ti, t in enumerate(ts[n_point_delay(0):]):
+        P_[ti] = P[ti + n_point_delay(0) - n_point_delay(t)]
+
+    return P_
     if n_point_delay == 0:
-        return p
+        return P
     else:
-        return p[:-n_point_delay]
+        return P[:-n_point_delay]
 
 
 def get_time_str():

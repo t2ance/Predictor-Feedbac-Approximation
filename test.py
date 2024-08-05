@@ -1,6 +1,7 @@
 from config import get_config
 from dynamic_systems import ConstantDelay, TimeVaryingDelay
 from main import simulation
+from utils import metric
 
 
 def baxter_test1dof():
@@ -82,6 +83,9 @@ def baxter_test_unicycle():
     dataset_config.dt = 0.01
     result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
                         img_save_path='./misc', silence=False)
+    rl2, l2 = metric(result.P_numerical, result.Z, dataset_config.n_point_delay, dataset_config.ts)
+    print(rl2)
+    print(l2)
     print(result.runtime)
 
 
