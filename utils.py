@@ -257,7 +257,7 @@ def predict_and_loss(inputs, labels, model):
     return model(inputs, labels)
 
 
-def shift(p, n_point_delay):
+def head_points(p, n_point_delay):
     if n_point_delay == 0:
         return p
     else:

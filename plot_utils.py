@@ -8,7 +8,7 @@ from matplotlib.ticker import MaxNLocator
 
 from config import DatasetConfig
 from dynamic_systems import ConstantDelay
-from utils import check_dir, SimulationResult, shift
+from utils import check_dir, SimulationResult, head_points
 
 colors = ['red', 'green', 'blue', 'orange', 'black', 'cyan', 'magenta', 'white', 'pink', 'yellow', 'gray', 'lightblue',
           'lightgreen', 'purple', 'brown', 'teal', 'olive', 'navy', 'lime', 'coral', 'salmon', 'aqua', 'wheat']
@@ -304,11 +304,11 @@ def plot_uncertainty(ts, P, P_ci, Z, delay, n_point_delay, save_path, n_state: i
     ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
 
     for state in range(n_state):
-        ax.plot(ts[n_point_delay:], shift(P, n_point_delay)[:, state], linestyle=styles[state], color=colors[state],
+        ax.plot(ts[n_point_delay:], head_points(P, n_point_delay)[:, state], linestyle=styles[state], color=colors[state],
                 label=f'$\hat{{P}}_{state + 1}(t-{delay})$')
         ax.plot(ts[n_point_delay:], Z[n_point_delay:, state], label=f'$Z_{state + 1}(t)$', color=colors[state])
-        ax.fill_between(ts[n_point_delay:], shift(P_ci, n_point_delay)[:, state, 0],
-                        shift(P_ci, n_point_delay)[:, state, 1], color=colors[state], alpha=0.3,
+        ax.fill_between(ts[n_point_delay:], head_points(P_ci, n_point_delay)[:, state, 0],
+                        head_points(P_ci, n_point_delay)[:, state, 1], color=colors[state], alpha=0.3,
                         label=f"$C(\hat{{P}}_{state + 1})$")
     ax.set_xlabel('Time t')
     if ylim is not None:

@@ -21,7 +21,7 @@ from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral, so
 from model import GRUNet, LSTMNet
 from plot_utils import plot_result, set_size, plot_switch_system, difference
 from utils import pad_leading_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, \
-    set_everything, print_result, postprocess, load_model, load_optimizer, shift, print_args, get_time_str, \
+    set_everything, print_result, postprocess, load_model, load_optimizer, head_points, print_args, get_time_str, \
     SimulationResult
 
 warnings.filterwarnings('ignore')
@@ -396,7 +396,7 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
                 print("Warning caught:", e)
                 print(f'Abnormal value encountered at epoch {epoch}, skip this epoch!')
                 continue
-            predictions = shift(result.P_numerical, dataset_config.n_point_delay)
+            predictions = head_points(result.P_numerical, dataset_config.n_point_delay)
             true_values = result.Z[dataset_config.n_point_delay:]
 
             Ps = np.array(predictions)
@@ -466,7 +466,8 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
             print(f'Abnormal value encountered at epoch {n}, skip this epoch!')
             continue
         n_point_start = dataset_config.n_point_start()
-        predictions = shift(result.P_numerical, n_point_start)
+        # predictions = head_points(result.P_numerical, n_point_start)
+        predictions = result.P_numerical[n_point_start:]
         true_values = result.Z[n_point_start:]
 
         Ps = np.array(predictions)
@@ -686,18 +687,14 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, initial_conditions:
     else:
         bar = tqdm(initial_conditions)
     for i, Z0 in enumerate(bar):
-        img_save_path = f'{dataset_config.dataset_base_path}/example/{str(i)}'
-        check_dir(img_save_path)
         if dataset_config.z_u_p_pair:
-            result = simulation(method='numerical', Z0=Z0, dataset_config=dataset_config, train_config=train_config,
-                                img_save_path=img_save_path)
+            result = simulation(method='numerical', Z0=Z0, dataset_config=dataset_config, train_config=train_config)
             dataset = ZUPDataset(
                 torch.tensor(result.Z, dtype=torch.float32), torch.tensor(result.U, dtype=torch.float32),
                 torch.tensor(result.P_numerical, dtype=torch.float32), dataset_config.n_point_delay(0),
                 dataset_config.dt)
         else:
-            result = simulation(method='explicit', Z0=Z0, dataset_config=dataset_config, train_config=train_config,
-                                img_save_path=img_save_path)
+            result = simulation(method='explicit', Z0=Z0, dataset_config=dataset_config, train_config=train_config)
             dataset = ZUZDataset(
                 torch.tensor(result.Z, dtype=torch.float32), torch.tensor(result.U, dtype=torch.float32),
                 dataset_config.n_point_delay(0), dataset_config.dt)
