@@ -448,7 +448,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     device = train_config.device
     img_save_path = model_config.base_path
     model, model_loaded = load_model(train_config, model_config, dataset_config)
-    assert isinstance(model, GRUNet) or isinstance(model, LSTMNet)
+    # assert isinstance(model, GRUNet) or isinstance(model, LSTMNet)
     optimizer = load_optimizer(model.parameters(), train_config)
     scheduler = load_lr_scheduler(optimizer, train_config)
     training_loss_arr = []
@@ -763,11 +763,11 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_everything(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s1')
+    parser.add_argument('-s', type=str, default='s3')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
-    parser.add_argument('-training_type', type=str, default='sequence')
-    parser.add_argument('-model_name', type=str, default='GRU')
+    parser.add_argument('-training_type', type=str, default='offline')
+    parser.add_argument('-model_name', type=str, default='FNO')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)

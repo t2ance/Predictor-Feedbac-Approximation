@@ -327,19 +327,19 @@ class PIFNO(torch.nn.Module):
 
 
 def fft_transform(input_tensor, target_length):
-    fft_result = torch.fft.fft(input_tensor)
+    fft_result = torch.fft.rfft(input_tensor).real
 
     current_length = fft_result.shape[1]
 
     if current_length > target_length:
         output = fft_result[:, :target_length]
     elif current_length < target_length:
-        padding = torch.zeros((input_tensor.shape[0], target_length - current_length), dtype=torch.complex64)
+        padding = torch.zeros((input_tensor.shape[0], target_length - current_length), device=input_tensor.device)
         output = torch.cat((fft_result, padding), dim=1)
     else:
         output = fft_result
 
-    return output
+    return output.to(input_tensor.device)
 
 
 class FNOProjection(torch.nn.Module):
@@ -361,6 +361,7 @@ class FNOProjection(torch.nn.Module):
         # x = self.projection(x)
         # x = x.squeeze(-2)
         x = fft_transform(x.squeeze(1), self.n_modes_height)
+        x = self.projection(x)
         if label is None:
             return x
         return x, self.mse_loss(x, label)
