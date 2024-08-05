@@ -483,6 +483,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     print('Begin Training...')
     for epoch in tqdm(range(train_config.n_epoch)):
         training_loss = 0.0
+        np.random.shuffle(samples_all_dataset)
         for i in range(0, len(samples_all_dataset) - train_config.batch_size, train_config.batch_size):
             sequences = samples_all_dataset[i:i + train_config.batch_size]
             if isinstance(model, GRUNet) or isinstance(model, LSTMNet):
@@ -643,10 +644,6 @@ def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_c
     else:
         training_samples = load()
 
-    # for i, (feature, label) in enumerate(training_samples[:dataset_config.n_plot_sample]):
-    #     plot_sample(feature, label, dataset_config, f'{str(i)}.png')
-    # plot_distribution(training_samples, dataset_config.n_state, dataset_config.dataset_base_path)
-
     training_dataloader, validating_dataloader = prepare_datasets(
         training_samples, train_config.batch_size, training_ratio=train_config.training_ratio,
         validation_samples=validation_samples)
@@ -767,8 +764,8 @@ if __name__ == '__main__':
     parser.add_argument('-s', type=str, default='s1')
     parser.add_argument('-n', type=int, default=None)
     parser.add_argument('-delay', type=float, default=None)
-    parser.add_argument('-training_type', type=str, default='offline')
-    parser.add_argument('-model_name', type=str, default='FNO')
+    parser.add_argument('-training_type', type=str, default='sequence')
+    parser.add_argument('-model_name', type=str, default='GRU')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)
@@ -798,7 +795,7 @@ if __name__ == '__main__':
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     wandb.init(
         project="no",
-        name=f'{train_config.system} {get_time_str()}'
+        name=f'{train_config.system} {model_config.model_name} {get_time_str()}'
     )
     results = main(dataset_config, model_config, train_config)
     for method, result in results.items():
