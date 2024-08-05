@@ -212,7 +212,7 @@ class FFN(torch.nn.Module):
                  **kwargs):
         super().__init__(*args, **kwargs)
         self.mse_loss = torch.nn.MSELoss()
-        in_features = n_state + n_point_delay * n_input
+        in_features = n_state + n_point_delay * n_input + 1
         out_features = n_state
         layers = [
             torch.nn.Linear(in_features=in_features, out_features=layer_width * in_features),
