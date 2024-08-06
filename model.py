@@ -258,7 +258,7 @@ class GRUNet(nn.Module):
             x = x[:, None, :]
 
         out, hidden = self.gru(x, self.hidden)
-        # self.hidden = hidden.detach()
+        self.hidden = hidden.detach()
 
         out = self.fc(out[:, -1, :])
         if labels is None:
@@ -290,8 +290,8 @@ class LSTMNet(nn.Module):
         if x.ndim == 2:
             x = x[:, None, :]
         out, (hidden, cell) = self.lstm(x, (self.hidden, self.cell))
-        # self.hidden = hidden.detach()
-        # self.cell = cell.detach()
+        self.hidden = hidden.detach()
+        self.cell = cell.detach()
 
         out = self.fc(out[:, -1, :])
         if labels is None:

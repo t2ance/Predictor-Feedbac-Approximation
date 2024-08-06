@@ -347,9 +347,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                        n_sample_per_dataset=-1, ic_lower_bound=-0.5, ic_upper_bound=0.5)
         model_config = ModelConfig(model_name='FFN', n_layer=3, fno_n_modes_height=16, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=100, batch_size=128,
-                                   weight_decay=1e-3, log_step=-1, lr_scheduler_type='none', cp_alpha=0.01,
-                                   scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
-                                   scheduled_sampling_k=1e-2)
+                                   weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential')
     else:
         raise NotImplementedError()
     if n_iteration is not None:
