@@ -774,8 +774,8 @@ if __name__ == '__main__':
                                                                       model_name=args.model_name)
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
-    dataset_config_.n_dataset = 5
-    train_config_.batch_size = 1
+    # dataset_config_.n_dataset = 5
+    # train_config_.batch_size = 1
     if args.training_type == 'offline' or args.training_type == 'sequence':
         ...
     elif args.training_type == 'switching':
