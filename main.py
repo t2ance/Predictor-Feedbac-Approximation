@@ -453,7 +453,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     scheduler = load_lr_scheduler(optimizer, train_config)
     training_loss_arr = []
     check_dir(img_save_path)
-
+    max_n_point_delay = dataset_config.max_n_point_delay()
     print('Begin Generating Dataset...')
     samples_all_dataset = []
     for _ in tqdm(range(dataset_config.n_dataset)):
@@ -470,7 +470,9 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         Ps = np.array(predictions)
         Zs = np.array(true_values)
         horizon = np.array(dataset_config.ts[n_point_start:])
-        Us = [result.U[idx: idx + n_point_delay(t)] for idx, t in enumerate(horizon)]
+        # Us = [result.U[idx: idx + n_point_delay(t)] for idx, t in enumerate(horizon)]
+        Us = [pad_leading_zeros(result.U[idx: idx + n_point_delay(t)], max_n_point_delay) for idx, t in
+              enumerate(horizon)]
 
         samples = []
         for t_i, (p, z, t) in enumerate(zip(Ps, Zs, horizon)):
@@ -491,6 +493,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
             for batch in zip(*sequences):
                 inputs, labels = torch.vstack([batch[i][0] for i in range(train_config.batch_size)]), torch.vstack(
                     [batch[i][1] for i in range(train_config.batch_size)])
+
                 inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
                 outputs, loss = predict_and_loss(inputs, labels, model)
                 # loss:torch.Tensor
@@ -757,10 +760,10 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_everything(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s1')
+    parser.add_argument('-s', type=str, default='s7')
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='sequence')
-    parser.add_argument('-model_name', type=str, default='GRU')
+    parser.add_argument('-model_name', type=str, default='FFN')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)
@@ -771,6 +774,8 @@ if __name__ == '__main__':
                                                                       model_name=args.model_name)
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
+    dataset_config_.n_dataset = 5
+    train_config_.batch_size = 1
     if args.training_type == 'offline' or args.training_type == 'sequence':
         ...
     elif args.training_type == 'switching':
