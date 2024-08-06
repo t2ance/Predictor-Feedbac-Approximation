@@ -487,17 +487,18 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
             if isinstance(model, GRUNet) or isinstance(model, LSTMNet):
                 model.reset_state()
             losses = []
+            optimizer.zero_grad()
             for batch in zip(*sequences):
                 inputs, labels = torch.vstack([batch[i][0] for i in range(train_config.batch_size)]), torch.vstack(
                     [batch[i][1] for i in range(train_config.batch_size)])
                 inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
                 outputs, loss = predict_and_loss(inputs, labels, model)
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-                losses.append(loss.detach())
-            loss = sum(losses) / len(losses)
-            training_loss += loss.item()
+                # loss:torch.Tensor
+                losses.append(loss)
+            loss_ = sum(losses) / len(losses)
+            loss_.backward()
+            optimizer.step()
+            training_loss += loss_.item()
 
         training_loss /= (len(samples_all_dataset) // train_config.batch_size)
         scheduler.step()
@@ -756,11 +757,10 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_everything(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s7')
-    parser.add_argument('-n', type=int, default=None)
+    parser.add_argument('-s', type=str, default='s1')
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='sequence')
-    parser.add_argument('-model_name', type=str, default='FFN')
+    parser.add_argument('-model_name', type=str, default='GRU')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)
@@ -790,7 +790,7 @@ if __name__ == '__main__':
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     wandb.init(
         project="no",
-        name=f'{train_config_.system} {model_config_.model_name} {get_time_str()}'
+        name=f'{train_config_.system} {train_config_.training_type} {model_config_.model_name} {dataset_config_.delay.__class__} {get_time_str()}'
     )
     results_ = main(dataset_config_, model_config_, train_config_)
     for method_, result_ in results_.items():
