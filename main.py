@@ -556,8 +556,8 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
         result = simulation(dataset_config=dataset_config, train_config=train_config, model=m, Z0=test_point,
                             method=method, img_save_path=img_save_path)
         if i == 0:
-            wandb.log({f'{method}-Comparison': wandb.Image(f"{img_save_path}/{method}_comp.png")})
-            wandb.log({f'{method}-Difference': wandb.Image(f"{img_save_path}/{method}_diff.png")})
+            wandb.log({f'{method}-Comparison': wandb.Image(f"{img_save_path}/{method}_comp_fit.png")})
+            wandb.log({f'{method}-Difference': wandb.Image(f"{img_save_path}/{method}_diff_fit.png")})
         plt.close()
         n_point_start = dataset_config.n_point_start()
         if method == 'no':
