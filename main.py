@@ -466,7 +466,8 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         n_point_start = dataset_config.n_point_start()
         # predictions = head_points(result.P_numerical, n_point_start)
         n_point_delay = dataset_config.n_point_delay
-        predictions = prediction_comparison(result.P_numerical, n_point_delay, dataset_config.ts)
+        # predictions = prediction_comparison(result.P_numerical, n_point_delay, dataset_config.ts)
+        predictions = result.P_numerical[n_point_start:]
         true_values = result.Z[n_point_start:]
 
         Ps = np.array(predictions)

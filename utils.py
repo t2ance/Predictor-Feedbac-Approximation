@@ -265,10 +265,13 @@ def prediction_comparison(P, n_point_delay, ts):
         P_[ti] = P[ti + n_point_delay(0) - n_point_delay(t)]
 
     return P_
-    if n_point_delay == 0:
+
+
+def head_points(P, n_point_start):
+    if n_point_start == 0:
         return P
     else:
-        return P[:-n_point_delay]
+        return P[:-n_point_start]
 
 
 def get_time_str():
