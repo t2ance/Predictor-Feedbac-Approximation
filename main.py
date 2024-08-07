@@ -447,6 +447,7 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
 
 def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
     device = train_config.device
+    batch_size = train_config.batch_size
     img_save_path = model_config.base_path
     model, model_loaded = load_model(train_config, model_config, dataset_config)
     optimizer = load_optimizer(model.parameters(), train_config)
@@ -455,8 +456,9 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     check_dir(img_save_path)
     max_n_point_delay = dataset_config.max_n_point_delay()
     print('Begin Generating Dataset...')
-    samples_all_dataset = []
-    for _ in tqdm(range(dataset_config.n_dataset)):
+    training_dataset = []
+    validating_dataset = []
+    for i in tqdm(range(dataset_config.n_dataset)):
         Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
                                size=(dataset_config.n_state,))
         result = simulation(dataset_config, train_config, Z0, 'numerical', model)
@@ -477,23 +479,27 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         samples = []
         for t_i, (p, z, t) in enumerate(zip(Ps, Zs, horizon)):
             samples.append((sample_to_tensor(z, Us[t_i], t.reshape(-1)), torch.from_numpy(p)))
-        samples_all_dataset.append(samples)
+        if i < dataset_config.n_dataset * train_config.training_ratio:
+            training_dataset.append(samples)
+        else:
+            validating_dataset.append(samples)
 
     model.train()
     print('Begin Training...')
     for epoch in tqdm(range(train_config.n_epoch)):
-        training_loss = 0.0
-        np.random.shuffle(samples_all_dataset)
+        np.random.shuffle(training_dataset)
+
         n_epoch = 0
-        for i in range(0, len(samples_all_dataset) - train_config.batch_size, train_config.batch_size):
-            sequences = samples_all_dataset[i:i + train_config.batch_size]
+        training_loss = 0.0
+        for i in range(0, len(training_dataset) - batch_size, batch_size):
+            sequences = training_dataset[i:i + batch_size]
             if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU):
                 optimizer.zero_grad()
                 model.reset_state()
                 losses = []
                 for batch in zip(*sequences):
-                    inputs, labels = torch.vstack([batch[i][0] for i in range(train_config.batch_size)]), torch.vstack(
-                        [batch[i][1] for i in range(train_config.batch_size)])
+                    inputs, labels = torch.vstack([batch[i][0] for i in range(batch_size)]), torch.vstack(
+                        [batch[i][1] for i in range(batch_size)])
                     inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
                     outputs, loss = predict_and_loss(inputs, labels, model)
                     losses.append(loss)
@@ -505,8 +511,8 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
                 losses = []
                 for batch in zip(*sequences):
                     optimizer.zero_grad()
-                    inputs, labels = torch.vstack([batch[i][0] for i in range(train_config.batch_size)]), torch.vstack(
-                        [batch[i][1] for i in range(train_config.batch_size)])
+                    inputs, labels = torch.vstack([batch[i][0] for i in range(batch_size)]), torch.vstack(
+                        [batch[i][1] for i in range(batch_size)])
                     inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
                     outputs, loss = predict_and_loss(inputs, labels, model)
                     loss.backward()
@@ -515,10 +521,42 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
                 training_loss += (sum(losses) / len(losses)).item()
             n_epoch += 1
         training_loss /= n_epoch
+
+        with torch.no_grad():
+            n_epoch = 0
+            validating_loss = 0.0
+            for i in range(0, len(validating_dataset) - batch_size, batch_size):
+                sequences = validating_dataset[i:i + batch_size]
+                if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU):
+                    model.reset_state()
+                    losses = []
+                    for batch in zip(*sequences):
+                        inputs, labels = torch.vstack(
+                            [batch[i][0] for i in range(batch_size)]), torch.vstack(
+                            [batch[i][1] for i in range(batch_size)])
+                        inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
+                        outputs, loss = predict_and_loss(inputs, labels, model)
+                        losses.append(loss)
+                    loss_ = sum(losses) / len(losses)
+                    validating_loss += loss_.item()
+                else:
+                    losses = []
+                    for batch in zip(*sequences):
+                        inputs, labels = torch.vstack(
+                            [batch[i][0] for i in range(batch_size)]), torch.vstack(
+                            [batch[i][1] for i in range(batch_size)])
+                        inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
+                        outputs, loss = predict_and_loss(inputs, labels, model)
+                        losses.append(loss.detach())
+                    validating_loss += (sum(losses) / len(losses)).item()
+                n_epoch += 1
+            validating_loss /= n_epoch
+
         scheduler.step()
 
         wandb.log({
             'training loss': training_loss,
+            'validating loss': validating_loss,
             'lr': optimizer.param_groups[0]['lr'],
         }, step=epoch)
         training_loss_arr.append(training_loss)

@@ -19,7 +19,7 @@ def interval(min_, max_):
     return new_min, new_max
 
 
-def plot_toy(test_point, plot_name):
+def plot_toy(test_point, plot_name, dataset_config, train_config, model):
     dataset_config.duration = 10
     ts = dataset_config.ts
     delay = dataset_config.delay
@@ -71,7 +71,7 @@ def plot_toy(test_point, plot_name):
     plt.savefig(f"./misc/plots/{plot_name}.pdf")
 
 
-def plot_baxter(test_point, plot_name):
+def plot_baxter(test_point, plot_name, dataset_config, train_config, model):
     ts = dataset_config.ts
     delay = dataset_config.delay
     n_state = dataset_config.n_state
@@ -222,8 +222,7 @@ def plot_alpha():
     plt.savefig(f"./misc/plots/alpha.pdf")
 
 
-if __name__ == '__main__':
-    set_everything(0)
+def plot_cp():
     hyperparameters = [
         # 'toy_id',
         # 'toy_ood',
@@ -244,8 +243,59 @@ if __name__ == '__main__':
         dataset_config.random_test_upper_bound = tub
         model, model_loaded = load_model(train_config, model_config, dataset_config)
         if hyperparameter.startswith('toy'):
-            plot_toy(dataset_config.test_points[0], hyperparameter)
+            plot_toy(dataset_config.test_points[0], hyperparameter, dataset_config, train_config, model)
         else:
-            plot_baxter(dataset_config.test_points[0], hyperparameter)
+            plot_baxter(dataset_config.test_points[0], hyperparameter, dataset_config, train_config, model)
 
     plot_alpha()
+
+
+def plot_no_numerical_compare(plot_name, system):
+    dataset_config, model_config, train_config = config.get_config(system_=system)
+    model, model_loaded = load_model(train_config, model_config, dataset_config)
+    test_point = dataset_config.test_points[0]
+    ts = dataset_config.ts
+    delay = dataset_config.delay
+    n_state = dataset_config.n_state
+    n_point_delay = dataset_config.n_point_delay
+    fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(3, 2), height_add=0.6))
+    subfigs = fig.subfigures(nrows=1, ncols=2)
+    numerical_fig, no_fig, switching_fig = subfigs
+    numerical_fig.suptitle('Successive \n Approximation')
+    no_fig.suptitle('FNO')
+    switching_fig.suptitle('FNO$_{ACP}$')
+    numerical_axes = numerical_fig.subplots(nrows=2, ncols=1, gridspec_kw={'hspace': 0.5})
+    no_axes = no_fig.subplots(nrows=2, ncols=1, gridspec_kw={'hspace': 0.5})
+
+    print(f'Begin simulation {plot_name}')
+    numerical = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point,
+                           method='numerical')
+    no = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point, method='no')
+    print(f'End simulation {plot_name}')
+
+    min_p, max_p = interval(min(numerical.P_numerical.min(), no.P_no.min()),
+                            max(numerical.P_numerical.max(), no.P_no.max()))
+
+    plot_comparison(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
+                    ax=numerical_axes[0], comment=False)
+    plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=no_axes[0],
+                    comment=False)
+    min_d, max_d = interval(min(numerical.D_numerical.min(), no.D_no.min()),
+                            max(numerical.D_numerical.max(), no.D_no.max()))
+
+    plot_difference(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
+                    ax=numerical_axes[1], comment=False, differences=[numerical.D_numerical])
+    plot_difference(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
+                    comment=False, differences=[no.D_no])
+
+    min_u, max_u = interval(min(numerical.U.min(), no.U.min()), max(numerical.U.max(), no.U.max()))
+    plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[2], comment=False, ylim=[min_u, max_u])
+    plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
+
+    plt.savefig(f"./misc/plots/{plot_name}.pdf")
+    ...
+
+
+if __name__ == '__main__':
+    set_everything(0)
+    plot_no_numerical_compare('s1-gru', 's1')
