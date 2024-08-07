@@ -363,7 +363,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         model_config = ModelConfig(model_name='FFN', fno_n_layer=8, fno_n_modes_height=32, fno_hidden_channels=32,
                                    ffn_n_layer=8, gru_n_layer=10, lstm_n_layer=10, fno_gru_fno_n_layer=5,
                                    fno_gru_gru_n_layer=5)
-        train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=128,
+        train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=32,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential')
     else:
         raise NotImplementedError()
