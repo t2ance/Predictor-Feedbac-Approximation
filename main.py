@@ -473,12 +473,12 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         Zs = np.array(true_values)
         horizon = np.array(dataset_config.ts[n_point_start:])
         # Us = [result.U[idx: idx + n_point_delay(t)] for idx, t in enumerate(horizon)]
-        Us = [pad_zeros(result.U[idx: idx + n_point_delay(t)], max_n_point_delay, leading=False) for idx, t in
-              enumerate(horizon)]
+        Us = [pad_zeros(result.U[idx + n_point_start - n_point_delay(t): idx + n_point_start], max_n_point_delay,
+                        leading=False) for idx, t in enumerate(horizon)]
 
         samples = []
-        for t_i, (p, z, t) in enumerate(zip(Ps, Zs, horizon)):
-            samples.append((sample_to_tensor(z, Us[t_i], t.reshape(-1)), torch.from_numpy(p)))
+        for i, (p, z, t, u) in enumerate(zip(Ps, Zs, horizon, Us)):
+            samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(p)))
         if i < dataset_config.n_dataset * train_config.training_ratio:
             training_dataset.append(samples)
         else:
@@ -817,7 +817,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', type=str, default='s1')
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='sequence')
-    parser.add_argument('-model_name', type=str, default='LSTM')
+    parser.add_argument('-model_name', type=str, default='GRU')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)
@@ -827,7 +827,7 @@ if __name__ == '__main__':
     dataset_config_, model_config_, train_config_ = config.get_config(system_=args.s, delay=args.delay,
                                                                       model_name=args.model_name)
     # dataset_config_.n_dataset = 5
-    # train_config_.batch_size = 2
+    # train_config_.batch_size = 1
     # train_config_.n_epoch = 1
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
