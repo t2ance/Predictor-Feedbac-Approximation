@@ -279,12 +279,12 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
     if system_ == 's1':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(1), duration=6, dt=0.1,
-                                       n_dataset=1000,
-                                       # n_dataset=10,
+                                       n_dataset=1000,# for ffn
+                                       # n_dataset=2500, # for gru
                                        n_sample_per_dataset=-1, ic_lower_bound=0,
                                        ic_upper_bound=1, random_test_lower_bound=0, random_test_upper_bound=1)
         model_config = ModelConfig(
-            model_name='GRU', n_layer=5,
+            model_name='GRU', n_layer=8,
             # model_name='FNO', n_layer=5,
             fno_n_modes_height=16, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=750, batch_size=128,

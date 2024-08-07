@@ -344,24 +344,30 @@ def fft_transform(input_tensor, target_length):
     return output.to(input_tensor.device)
 
 
+class FNOProjectionGRU(torch.nn.Module):
+    def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, n_state: int, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fno = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
+                                 n_layers=n_layers)
+        self.gru = GRUNet(input_size=n_state, hidden_size=n_state * 8, num_layers=n_layers, output_size=n_state)
+
+    def forward(self):
+        ...
+
+
 class FNOProjection(torch.nn.Module):
-    def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, n_input: int, n_state: int,
-                 n_point_delay: int, *args, **kwargs):
+    def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, n_state: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.mse_loss = torch.nn.MSELoss()
         self.n_modes_height = n_modes_height
         self.fno = FNO1d(n_modes_height=n_modes_height, n_layers=n_layers, hidden_channels=hidden_channels,
                          in_channels=1, out_channels=1)
-        in_features = 1 + n_state + n_point_delay * n_input
         out_features = n_state
-        # self.projection = torch.nn.Linear(in_features=in_features, out_features=out_features)
         self.projection = torch.nn.Linear(in_features=n_modes_height, out_features=out_features)
 
     def forward(self, x: torch.Tensor, label: torch.Tensor = None):
         x = x.unsqueeze(-2)
         x = self.fno(x)
-        # x = self.projection(x)
-        # x = x.squeeze(-2)
         x = fft_transform(x.squeeze(1), self.n_modes_height)
         x = self.projection(x)
         if label is None:

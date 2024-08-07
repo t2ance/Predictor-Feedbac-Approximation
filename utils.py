@@ -167,9 +167,8 @@ def load_model(train_config, model_config, dataset_config):
             num_outputs=n_state
         )
     elif model_name == 'FNO':
-        model = FNOProjection(
-            n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
-            n_point_delay=n_point_delay, n_input=n_input, n_layers=n_layers)
+        model = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
+                              n_layers=n_layers)
     elif model_name == 'FNOTwoStage':
         model = FNOTwoStage(
             n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_layers=n_layers, dt=dataset_config.dt,
