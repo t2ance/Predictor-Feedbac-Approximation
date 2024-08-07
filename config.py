@@ -299,7 +299,9 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                        ic_upper_bound=1, random_test_lower_bound=0, random_test_upper_bound=1)
         model_config = ModelConfig(
             model_name='GRU', fno_n_layer=5, fno_n_modes_height=16, fno_hidden_channels=16,
-            ffn_n_layer=5, gru_n_layer=10, lstm_n_layer=10, fno_gru_fno_n_layer=5, fno_gru_gru_n_layer=5
+            ffn_n_layer=5, gru_n_layer=10, gru_layer_width=16, lstm_n_layer=10, lstm_layer_width=16,
+            fno_gru_fno_n_layer=5,
+            fno_gru_gru_n_layer=5
         )
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=750, batch_size=16,
                                    do_training=True, do_testing=False, load_model=False,
