@@ -486,6 +486,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
 
     model.train()
     print('Begin Training...')
+    print(f'Training size: {len(training_dataset)}, Validating size: {len(validating_dataset)}')
     for epoch in tqdm(range(train_config.n_epoch)):
         np.random.shuffle(training_dataset)
 

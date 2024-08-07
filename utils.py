@@ -11,7 +11,7 @@ from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from config import DatasetConfig, TrainConfig
+from config import DatasetConfig, TrainConfig, ModelConfig
 from dataset import PredictionDataset
 from model import FNOProjection, FNOTwoStage, PIFNO, FFN, GRUNet, LSTMNet, FNOProjectionGRU
 
@@ -141,22 +141,19 @@ def load_cp_hyperparameters(case: str):
         raise NotImplementedError()
 
 
-def load_model(train_config, model_config, dataset_config):
+def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_config: DatasetConfig):
     model_name = model_config.model_name
     device = train_config.device
     n_state = dataset_config.system.n_state
     n_input = dataset_config.system.n_input
-    hidden_size = model_config.deeponet_n_hidden_size
-    n_hidden = model_config.deeponet_n_hidden
-    merge_size = model_config.deeponet_merge_size
-    n_point_delay = dataset_config.n_point_start()
-    n_modes_height = model_config.fno_n_modes_height
-    hidden_channels = model_config.fno_hidden_channels
-    n_layers = model_config.n_layer
-    layer_width = model_config.ffn_layer_width
+    n_point_start = dataset_config.n_point_start()
     if model_name == 'DeepONet':
-        layer_size_branch = [n_point_delay * n_input + n_state] + [hidden_size] * n_hidden + [merge_size]
-        layer_size_trunk = [1] + [hidden_size] * n_hidden + [merge_size]
+        n_hidden = model_config.deeponet_n_hidden
+        deeponet_merge_size = model_config.deeponet_merge_size
+        deeponet_hidden_size = model_config.deeponet_hidden_size
+        layer_size_branch = [n_point_start * n_input + n_state] + [deeponet_hidden_size] * n_hidden + [
+            deeponet_merge_size]
+        layer_size_trunk = [1] + [deeponet_hidden_size] * n_hidden + [deeponet_merge_size]
         import deepxde as dde
         model = dde.nn.DeepONet(
             layer_size_branch,
@@ -167,30 +164,27 @@ def load_model(train_config, model_config, dataset_config):
             num_outputs=n_state
         )
     elif model_name == 'FNO':
+        n_modes_height = model_config.fno_n_modes_height
+        hidden_channels = model_config.fno_hidden_channels
         model = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
-                              n_layers=n_layers)
-    elif model_name == 'FNOTwoStage':
-        model = FNOTwoStage(
-            n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_layers=n_layers, dt=dataset_config.dt,
-            n_state=dataset_config.n_state)
-    elif model_name == 'PIFNO':
-        model = PIFNO(
-            n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_layers=n_layers, dt=dataset_config.dt,
-            n_state=dataset_config.n_state, dynamic=dataset_config.system.dynamic_tensor_batched2)
+                              n_layers=model_config.fno_n_layer)
     elif model_name == 'FFN':
-        model = FFN(n_state=n_state, n_point_delay=n_point_delay, n_input=n_input, n_layers=n_layers,
-                    layer_width=layer_width)
+        model = FFN(n_state=n_state, n_point_delay=n_point_start, n_input=n_input, n_layers=model_config.ffn_n_layer,
+                    layer_width=model_config.ffn_layer_width)
     elif model_name == 'GRU':
-        model = GRUNet(input_size=n_state + n_point_delay * n_input + 1,
-                       hidden_size=layer_width * (n_state + n_point_delay + 1), num_layers=n_layers,
-                       output_size=n_state)
+        model = GRUNet(input_size=n_state + n_point_start * n_input + 1,
+                       hidden_size=model_config.gru_layer_width * (n_state + n_point_start + 1),
+                       num_layers=model_config.gru_n_layer, output_size=n_state)
     elif model_name == 'LSTM':
-        model = LSTMNet(input_size=n_state + n_point_delay * n_input + 1,
-                        hidden_size=layer_width * (n_state + n_point_delay + 1), num_layers=n_layers,
-                        output_size=n_state)
+        model = LSTMNet(input_size=n_state + n_point_start * n_input + 1,
+                        hidden_size=model_config.lstm_layer_width * (n_state + n_point_start + 1),
+                        num_layers=model_config.lstm_n_layer, output_size=n_state)
     elif model_name == 'FNO-GRU':
-        model = FNOProjectionGRU(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
-                                 n_layers=n_layers)
+        model = FNOProjectionGRU(n_modes_height=model_config.fno_gru_fno_n_modes_height,
+                                 hidden_channels=model_config.fno_gru_fno_hidden_channels, n_state=n_state,
+                                 fno_n_layers=model_config.fno_gru_fno_n_layer,
+                                 gru_n_layers=model_config.fno_gru_gru_n_layer,
+                                 gru_layer_width=model_config.fno_gru_gru_layer_width)
     else:
         raise NotImplementedError()
     n_params = count_params(model)

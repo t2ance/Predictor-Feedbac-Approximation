@@ -10,16 +10,30 @@ from dynamic_systems import ConstantDelay, TimeVaryingDelay
 
 @dataclass
 class ModelConfig:
-    deeponet_n_hidden_size: Optional[int] = field(default=512)
+    deeponet_hidden_size: Optional[int] = field(default=512)
     deeponet_merge_size: Optional[int] = field(default=256)
     deeponet_n_hidden: Optional[int] = field(default=5)
+
     fno_n_modes_height: Optional[int] = field(default=16)
     fno_hidden_channels: Optional[int] = field(default=32)
-    n_layer: Optional[int] = field(default=4)
+    fno_n_layer: Optional[int] = field(default=4)
+
+    ffn_n_layer: Optional[int] = field(default=4)
     ffn_layer_width: Optional[int] = field(default=8)
-    fno_end_to_end: Optional[bool] = field(default=True)
-    model_name: Optional[Literal['FFN', 'FNO', 'DeepONet', 'FNOTwoStage', 'PIFNO', 'GRU', 'LSTM']] = field(
+
+    gru_n_layer: Optional[int] = field(default=4)
+    gru_layer_width: Optional[int] = field(default=8)
+    lstm_n_layer: Optional[int] = field(default=4)
+    lstm_layer_width: Optional[int] = field(default=8)
+    model_name: Optional[Literal['FFN', 'FNO', 'DeepONet', 'GRU', 'LSTM']] = field(
         default='FNO')
+
+    fno_gru_fno_n_modes_height: Optional[int] = field(default=16)
+    fno_gru_fno_hidden_channels: Optional[int] = field(default=32)
+    fno_gru_fno_n_layer: Optional[int] = field(default=4)
+    fno_gru_gru_n_layer: Optional[int] = field(default=4)
+    fno_gru_gru_layer_width: Optional[int] = field(default=8)
+
     system: Optional[str] = field(default='s1')
 
     @property
@@ -279,14 +293,15 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
     if system_ == 's1':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(1), duration=6, dt=0.1,
-                                       n_dataset=1000,# for ffn
+                                       n_dataset=1000,  # for ffn
                                        # n_dataset=2500, # for gru
                                        n_sample_per_dataset=-1, ic_lower_bound=0,
                                        ic_upper_bound=1, random_test_lower_bound=0, random_test_upper_bound=1)
         model_config = ModelConfig(
-            model_name='GRU', n_layer=10,
-            # model_name='FNO', n_layer=5,
-            fno_n_modes_height=16, fno_hidden_channels=16)
+            model_name='GRU', fno_n_layer=5, fno_n_modes_height=16, fno_hidden_channels=16,
+            ffn_n_layer=5, gru_n_layer=10, lstm_n_layer=10, fno_gru_fno_n_layer=5,
+            fno_gru_gru_n_layer=5
+        )
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=750, batch_size=128,
                                    do_training=True, do_testing=False, load_model=False,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
@@ -299,7 +314,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=2000, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, do_testing=False, scheduled_sampling_warm_start=500,
                                    scheduled_sampling_type='linear', scheduled_sampling_k=1e-2)
-        model_config = ModelConfig(model_name='FFN', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64,
+        model_config = ModelConfig(model_name='FFN', fno_n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64,
                                    ffn_layer_width=8)
     elif system_ == 's3':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
@@ -308,14 +323,14 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=100, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, do_testing=False, scheduled_sampling_warm_start=500,
                                    scheduled_sampling_type='linear', scheduled_sampling_k=1e-2)
-        model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64,
+        model_config = ModelConfig(model_name='FNO', fno_n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64,
                                    ffn_layer_width=8)
     elif system_ == 's4':
         dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(1), duration=8, dt=0.05, n_dataset=200,
                                        n_sample_per_dataset=-1, ic_lower_bound=-2, ic_upper_bound=2,
                                        successive_approximation_n_iteration=5)
-        model_config = ModelConfig(model_name='FFN', n_layer=4, fno_n_modes_height=8, fno_hidden_channels=16)
+        model_config = ModelConfig(model_name='FFN', fno_n_layer=4, fno_n_modes_height=8, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=1000, batch_size=64,
                                    weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential', cp_alpha=0.01,
                                    load_model=False, do_testing=False, scheduled_sampling_type='inverse sigmoid',
@@ -326,7 +341,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                        n_sample_per_dataset=-1,
                                        baxter_dof=2, ic_lower_bound=0, ic_upper_bound=1, random_test_lower_bound=0,
                                        random_test_upper_bound=1)
-        model_config = ModelConfig(model_name='FNO', n_layer=5, fno_n_modes_height=16, fno_hidden_channels=16)
+        model_config = ModelConfig(model_name='FNO', fno_n_layer=5, fno_n_modes_height=16, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=750, batch_size=128,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', cp_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
@@ -336,16 +351,18 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                        delay=ConstantDelay(.5), duration=32, dt=0.01, n_dataset=25,
                                        n_sample_per_dataset=-1, ic_lower_bound=-0.5,
                                        ic_upper_bound=0.5)
-        model_config = ModelConfig(model_name='FNO', n_layer=3, fno_n_modes_height=16, fno_hidden_channels=16)
+        model_config = ModelConfig(model_name='FNO', fno_n_layer=3, fno_n_modes_height=16, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=2000, batch_size=128,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='none', cp_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's7':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
-                                       delay=TimeVaryingDelay(), duration=12, dt=0.02, n_dataset=250,
+                                       delay=TimeVaryingDelay(), duration=8, dt=0.01, n_dataset=250,
                                        n_sample_per_dataset=-1, ic_lower_bound=-0.5, ic_upper_bound=0.5)
-        model_config = ModelConfig(model_name='FFN', n_layer=8, fno_n_modes_height=32, fno_hidden_channels=32)
+        model_config = ModelConfig(model_name='FFN', fno_n_layer=8, fno_n_modes_height=32, fno_hidden_channels=32,
+                                   ffn_n_layer=8, gru_n_layer=10, lstm_n_layer=10, fno_gru_fno_n_layer=5,
+                                   fno_gru_gru_n_layer=5)
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=128,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential')
     else:

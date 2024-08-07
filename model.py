@@ -345,11 +345,13 @@ def fft_transform(input_tensor, target_length):
 
 
 class FNOProjectionGRU(torch.nn.Module):
-    def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, n_state: int, *args, **kwargs):
+    def __init__(self, n_modes_height: int, hidden_channels: int, fno_n_layers: int, gru_n_layers: int,
+                 gru_layer_width: int, n_state: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fno = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
-                                 n_layers=n_layers)
-        self.gru = GRUNet(input_size=n_state, hidden_size=n_state * 8, num_layers=n_layers, output_size=n_state)
+                                 n_layers=fno_n_layers)
+        self.gru = GRUNet(input_size=n_state, hidden_size=n_state * gru_layer_width, num_layers=gru_n_layers,
+                          output_size=n_state)
         self.mse_loss = torch.nn.MSELoss()
 
     def forward(self, x: torch.Tensor, label: torch.Tensor = None):
