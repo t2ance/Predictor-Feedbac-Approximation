@@ -484,26 +484,37 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     for epoch in tqdm(range(train_config.n_epoch)):
         training_loss = 0.0
         np.random.shuffle(samples_all_dataset)
+        n_epoch = 0
         for i in range(0, len(samples_all_dataset) - train_config.batch_size, train_config.batch_size):
             sequences = samples_all_dataset[i:i + train_config.batch_size]
             if isinstance(model, GRUNet) or isinstance(model, LSTMNet):
+                optimizer.zero_grad()
                 model.reset_state()
-            losses = []
-            optimizer.zero_grad()
-            for batch in zip(*sequences):
-                inputs, labels = torch.vstack([batch[i][0] for i in range(train_config.batch_size)]), torch.vstack(
-                    [batch[i][1] for i in range(train_config.batch_size)])
-
-                inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
-                outputs, loss = predict_and_loss(inputs, labels, model)
-                # loss:torch.Tensor
-                losses.append(loss)
-            loss_ = sum(losses) / len(losses)
-            loss_.backward()
-            optimizer.step()
-            training_loss += loss_.item()
-
-        training_loss /= (len(samples_all_dataset) // train_config.batch_size)
+                losses = []
+                for batch in zip(*sequences):
+                    inputs, labels = torch.vstack([batch[i][0] for i in range(train_config.batch_size)]), torch.vstack(
+                        [batch[i][1] for i in range(train_config.batch_size)])
+                    inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
+                    outputs, loss = predict_and_loss(inputs, labels, model)
+                    losses.append(loss)
+                loss_ = sum(losses) / len(losses)
+                loss_.backward()
+                optimizer.step()
+                training_loss += loss_.item()
+            else:
+                losses = []
+                for batch in zip(*sequences):
+                    optimizer.zero_grad()
+                    inputs, labels = torch.vstack([batch[i][0] for i in range(train_config.batch_size)]), torch.vstack(
+                        [batch[i][1] for i in range(train_config.batch_size)])
+                    inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
+                    outputs, loss = predict_and_loss(inputs, labels, model)
+                    loss.backward()
+                    optimizer.step()
+                    losses.append(loss.detach())
+                training_loss += (sum(losses) / len(losses)).item()
+            n_epoch += 1
+        training_loss /= n_epoch
         scheduler.step()
 
         wandb.log({
@@ -774,8 +785,6 @@ if __name__ == '__main__':
                                                                       model_name=args.model_name)
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
-    # dataset_config_.n_dataset = 5
-    # train_config_.batch_size = 1
     if args.training_type == 'offline' or args.training_type == 'sequence':
         ...
     elif args.training_type == 'switching':
@@ -795,7 +804,7 @@ if __name__ == '__main__':
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     wandb.init(
         project="no",
-        name=f'{train_config_.system} {train_config_.training_type} {model_config_.model_name} {dataset_config_.delay.__class__} {get_time_str()}'
+        name=f'{train_config_.system} {train_config_.training_type} {model_config_.model_name} {dataset_config_.delay.__class__.__name__} {get_time_str()}'
     )
     results_ = main(dataset_config_, model_config_, train_config_)
     for method_, result_ in results_.items():
