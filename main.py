@@ -556,8 +556,9 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
         result = simulation(dataset_config=dataset_config, train_config=train_config, model=m, Z0=test_point,
                             method=method, img_save_path=img_save_path)
         if i == 0:
-            wandb.log({f'{method}-Comparison': wandb.Image(f"{img_save_path}/{method}_comp_fit.png")})
-            wandb.log({f'{method}-Difference': wandb.Image(f"{img_save_path}/{method}_diff_fit.png")})
+            wandb.log({f'{method}-comparison': wandb.Image(f"{img_save_path}/{method}_comp_fit.png")})
+            wandb.log({f'{method}-difference': wandb.Image(f"{img_save_path}/{method}_diff_fit.png")})
+            wandb.log({f'{method}-u': wandb.Image(f"{img_save_path}/{method}_u.png")})
         plt.close()
         n_point_start = dataset_config.n_point_start()
         if method == 'no':
@@ -777,7 +778,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', type=str, default='s1')
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='sequence')
-    parser.add_argument('-model_name', type=str, default='FNO-GRU')
+    parser.add_argument('-model_name', type=str, default='LSTM')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)
@@ -786,9 +787,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     dataset_config_, model_config_, train_config_ = config.get_config(system_=args.s, delay=args.delay,
                                                                       model_name=args.model_name)
-    # dataset_config_.n_dataset = 5
-    # train_config_.batch_size = 2
-    # train_config_.n_epoch = 1
+    dataset_config_.n_dataset = 5
+    train_config_.batch_size = 2
+    train_config_.n_epoch = 1
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
     if args.training_type == 'offline' or args.training_type == 'sequence':
