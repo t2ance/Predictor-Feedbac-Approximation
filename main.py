@@ -56,7 +56,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
     p_no_count = 0
     Z[n_point_start, :] = Z0
     runtime = 0.
-    if isinstance(model, GRUNet) or isinstance(model, LSTMNet):
+    if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU):
         model.reset_state()
     if silence:
         bar = range(dataset_config.n_point)
@@ -788,6 +788,7 @@ if __name__ == '__main__':
                                                                       model_name=args.model_name)
     # dataset_config_.n_dataset = 5
     # train_config_.batch_size = 2
+    # train_config_.n_epoch = 1
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
     if args.training_type == 'offline' or args.training_type == 'sequence':
