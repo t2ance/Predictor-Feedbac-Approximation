@@ -458,7 +458,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     print('Begin Generating Dataset...')
     training_dataset = []
     validating_dataset = []
-    for i in tqdm(range(dataset_config.n_dataset)):
+    for dataset_idx in tqdm(range(dataset_config.n_dataset)):
         Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
                                size=(dataset_config.n_state,))
         result = simulation(dataset_config, train_config, Z0, 'numerical', model)
@@ -478,9 +478,9 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
                         leading=False) for idx, t in enumerate(horizon)]
 
         samples = []
-        for i, (p, z, t, u) in enumerate(zip(Ps, Zs, horizon, Us)):
+        for p, z, t, u in zip(Ps, Zs, horizon, Us):
             samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(p)))
-        if i < dataset_config.n_dataset * train_config.training_ratio:
+        if dataset_idx < dataset_config.n_dataset * train_config.training_ratio:
             training_dataset.append(samples)
         else:
             validating_dataset.append(samples)
@@ -493,8 +493,8 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
 
         n_epoch = 0
         training_loss = 0.0
-        for i in range(0, len(training_dataset) - batch_size, batch_size):
-            sequences = training_dataset[i:i + batch_size]
+        for dataset_idx in range(0, len(training_dataset) - batch_size, batch_size):
+            sequences = training_dataset[dataset_idx:dataset_idx + batch_size]
             if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU):
                 optimizer.zero_grad()
                 model.reset_state()
@@ -527,8 +527,8 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         with torch.no_grad():
             n_epoch = 0
             validating_loss = 0.0
-            for i in range(0, len(validating_dataset) - batch_size, batch_size):
-                sequences = validating_dataset[i:i + batch_size]
+            for dataset_idx in range(0, len(validating_dataset) - batch_size, batch_size):
+                sequences = validating_dataset[dataset_idx:dataset_idx + batch_size]
                 if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU):
                     model.reset_state()
                     losses = []
