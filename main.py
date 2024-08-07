@@ -20,7 +20,7 @@ from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral, solve_integral_successive_batched
 from model import GRUNet, LSTMNet, FNOProjectionGRU
 from plot_utils import plot_result, set_size, plot_switch_system, difference
-from utils import pad_leading_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, \
+from utils import pad_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, \
     set_everything, print_result, postprocess, load_model, load_optimizer, prediction_comparison, print_args, \
     get_time_str, SimulationResult
 
@@ -90,7 +90,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                 if t_i >= n_point_start:
                     U[t_i] = system.kappa(P_numerical[t_i, :], t)
             elif method == 'no':
-                U_D = pad_leading_zeros(segment=U[t_i_delayed:t_i], length=max_n_point_delay)
+                U_D = pad_zeros(segment=U[t_i_delayed:t_i], length=max_n_point_delay)
                 begin = time.time()
                 P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
                 end = time.time()
@@ -105,14 +105,14 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                 P_numerical[t_i, :] = solution.solution
                 P_numerical_n_iters[t_i] = solution.n_iter
 
-                U_D = pad_leading_zeros(segment=U[t_i_delayed:t_i], length=n_point_start)
+                U_D = pad_zeros(segment=U[t_i_delayed:t_i], length=n_point_start)
                 P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
                 end = time.time()
                 runtime += end - begin
                 if t_i >= n_point_start:
                     U[t_i] = system.kappa(P_numerical[t_i, :], t)
             elif method == 'switching':
-                U_D = pad_leading_zeros(segment=U[t_i_delayed:t_i], length=max_n_point_delay)
+                U_D = pad_zeros(segment=U[t_i_delayed:t_i], length=max_n_point_delay)
                 begin = time.time()
                 P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
                 if t_i >= n_point_start:
@@ -187,7 +187,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                     P_no[t_i, :] = solution.solution
                 else:
                     # Not Teacher Forcing
-                    P_no[t_i, :] = solve_integral_nn(model=model, U_D=pad_leading_zeros(
+                    P_no[t_i, :] = solve_integral_nn(model=model, U_D=pad_zeros(
                         segment=U[t_i_delayed:t_i], length=max_n_point_delay), Z_t=Z_t, t=t)
                 if t_i >= n_point_start:
                     U[t_i] = system.kappa(P_no[t_i, :], t)
@@ -471,7 +471,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         Zs = np.array(true_values)
         horizon = np.array(dataset_config.ts[n_point_start:])
         # Us = [result.U[idx: idx + n_point_delay(t)] for idx, t in enumerate(horizon)]
-        Us = [pad_leading_zeros(result.U[idx: idx + n_point_delay(t)], max_n_point_delay) for idx, t in
+        Us = [pad_zeros(result.U[idx: idx + n_point_delay(t)], max_n_point_delay, leading=False) for idx, t in
               enumerate(horizon)]
 
         samples = []

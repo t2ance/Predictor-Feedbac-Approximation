@@ -292,7 +292,7 @@ def count_params(model):
     return pp
 
 
-def pad_leading_zeros(segment, length):
+def pad_zeros(segment, length, leading: bool = True):
     assert len(segment) <= length
 
     if len(segment) < length:
@@ -302,13 +302,19 @@ def pad_leading_zeros(segment, length):
                 padding = np.zeros((padding_length, segment.shape[1]))
             else:
                 padding = np.zeros(padding_length)
-            segment = np.concatenate((padding, segment))
+            if leading:
+                segment = np.concatenate((padding, segment))
+            else:
+                segment = np.concatenate((segment, padding))
         elif isinstance(segment, torch.Tensor):
             if segment.ndim == 2:
                 padding = torch.zeros((padding_length, segment.shape[1]))
             else:
                 padding = torch.zeros(padding_length)
-            segment = torch.concatenate((padding, segment))
+            if leading:
+                segment = torch.concatenate((padding, segment))
+            else:
+                segment = torch.concatenate((segment, padding))
         else:
             raise NotImplementedError()
 
