@@ -18,7 +18,7 @@ import config
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral, solve_integral_successive_batched
-from model import GRUNet, LSTMNet
+from model import GRUNet, LSTMNet, FNOProjectionGRU
 from plot_utils import plot_result, set_size, plot_switch_system, difference
 from utils import pad_leading_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, \
     set_everything, print_result, postprocess, load_model, load_optimizer, prediction_comparison, print_args, \
@@ -487,7 +487,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         n_epoch = 0
         for i in range(0, len(samples_all_dataset) - train_config.batch_size, train_config.batch_size):
             sequences = samples_all_dataset[i:i + train_config.batch_size]
-            if isinstance(model, GRUNet) or isinstance(model, LSTMNet):
+            if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU):
                 optimizer.zero_grad()
                 model.reset_state()
                 losses = []
@@ -774,10 +774,10 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_everything(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s7')
+    parser.add_argument('-s', type=str, default='s1')
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='sequence')
-    parser.add_argument('-model_name', type=str, default='GRU')
+    parser.add_argument('-model_name', type=str, default='FNO-GRU')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)
