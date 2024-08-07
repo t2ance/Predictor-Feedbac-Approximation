@@ -485,7 +485,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         training_loss = 0.0
         np.random.shuffle(samples_all_dataset)
         n_epoch = 0
-        for i in range(0, len(samples_all_dataset), train_config.batch_size):
+        for i in range(0, len(samples_all_dataset) - train_config.batch_size, train_config.batch_size):
             sequences = samples_all_dataset[i:i + train_config.batch_size]
             if isinstance(model, GRUNet) or isinstance(model, LSTMNet):
                 optimizer.zero_grad()
@@ -546,7 +546,7 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
     l2_list = []
     prediction_time = []
     n_iter_list = []
-    for test_point, name in bar:
+    for i, (test_point, name) in enumerate(bar):
         if not silence:
             bar.set_description(f'Solving system with initial point {np.round(test_point, decimals=3)}.')
             bar.set_description(f'Save to {name}.')
@@ -555,6 +555,9 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
         check_dir(img_save_path)
         result = simulation(dataset_config=dataset_config, train_config=train_config, model=m, Z0=test_point,
                             method=method, img_save_path=img_save_path)
+        if i == 0:
+            wandb.log({f'{method}-Comparison': wandb.Image(f"{img_save_path}/{method}_comp.png")})
+            wandb.log({f'{method}-Difference': wandb.Image(f"{img_save_path}/{method}_diff.png")})
         plt.close()
         n_point_start = dataset_config.n_point_start()
         if method == 'no':
@@ -783,8 +786,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     dataset_config_, model_config_, train_config_ = config.get_config(system_=args.s, delay=args.delay,
                                                                       model_name=args.model_name)
-    # dataset_config_.n_dataset = 1
-    # train_config_.batch_size = 1
+    dataset_config_.n_dataset = 5
+    train_config_.batch_size = 2
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
     if args.training_type == 'offline' or args.training_type == 'sequence':
