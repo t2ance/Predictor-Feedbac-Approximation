@@ -284,7 +284,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                        n_sample_per_dataset=-1, ic_lower_bound=0,
                                        ic_upper_bound=1, random_test_lower_bound=0, random_test_upper_bound=1)
         model_config = ModelConfig(
-            model_name='GRU', n_layer=8,
+            model_name='GRU', n_layer=10,
             # model_name='FNO', n_layer=5,
             fno_n_modes_height=16, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=750, batch_size=128,
