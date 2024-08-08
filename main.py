@@ -837,9 +837,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     dataset_config_, model_config_, train_config_ = config.get_config(system_=args.s, delay=args.delay,
                                                                       model_name=args.model_name)
-    dataset_config_.n_dataset = 100
-    train_config_.batch_size = 2
-    train_config_.n_epoch = 0
+    # dataset_config_.n_dataset = 100
+    # train_config_.batch_size = 2
+    # train_config_.n_epoch = 0
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
     if args.training_type == 'offline' or args.training_type == 'sequence':
