@@ -165,13 +165,13 @@ def plot_alpha():
 
     print('Begin simulation')
 
-    train_config.cp_alpha = alpha0
+    train_config.uq_alpha = alpha0
     switching_alpha01 = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point,
                                    method='switching')
-    train_config.cp_alpha = alpha1
+    train_config.uq_alpha = alpha1
     switching_alpha02 = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point,
                                    method='switching')
-    train_config.cp_alpha = alpha2
+    train_config.uq_alpha = alpha2
     switching_alpha05 = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point,
                                    method='switching')
     print('End simulation')
@@ -237,8 +237,8 @@ def plot_cp():
         dataset_config.recreate_training_dataset = False
         train_config.do_training = False
         train_config.load_model = True
-        train_config.cp_gamma = cp_gamma
-        train_config.cp_alpha = cp_alpha
+        train_config.uq_gamma = cp_gamma
+        train_config.uq_alpha = cp_alpha
         dataset_config.random_test_lower_bound = tlb
         dataset_config.random_test_upper_bound = tub
         model, model_loaded = load_model(train_config, model_config, dataset_config)

@@ -78,13 +78,11 @@ def baxter_test_unicycle():
     Z0 = tuple([1, 1, 1])
     print('initial point', Z0)
     dataset_config.duration = 25
-    # dataset_config.delay = ConstantDelay(1)
     dataset_config.delay = TimeVaryingDelay()
     dataset_config.dt = 0.01
     result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
                         img_save_path='./misc', silence=False)
-    rl2, l2 = metric(result.P_numerical, result.Z, dataset_config.n_point_delay, dataset_config.ts)
-    print(rl2)
+    l2 = metric(result.P_numerical, result.P_numerical, dataset_config.n_point_start())
     print(l2)
     print(result.runtime)
 

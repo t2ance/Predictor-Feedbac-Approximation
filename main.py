@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import wandb
+from scipy.stats import norm
 from scipy.integrate import odeint
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -22,7 +23,7 @@ from model import GRUNet, LSTMNet, FNOProjectionGRU
 from plot_utils import plot_result, set_size, plot_switch_system, difference
 from utils import pad_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, \
     set_everything, print_result, postprocess, load_model, load_optimizer, prediction_comparison, print_args, \
-    get_time_str, SimulationResult
+    get_time_str, SimulationResult, TestResult
 
 warnings.filterwarnings('ignore')
 
@@ -36,8 +37,8 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
     n_point = dataset_config.n_point
     n_point_start = dataset_config.n_point_start()
     max_n_point_delay = dataset_config.max_n_point_delay()
-    alpha = train_config.cp_alpha
-    alpha_t = train_config.cp_alpha
+    alpha = train_config.uq_alpha
+    alpha_t = train_config.uq_alpha
     U = np.zeros((n_point, system.n_input))
     Z = np.zeros((n_point, system.n_state))
     P_numerical_n_iters = np.zeros(n_point)
@@ -64,7 +65,6 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
         bar = tqdm(range(dataset_config.n_point))
     for t_i in bar:
         t = ts[t_i]
-        # t_i_delayed = max(t_i - n_point_start, 0)
         t_i_delayed = max(t_i - dataset_config.n_point_delay(t), 0)
         if method == 'explicit':
             U[t_i] = system.U_explicit(t, Z0)
@@ -79,6 +79,12 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                 Z_t = Z0 + dataset_config.noise()
             Z_t += dataset_config.noise()
             # estimate prediction and control signal
+
+            # set the ground truth
+            solution = solve_integral(Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
+                                      dataset_config=dataset_config, delay=dataset_config.delay)
+            P_numerical[t_i, :] = solution.solution
+
             if method == 'numerical':
                 begin = time.time()
                 solution = solve_integral(Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
@@ -123,13 +129,20 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                         # System switching
                         # (1) Get the uncertainty of no model
                         P_no_Ri[t_i] = np.linalg.norm(P_no[t_i - n_point_start, :] - Z_t)
-                        if train_config.cp_adaptive:
-                            Q = np.percentile(P_no_Ri[start_point:t_i + 1], (1 - min(1, max(alpha_t, 0))) * 100)
+                        if train_config.uq_adaptive:
+                            quantile = (1 - min(1, max(alpha_t, 0))) * 100
                         else:
-                            Q = np.percentile(P_no_Ri[start_point:t_i + 1], (1 - alpha) * 100)
+                            quantile = (1 - alpha) * 100
+
+                        Ris = P_no_Ri[start_point:t_i + 1]
+                        if train_config.uq_type == 'conformal prediction':
+                            Q = np.percentile(Ris, quantile)
+                        else:
+                            Q = norm.ppf(quantile, loc=np.mean(Ris), scale=np.std(Ris))
+
                         e_t = 0 if P_no_Ri[t_i] <= Q else 1
                         # (2) Assign the indicator
-                        if train_config.cp_switching_type == 'switching':
+                        if train_config.uq_switching_type == 'switching':
                             if e_t == 0:
                                 # switch to no scheme if possible
                                 if switching_indicator[t_i - 1] == 1:
@@ -146,7 +159,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                             else:
                                 # use to numerical scheme
                                 switching_indicator[t_i] = 1
-                        elif train_config.cp_switching_type == 'alternating':
+                        elif train_config.uq_switching_type == 'alternating':
                             # alternating between no and numerical arbitrarily
                             # if indicator is 1, then use numerical scheme, otherwise no scheme
                             switching_indicator[t_i] = e_t
@@ -161,7 +174,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
                                 dataset_config=dataset_config, delay=dataset_config.delay).solution
                             P_switching[t_i, :] = P_numerical[t_i, :]
                             p_numerical_count += 1
-                        alpha_t += train_config.cp_gamma * (train_config.cp_alpha - e_t)
+                        alpha_t += train_config.uq_gamma * (train_config.uq_alpha - e_t)
                         alpha_ts[t_i] = alpha_t
                         q_ts[t_i] = Q
                         e_ts[t_i] = e_t
@@ -493,15 +506,16 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
 
         n_epoch = 0
         training_loss = 0.0
-        for dataset_idx in range(0, len(training_dataset) - batch_size, batch_size):
+        for dataset_idx in range(0, len(training_dataset), batch_size):
             sequences = training_dataset[dataset_idx:dataset_idx + batch_size]
+            batch_len = len(sequences)
             if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU):
                 optimizer.zero_grad()
                 model.reset_state()
                 losses = []
                 for batch in zip(*sequences):
-                    inputs, labels = torch.vstack([batch[i][0] for i in range(batch_size)]), torch.vstack(
-                        [batch[i][1] for i in range(batch_size)])
+                    inputs, labels = torch.vstack([batch[i][0] for i in range(batch_len)]), torch.vstack(
+                        [batch[i][1] for i in range(batch_len)])
                     inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
                     outputs, loss = predict_and_loss(inputs, labels, model)
                     losses.append(loss)
@@ -513,8 +527,8 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
                 losses = []
                 for batch in zip(*sequences):
                     optimizer.zero_grad()
-                    inputs, labels = torch.vstack([batch[i][0] for i in range(batch_size)]), torch.vstack(
-                        [batch[i][1] for i in range(batch_size)])
+                    inputs, labels = torch.vstack([batch[i][0] for i in range(batch_len)]), torch.vstack(
+                        [batch[i][1] for i in range(batch_len)])
                     inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
                     outputs, loss = predict_and_loss(inputs, labels, model)
                     loss.backward()
@@ -527,15 +541,16 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         with torch.no_grad():
             n_epoch = 0
             validating_loss = 0.0
-            for dataset_idx in range(0, len(validating_dataset) - batch_size, batch_size):
+            for dataset_idx in range(0, len(validating_dataset), batch_size):
                 sequences = validating_dataset[dataset_idx:dataset_idx + batch_size]
+                batch_len = len(sequences)
                 if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU):
                     model.reset_state()
                     losses = []
                     for batch in zip(*sequences):
                         inputs, labels = torch.vstack(
-                            [batch[i][0] for i in range(batch_size)]), torch.vstack(
-                            [batch[i][1] for i in range(batch_size)])
+                            [batch[i][0] for i in range(batch_len)]), torch.vstack(
+                            [batch[i][1] for i in range(batch_len)])
                         inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
                         outputs, loss = predict_and_loss(inputs, labels, model)
                         losses.append(loss)
@@ -545,8 +560,8 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
                     losses = []
                     for batch in zip(*sequences):
                         inputs, labels = torch.vstack(
-                            [batch[i][0] for i in range(batch_size)]), torch.vstack(
-                            [batch[i][1] for i in range(batch_size)])
+                            [batch[i][0] for i in range(batch_len)]), torch.vstack(
+                            [batch[i][1] for i in range(batch_len)])
                         inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
                         outputs, loss = predict_and_loss(inputs, labels, model)
                         losses.append(loss.detach())
@@ -582,7 +597,6 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
         test_points = dataset_config.test_points
 
     bar = test_points if silence else tqdm(test_points)
-    rl2_list = []
     l2_list = []
     prediction_time = []
     n_iter_list = []
@@ -612,8 +626,8 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
         else:
             raise NotImplementedError()
 
-        rl2, l2 = metric(P, result.Z, dataset_config.n_point_delay, dataset_config.ts)
-        if np.isinf(rl2) or np.isnan(rl2):
+        l2 = metric(P, result.P_numerical, dataset_config.n_point_start())
+        if np.isinf(l2) or np.isnan(l2):
             if not silence:
                 print(f'[WARNING] Running with initial condition Z = {test_point} with method [{method}] failed.')
             continue
@@ -624,16 +638,14 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
             print('no count:', result.p_no_count)
             print('numerical count:', result.p_numerical_count)
 
-        np.savetxt(f'{img_save_path}/metric.txt', np.array([rl2, l2, result.runtime]))
+        np.savetxt(f'{img_save_path}/metric.txt', np.array([l2, result.runtime]))
         np.savetxt(f'{img_save_path}/test_point.txt', test_point)
-        rl2_list.append(rl2)
         l2_list.append(l2)
         prediction_time.append(result.avg_prediction_time)
         n_iter_list.append(result.P_numerical_n_iters)
-    rl2 = np.nanmean(rl2_list).item()
     l2 = np.nanmean(l2_list).item()
-    prediction = np.nanmean(prediction_time).item()
-    to_save = [rl2, l2, prediction]
+    runtime = np.nanmean(prediction_time).item()
+    to_save = [l2, runtime]
     if method == 'numerical':
         n_iter = np.concatenate(n_iter_list).mean()
         to_save.append(n_iter)
@@ -654,11 +666,9 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
                 fig.clear()
                 plt.close(fig)
 
-        plot_result(data=rl2_list, label=f'Relative L2 error', title='Relative L2 error',
-                    xlabel='Relative L2 error', path=f'{base_path}/rl2.png')
         plot_result(data=l2_list, label=f'L2 error', title='L2 error', xlabel='L2 error',
                     path=f'{base_path}/l2.png')
-    return rl2, l2, prediction, len(rl2_list)
+    return TestResult(runtime=runtime, l2=l2, success_cases=len(l2_list))
 
 
 def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_config: TrainConfig):
@@ -828,7 +838,7 @@ if __name__ == '__main__':
     dataset_config_, model_config_, train_config_ = config.get_config(system_=args.s, delay=args.delay,
                                                                       model_name=args.model_name)
     # dataset_config_.n_dataset = 5
-    # train_config_.batch_size = 1
+    # train_config_.batch_size = 2
     # train_config_.n_epoch = 1
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
@@ -857,6 +867,6 @@ if __name__ == '__main__':
     for method_, result_ in results_.items():
         print(method_)
         print_result(result_, dataset_config_)
-        speedup = results_["numerical"][2] / result_[2]
+        speedup = results_["numerical"].runtime / result_.runtime
         print(f'Speedup w.r.t numerical: {speedup :.3f}; $\\times {speedup:.3f}$')
     wandb.finish()

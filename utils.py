@@ -41,6 +41,13 @@ class SimulationResult:
     switching_indicator: np.ndarray = None
 
 
+@dataclass
+class TestResult:
+    runtime: float = None
+    l2: float = None
+    success_cases: int = None
+
+
 def print_args(args):
     print('=' * 100)
     print(args.__class__.__name__)
@@ -237,17 +244,24 @@ def load_lr_scheduler(optimizer: torch.optim.Optimizer, config):
         raise NotImplementedError()
 
 
-def metric(P, Z, n_point_delay, ts):
+'''def metric(P, Z, n_point_delay, ts):
     P = prediction_comparison(P, n_point_delay, ts)[n_point_delay(0):]
     Z = Z[2 * n_point_delay(0):]
-    # P = prediction_comparison(P, n_point_delay, ts)
-    # Z = Z[ n_point_delay(0):]
     N = Z.shape[0]
     P = np.atleast_2d(P)
     Z = np.atleast_2d(Z)
     l2 = np.sum(np.linalg.norm(P - Z, axis=1)) / N
     rl2 = np.sum(np.linalg.norm(P - Z, axis=1) / np.linalg.norm(Z, axis=1)) / N
-    return rl2, l2
+    return rl2, l2'''
+
+
+def metric(P, P_numerical, n_point_delay):
+    P = np.atleast_2d(P)
+    P_numerical = np.atleast_2d(P_numerical)
+    assert P.shape == P_numerical.shape
+    P = P[n_point_delay:]
+    P_numerical = P_numerical[n_point_delay:]
+    return np.sum(np.linalg.norm(P - P_numerical, axis=1)) / P.shape[0]
 
 
 def check_dir(path):
@@ -350,22 +364,18 @@ def set_everything(seed: int):
     plt.rcParams.update(tex_fonts)
 
 
-def print_result(result, dataset_config):
-    rl2 = result[0]
-    l2 = result[1]
-    prediction_time = result[2] * 1000
-    print(f'Relative L2 error: {rl2}'
-          f' || L2 error: {l2}'
+def print_result(result: TestResult, dataset_config):
+    l2 = result.l2
+    prediction_time = result.runtime * 1000
+    print(f'L2 error: {l2}'
           f' || Runtime: {prediction_time}'
-          f' || Successful cases: [{result[3]}/{len(dataset_config.test_points)}]')
-    print(f'Relative L2 error: {rl2 :.3f}'
-          f' || L2 error: {l2 :.3f}'
+          f' || Successful cases: [{result.success_cases}/{len(dataset_config.test_points)}]')
+    print(f'L2 error: {l2 :.3f}'
           f' || Runtime: {prediction_time :.3f}'
-          f' || Successful cases: [{result[3]}/{len(dataset_config.test_points):.3f}]')
-    print(f'Relative L2 error: ${rl2 :.3f}$'
-          f' || L2 error: ${l2 :.3f}$'
+          f' || Successful cases: [{result.success_cases}/{len(dataset_config.test_points):.3f}]')
+    print(f'L2 error: ${l2 :.3f}$'
           f' || Runtime: ${prediction_time :.3f}$'
-          f' || Successful cases: [{result[3]}/{len(dataset_config.test_points)}]')
+          f' || Successful cases: [{result.success_cases}/{len(dataset_config.test_points)}]')
 
 
 if __name__ == '__main__':

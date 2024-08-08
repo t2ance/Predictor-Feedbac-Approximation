@@ -196,12 +196,12 @@ def plot_switch_system(train_config, dataset_config, result: SimulationResult, n
         ax = plt.figure(figsize=set_size(width=fig_width)).gca()
     ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
 
-    Q = np.percentile(result.P_no_Ri[2 * n_point_delay:], (1 - train_config.cp_alpha) * 100)
+    Q = np.percentile(result.P_no_Ri[2 * n_point_delay:], (1 - train_config.uq_alpha) * 100)
     ax.hist(result.P_no_Ri[2 * n_point_delay:], bins=100, color='blue', alpha=0.7, label='$R$')
     ax.axvline(x=Q, color='red', linestyle='--',
-               label=f'{(1 - train_config.cp_alpha) * 100}% quantile: {Q:.2f}')
+               label=f'{(1 - train_config.uq_alpha) * 100}% quantile: {Q:.2f}')
     ax.legend(loc=legend_loc)
-    ax.title(f'Distribution of $R$ and the ${1 - train_config.cp_alpha}$ quantile')
+    ax.title(f'Distribution of $R$ and the ${1 - train_config.uq_alpha}$ quantile')
     ax.set_xlabel('$R$')
     ax.set_ylabel('frequency')
     ax.savefig(f'{img_save_path}/quantile.png')

@@ -66,10 +66,11 @@ class TrainConfig:
         default='linear_with_warmup')
 
     # conformal prediction
-    cp_alpha: Optional[float] = field(default=0.1)
-    cp_gamma: Optional[float] = field(default=0.01)
-    cp_adaptive: Optional[bool] = field(default=True)
-    cp_switching_type: Optional[Literal['switching', 'alternating']] = field(default='switching')
+    uq_alpha: Optional[float] = field(default=0.1)
+    uq_gamma: Optional[float] = field(default=0.01)
+    uq_adaptive: Optional[bool] = field(default=True)
+    uq_type: Optional[Literal['conformal prediction', 'gaussian process']] = field(default='conformal prediction')
+    uq_switching_type: Optional[Literal['switching', 'alternating']] = field(default='switching')
 
     # adversarial training
     adversarial_epsilon: Optional[float] = field(default=0.0)
@@ -345,7 +346,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                        successive_approximation_n_iteration=5)
         model_config = ModelConfig(model_name='FFN', fno_n_layer=4, fno_n_modes_height=8, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=1000, batch_size=64,
-                                   weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential', cp_alpha=0.01,
+                                   weight_decay=1e-2, log_step=-1, lr_scheduler_type='exponential', uq_alpha=0.01,
                                    load_model=False, do_testing=False, scheduled_sampling_type='inverse sigmoid',
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's5':
@@ -355,24 +356,24 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                        baxter_dof=2, ic_lower_bound=0, ic_upper_bound=1, random_test_lower_bound=0,
                                        random_test_upper_bound=1)
         model_config = ModelConfig(model_name='FNO')
-        train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=750, batch_size=128,
-                                   weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', cp_alpha=0.01,
+        train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=750, batch_size=16,
+                                   weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', uq_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2, do_testing=True)
         if model_name == 'GRU':
             dataset_config.n_dataset = 500
-            train_config.n_epoch = 500
+            train_config.n_epoch = 200
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 16
             model_config.fno_hidden_channels = 16
         elif model_name == 'FNO':
             dataset_config.n_dataset = 500
-            train_config.n_epoch = 500
+            train_config.n_epoch = 200
             model_config.gru_n_layer = 10
             model_config.gru_layer_width = 16
         elif model_name == 'FNO-GRU':
             dataset_config.n_dataset = 500
-            train_config.n_epoch = 300
+            train_config.n_epoch = 200
             model_config.fno_gru_fno_n_layer = 5
             model_config.fno_gru_fno_n_modes_height = 32
             model_config.fno_gru_fno_hidden_channels = 32
@@ -385,7 +386,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                        ic_upper_bound=0.5)
         model_config = ModelConfig(model_name='FNO', fno_n_layer=3, fno_n_modes_height=16, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=2000, batch_size=128,
-                                   weight_decay=1e-3, log_step=-1, lr_scheduler_type='none', cp_alpha=0.01,
+                                   weight_decay=1e-3, log_step=-1, lr_scheduler_type='none', uq_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's7':
