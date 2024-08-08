@@ -313,7 +313,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_modes_height = 16
             model_config.fno_hidden_channels = 32
         elif model_name == 'FNO-GRU':
-            dataset_config.n_dataset = 1000
+            dataset_config.n_dataset = 100
             train_config.n_epoch = 500
             model_config.fno_gru_fno_n_layer = 4
             model_config.fno_gru_fno_n_modes_height = 16
