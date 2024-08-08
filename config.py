@@ -315,11 +315,11 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO-GRU':
             dataset_config.n_dataset = 1000
             train_config.n_epoch = 300
-            model_config.fno_gru_fno_n_layer = 4
-            model_config.fno_gru_fno_n_modes_height = 16
+            model_config.fno_gru_fno_n_layer = 5
+            model_config.fno_gru_fno_n_modes_height = 32
             model_config.fno_gru_fno_hidden_channels = 32
             model_config.fno_gru_gru_n_layer = 4
-            model_config.fno_gru_gru_layer_width = 8
+            model_config.fno_gru_gru_layer_width = 16
     elif system_ == 's2':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(1), duration=8, dt=0.05, n_dataset=100,

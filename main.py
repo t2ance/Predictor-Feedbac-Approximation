@@ -462,6 +462,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     device = train_config.device
     batch_size = train_config.batch_size
     img_save_path = model_config.base_path
+    n_dataset = dataset_config.n_dataset
     model, model_loaded = load_model(train_config, model_config, dataset_config)
     optimizer = load_optimizer(model.parameters(), train_config)
     scheduler = load_lr_scheduler(optimizer, train_config)
@@ -469,31 +470,30 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     check_dir(img_save_path)
     max_n_point_delay = dataset_config.max_n_point_delay()
     print('Begin Generating Dataset...')
+
     training_dataset = []
     validating_dataset = []
-    for dataset_idx in tqdm(range(dataset_config.n_dataset)):
+    for dataset_idx in tqdm(range(n_dataset)):
         Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
                                size=(dataset_config.n_state,))
         result = simulation(dataset_config, train_config, Z0, 'numerical', model)
 
         n_point_start = dataset_config.n_point_start()
-        # predictions = head_points(result.P_numerical, n_point_start)
         n_point_delay = dataset_config.n_point_delay
-        # predictions = prediction_comparison(result.P_numerical, n_point_delay, dataset_config.ts)
         predictions = result.P_numerical[n_point_start:]
         true_values = result.Z[n_point_start:]
 
         Ps = np.array(predictions)
         Zs = np.array(true_values)
         horizon = np.array(dataset_config.ts[n_point_start:])
-        # Us = [result.U[idx: idx + n_point_delay(t)] for idx, t in enumerate(horizon)]
         Us = [pad_zeros(result.U[idx + n_point_start - n_point_delay(t): idx + n_point_start], max_n_point_delay,
                         leading=False) for idx, t in enumerate(horizon)]
 
         samples = []
         for p, z, t, u in zip(Ps, Zs, horizon, Us):
             samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(p)))
-        if dataset_idx < dataset_config.n_dataset * train_config.training_ratio:
+
+        if dataset_idx < n_dataset * train_config.training_ratio:
             training_dataset.append(samples)
         else:
             validating_dataset.append(samples)
@@ -837,9 +837,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     dataset_config_, model_config_, train_config_ = config.get_config(system_=args.s, delay=args.delay,
                                                                       model_name=args.model_name)
-    # dataset_config_.n_dataset = 5
-    # train_config_.batch_size = 2
-    # train_config_.n_epoch = 1
+    dataset_config_.n_dataset = 100
+    train_config_.batch_size = 2
+    train_config_.n_epoch = 0
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
     if args.training_type == 'offline' or args.training_type == 'sequence':
