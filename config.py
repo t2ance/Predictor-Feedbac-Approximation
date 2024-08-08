@@ -297,7 +297,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                        n_sample_per_dataset=-1, ic_lower_bound=0, ic_upper_bound=1,
                                        random_test_lower_bound=0, random_test_upper_bound=1)
         model_config = ModelConfig(model_name='GRU')
-        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=750, batch_size=16,
+        train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=750, batch_size=128,
                                    do_training=True, do_testing=False, load_model=False,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-6)
@@ -352,11 +352,10 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
     elif system_ == 's5':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=10, dt=0.02, n_dataset=500,
-                                       n_sample_per_dataset=-1,
-                                       baxter_dof=2, ic_lower_bound=0, ic_upper_bound=1, random_test_lower_bound=0,
-                                       random_test_upper_bound=1)
+                                       n_sample_per_dataset=-1, baxter_dof=2, ic_lower_bound=0, ic_upper_bound=1,
+                                       random_test_lower_bound=0, random_test_upper_bound=1)
         model_config = ModelConfig(model_name='FNO')
-        train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=750, batch_size=16,
+        train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=750, batch_size=128,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', uq_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2, do_testing=True)
@@ -394,7 +393,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                        delay=TimeVaryingDelay(), duration=8, dt=0.02, n_dataset=250,
                                        n_sample_per_dataset=-1, ic_lower_bound=-0.5, ic_upper_bound=0.5)
         model_config = ModelConfig(model_name='FFN')
-        train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=32,
+        train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=128,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential')
         if model_name == 'GRU':
             dataset_config.n_dataset = 500
