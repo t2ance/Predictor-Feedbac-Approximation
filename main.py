@@ -481,20 +481,20 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         n_point_start = dataset_config.n_point_start()
         n_point_delay = dataset_config.n_point_delay
 
-        predictions = result.P_numerical[n_point_start:]
-        true_values = result.Z[n_point_start:]
-        Ps = np.array(predictions)
-        Zs = np.array(true_values)
-        horizon = np.array(dataset_config.ts[n_point_start:])
-        Us = [pad_zeros(result.U[idx + n_point_start - n_point_delay(t): idx + n_point_start], max_n_point_delay,
-                        leading=True) for idx, t in enumerate(horizon)]
-        # predictions = result.P_numerical
-        # true_values = result.Z
+        # predictions = result.P_numerical[n_point_start:]
+        # true_values = result.Z[n_point_start:]
         # Ps = np.array(predictions)
         # Zs = np.array(true_values)
-        # horizon = dataset_config.ts
+        # horizon = np.array(dataset_config.ts[n_point_start:])
         # Us = [pad_zeros(result.U[idx + n_point_start - n_point_delay(t): idx + n_point_start], max_n_point_delay,
-        #                 leading=False) for idx, t in enumerate(horizon)]
+        #                 leading=True) for idx, t in enumerate(horizon)]
+
+        predictions = result.P_numerical
+        true_values = result.Z
+        Ps = np.array(predictions)
+        Zs = np.array(true_values)
+        horizon = dataset_config.ts
+        Us = [pad_zeros(result.U[idx - n_point_delay(t): idx], max_n_point_delay) for idx, t in enumerate(horizon)]
 
         samples = []
         for p, z, t, u in zip(Ps, Zs, horizon, Us):
@@ -844,9 +844,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     dataset_config_, model_config_, train_config_ = config.get_config(system_=args.s, delay=args.delay,
                                                                       model_name=args.model_name)
-    # dataset_config_.n_dataset = 100
+    # dataset_config_.n_dataset = 10
     # train_config_.batch_size = 2
-    # train_config_.n_epoch = 0
+    # train_config_.n_epoch = 1
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
     if args.training_type == 'offline' or args.training_type == 'sequence':
