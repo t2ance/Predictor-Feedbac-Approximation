@@ -313,7 +313,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_modes_height = 16
             model_config.fno_hidden_channels = 32
         elif model_name == 'FNO-GRU':
-            dataset_config.n_dataset = 100
+            dataset_config.n_dataset = 25
             train_config.n_epoch = 500
             train_config.weight_decay = 1e-4
             model_config.fno_gru_fno_n_layer = 6
@@ -369,17 +369,18 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO':
             dataset_config.n_dataset = 500
             train_config.n_epoch = 200
-            model_config.fno_n_layer = 5
+            train_config.batch_size = 256
+            model_config.fno_n_layer = 4
             model_config.fno_n_modes_height = 32
-            model_config.fno_hidden_channels = 32
+            model_config.fno_hidden_channels = 16
         elif model_name == 'FNO-GRU':
-            dataset_config.n_dataset = 25
+            dataset_config.n_dataset = 100
             train_config.n_epoch = 200
             model_config.fno_gru_fno_n_layer = 5
             model_config.fno_gru_fno_n_modes_height = 32
             model_config.fno_gru_fno_hidden_channels = 32
-            model_config.fno_gru_gru_n_layer = 5
-            model_config.fno_gru_gru_layer_width = 32
+            model_config.fno_gru_gru_n_layer = 4
+            model_config.fno_gru_gru_layer_width = 16
     elif system_ == 's6':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=32, dt=0.01, n_dataset=25,
