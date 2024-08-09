@@ -319,7 +319,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_gru_fno_n_layer = 6
             model_config.fno_gru_fno_n_modes_height = 64
             model_config.fno_gru_fno_hidden_channels = 64
-            model_config.fno_gru_gru_n_layer = 1
+            model_config.fno_gru_gru_n_layer = 4
             model_config.fno_gru_gru_layer_width = 32
     elif system_ == 's2':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
@@ -378,7 +378,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_gru_fno_n_layer = 5
             model_config.fno_gru_fno_n_modes_height = 32
             model_config.fno_gru_fno_hidden_channels = 32
-            model_config.fno_gru_gru_n_layer = 2
+            model_config.fno_gru_gru_n_layer = 4
             model_config.fno_gru_gru_layer_width = 16
     elif system_ == 's6':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
@@ -418,7 +418,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_gru_fno_n_layer = 5
             model_config.fno_gru_fno_n_modes_height = 32
             model_config.fno_gru_fno_hidden_channels = 32
-            model_config.fno_gru_gru_n_layer = 1
+            model_config.fno_gru_gru_n_layer = 4
             model_config.fno_gru_gru_layer_width = 16
     else:
         raise NotImplementedError()
