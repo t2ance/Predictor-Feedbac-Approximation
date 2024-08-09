@@ -574,7 +574,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         wandb.log({
             'training loss': training_loss,
             'validating loss': validating_loss,
-            'lr': optimizer.param_groups[0]['lr'],
+            'learning rate': optimizer.param_groups[0]['lr'],
         }, step=epoch)
         training_loss_arr.append(training_loss)
 

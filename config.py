@@ -397,17 +397,19 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential')
         if model_name == 'GRU':
-            dataset_config.n_dataset = 500
+            dataset_config.n_dataset = 1000
             train_config.n_epoch = 750
-            model_config.gru_n_layer = 10
-            model_config.gru_layer_width = 16
+            model_config.gru_n_layer = 8
+            model_config.gru_layer_width = 64
+            train_config.learning_rate = 5e-5
         elif model_name == 'FNO':
-            dataset_config.n_dataset = 500
+            dataset_config.n_dataset = 1000
             train_config.n_epoch = 750
             train_config.batch_size = 256
-            model_config.fno_n_layer = 5
+            model_config.fno_n_layer = 6
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
+            train_config.weight_decay = 1e-2
         elif model_name == 'FNO-GRU':
             dataset_config.n_dataset = 300
             train_config.n_epoch = 1000
