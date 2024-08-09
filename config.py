@@ -363,8 +363,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         if model_name == 'GRU':
             dataset_config.n_dataset = 500
             train_config.n_epoch = 200
-            model_config.gru_n_layer = 10
-            model_config.gru_layer_width = 16
+            model_config.gru_n_layer = 8
+            model_config.gru_layer_width = 64
             model_config.batch_size = 256
         elif model_name == 'FNO':
             dataset_config.n_dataset = 500
