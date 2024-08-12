@@ -66,7 +66,7 @@ def plot_toy(test_point, plot_name, dataset_config, train_config, model):
                             max(numerical.U.max(), no.U.max(), switching.U.max()))
     plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[2], comment=False, ylim=[min_u, max_u])
     plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
-    plot_switch_segments(ts, switching, None, n_point_delay(0), ax=switching_axes[2], comment=True, ylim=[min_u, max_u])
+    plot_switch_segments(ts, switching, n_point_delay(0), ax=switching_axes[2], comment=True, ylim=[min_u, max_u])
 
     plt.savefig(f"./misc/plots/{plot_name}.pdf")
 
@@ -117,7 +117,7 @@ def plot_baxter(test_point, plot_name, dataset_config, train_config, model):
                             max(numerical.U.max(), no.U.max(), switching.U.max()))
     plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[3], comment=False, ylim=[min_u, max_u])
     plot_control(ts, no.U, None, n_point_delay, ax=no_axes[3], comment=False, ylim=[min_u, max_u])
-    plot_switch_segments(ts, switching, None, n_point_delay(0), ax=switching_axes[3], comment=True, ylim=[min_u, max_u])
+    plot_switch_segments(ts, switching, n_point_delay(0), ax=switching_axes[3], comment=True, ylim=[min_u, max_u])
 
     q_des = np.array([dataset_config.system.q_des(t) for t in ts])
     q_numerical = q_des - numerical.Z[:, :2]
@@ -204,11 +204,11 @@ def plot_alpha():
 
     min_u, max_u = interval(min(switching_alpha01.U.min(), switching_alpha02.U.min(), switching_alpha05.U.min()),
                             max(switching_alpha01.U.max(), switching_alpha02.U.max(), switching_alpha05.U.max()))
-    plot_switch_segments(ts, switching_alpha01, None, n_point_delay(0), ax=switching_alpha1_axes[2], comment=False,
+    plot_switch_segments(ts, switching_alpha01, n_point_delay(0), ax=switching_alpha1_axes[2], comment=False,
                          ylim=[min_u, max_u])
-    plot_switch_segments(ts, switching_alpha02, None, n_point_delay(0), ax=switching_alpha2_axes[2], comment=False,
+    plot_switch_segments(ts, switching_alpha02, n_point_delay(0), ax=switching_alpha2_axes[2], comment=False,
                          ylim=[min_u, max_u])
-    plot_switch_segments(ts, switching_alpha05, None, n_point_delay(0), ax=switching_alpha3_axes[2], comment=True,
+    plot_switch_segments(ts, switching_alpha05, n_point_delay(0), ax=switching_alpha3_axes[2], comment=True,
                          ylim=[min_u, max_u])
 
     n_point_start = n_point_delay(0)
