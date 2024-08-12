@@ -306,7 +306,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             # train_config.n_epoch = 500
             # model_config.gru_n_layer = 5
             # model_config.gru_layer_width = 16
-            dataset_config.n_dataset = 2000
+            dataset_config.n_dataset = 5000
             train_config.n_epoch = 500
             model_config.gru_n_layer = 8
             model_config.gru_layer_width = 16
@@ -330,7 +330,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             # model_config.fno_gru_fno_hidden_channels = 64
             # model_config.fno_gru_gru_n_layer = 4
             # model_config.fno_gru_gru_layer_width = 32
-            dataset_config.n_dataset = 1000
+            dataset_config.n_dataset = 2000
             train_config.n_epoch = 500
             train_config.weight_decay = 1e-4
             model_config.fno_gru_fno_n_layer = 2
