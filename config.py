@@ -430,9 +430,9 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             dataset_config.n_dataset = 250
             train_config.n_epoch = 750
             train_config.batch_size = 64
-            model_config.fno_n_layer = 12
+            model_config.fno_n_layer = 6
             model_config.fno_n_modes_height = 32
-            model_config.fno_hidden_channels = 32
+            model_config.fno_hidden_channels = 128
             train_config.weight_decay = 1e-2
         elif model_name == 'FNO-GRU':
             dataset_config.n_dataset = 250
