@@ -290,7 +290,7 @@ def head_points(P, n_point_start):
 
 def get_time_str():
     return time.strftime("%Y-%m-%d %H:%M:%S",
-                         datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-7))).timetuple())
+                         datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).timetuple())
 
 
 def count_params(model):

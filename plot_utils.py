@@ -350,9 +350,9 @@ def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
 
     for i in range(n_state):
         for j, (P, label) in enumerate(zip(Ps, Ps_labels)):
-            ax.plot(ts[n_point_start:], P[:, i], linestyle=styles[j], color=colors[i],
+            ax.plot(ts[2 * n_point_start:], P[n_point_start:, i], linestyle='--', color=colors[i],
                     label=f'$P^{{{label}}}_{i + 1}(t-{delay_label})$')
-        ax.plot(ts[n_point_start:], Z[n_point_start:, i], label=f'$Z_{i + 1}(t)$', linestyle='--', color=colors[i])
+        ax.plot(ts[n_point_start:], Z[n_point_start:, i], label=f'$Z_{i + 1}(t)$', linestyle='-', color=colors[i])
     if ylim is not None:
         try:
             ax.set_ylim(ylim)
@@ -397,9 +397,8 @@ def plot_difference(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
 
     for i in range(n_state):
         for j, (d, label) in enumerate(zip(differences, Ps_labels)):
-            ax.plot(ts[n_point_start:], d[:, i], linestyle=styles[j], color=colors[i],
-                    label=f'$\Delta P^{{{label}}}_{i + 1}$')
-    delay_label = str(delay(0)) if isinstance(delay, ConstantDelay) else 'D(t)'
+            ax.plot(ts[n_point_start:-n_point_start], d[n_point_start:, i], linestyle=styles[j], color=colors[i],
+                    label=f'$\Delta P^{{{label}}}_{i + 1}(t)$')
 
     if ylim is not None:
         try:
@@ -412,7 +411,7 @@ def plot_difference(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
             ax.legend(loc=legend_loc)
         else:
             ax.legend(handles=[Line2D([0], [0], color='black', linestyle='-')],
-                      labels=[f'$\Delta P(t-{delay_label})$'], loc=legend_loc)
+                      labels=[f'$\Delta P(t)$'], loc=legend_loc)
     if figure is not None and save_path is not None:
         figure.savefig(save_path)
         figure.clear()
