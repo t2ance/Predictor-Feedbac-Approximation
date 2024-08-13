@@ -302,10 +302,10 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-6)
         if model_name == 'GRU':
-            dataset_config.n_dataset = 150
+            dataset_config.n_dataset = 1000
             train_config.n_epoch = 250
             model_config.gru_n_layer = 3
-            model_config.gru_layer_width = 128
+            model_config.gru_layer_width = 256
             train_config.weight_decay = 0
             # dataset_config.n_dataset = 5000
             # train_config.n_epoch = 500
