@@ -60,152 +60,138 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tup
     if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU):
         model.reset_state()
     if silence:
-        bar = range(dataset_config.n_point)
+        bar = range(n_point_start + 1, dataset_config.n_point)
     else:
-        bar = tqdm(range(dataset_config.n_point))
+        bar = tqdm(range(n_point_start + 1, dataset_config.n_point))
     for t_i in bar:
         t = ts[t_i]
         t_i_delayed = max(t_i - dataset_config.n_point_delay(t), 0)
-        if method == 'explicit':
-            U[t_i] = system.U_explicit(t, Z0)
-            if t_i > n_point_start:
-                Z[t_i, :] = system.Z_explicit(t, Z0)
-        else:
-            # estimate system state
-            if t_i > n_point_start:
-                Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_i_delayed - 1],))[1]
-                Z_t = Z[t_i, :]
-            else:
-                Z_t = Z0 + dataset_config.noise()
-            Z_t += dataset_config.noise()
-            # estimate prediction and control signal
 
-            # set the ground truth
+        Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_i_delayed - 1],))[1]
+        Z_t = Z[t_i, :] + dataset_config.noise()
+        # estimate prediction and control signal
+
+        # set the ground truth
+        solution = solve_integral(Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
+                                  dataset_config=dataset_config, delay=dataset_config.delay)
+        P_numerical[t_i, :] = solution.solution
+
+        if method == 'numerical':
+            begin = time.time()
             solution = solve_integral(Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
                                       dataset_config=dataset_config, delay=dataset_config.delay)
             P_numerical[t_i, :] = solution.solution
+            P_numerical_n_iters[t_i] = solution.n_iter
+            end = time.time()
+            runtime += end - begin
+            U[t_i] = system.kappa(P_numerical[t_i, :], t)
+        elif method == 'no':
+            U_D = pad_zeros(segment=U[t_i_delayed:t_i], length=max_n_point_delay)
+            begin = time.time()
+            P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
+            end = time.time()
+            runtime += end - begin
+            U[t_i] = system.kappa(P_no[t_i, :], t)
+        elif method == 'numerical_no':
+            begin = time.time()
+            solution = solve_integral(
+                Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
+                dataset_config=dataset_config, delay=dataset_config.delay)
+            P_numerical[t_i, :] = solution.solution
+            P_numerical_n_iters[t_i] = solution.n_iter
 
-            if method == 'numerical':
-                begin = time.time()
-                solution = solve_integral(Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
-                                          dataset_config=dataset_config, delay=dataset_config.delay)
-                P_numerical[t_i, :] = solution.solution
-                P_numerical_n_iters[t_i] = solution.n_iter
-                end = time.time()
-                runtime += end - begin
-                if t_i >= n_point_start:
-                    U[t_i] = system.kappa(P_numerical[t_i, :], t)
-            elif method == 'no':
-                U_D = pad_zeros(segment=U[t_i_delayed:t_i], length=max_n_point_delay)
-                begin = time.time()
-                P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
-                end = time.time()
-                runtime += end - begin
-                if t_i >= n_point_start:
-                    U[t_i] = system.kappa(P_no[t_i, :], t)
-            elif method == 'numerical_no':
-                begin = time.time()
-                solution = solve_integral(
-                    Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
-                    dataset_config=dataset_config, delay=dataset_config.delay)
-                P_numerical[t_i, :] = solution.solution
-                P_numerical_n_iters[t_i] = solution.n_iter
-
-                U_D = pad_zeros(segment=U[t_i_delayed:t_i], length=n_point_start)
-                P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
-                end = time.time()
-                runtime += end - begin
-                if t_i >= n_point_start:
-                    U[t_i] = system.kappa(P_numerical[t_i, :], t)
-            elif method == 'switching':
-                U_D = pad_zeros(segment=U[t_i_delayed:t_i], length=max_n_point_delay)
-                begin = time.time()
-                P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
-                if t_i >= n_point_start:
-                    # actuate the controller
-                    start_point = 2 * n_point_start
-                    # start_point = n_point_start
-                    if t_i >= start_point:
-                        # System switching
-                        # (1) Get the uncertainty of no model
-                        P_no_Ri[t_i] = np.linalg.norm(P_no[t_i - n_point_start, :] - Z_t)
-                        if train_config.uq_adaptive:
-                            quantile = (1 - min(1, max(alpha_t, 0))) * 100
-                        else:
-                            quantile = (1 - alpha) * 100
-
-                        Ris = P_no_Ri[start_point:t_i + 1]
-                        if train_config.uq_type == 'conformal prediction':
-                            Q = np.percentile(Ris, quantile)
-                        else:
-                            Q = norm.ppf(quantile, loc=np.mean(Ris), scale=np.std(Ris))
-
-                        e_t = 0 if P_no_Ri[t_i] <= Q else 1
-                        # (2) Assign the indicator
-                        if train_config.uq_switching_type == 'switching':
-                            if e_t == 0:
-                                # switch to no scheme if possible
-                                if switching_indicator[t_i - 1] == 1:
-                                    t_last_no = np.where(switching_indicator[:t_i] == 0)[0][-1]
-                                    if t_i - t_last_no > n_point_start:
-                                        # switch back
-                                        switching_indicator[t_i] = 0
-                                    else:
-                                        # cannot switch
-                                        switching_indicator[t_i] = 1
-                                else:
-                                    # keeping using no
-                                    switching_indicator[t_i] = 0
-                            else:
-                                # use to numerical scheme
-                                switching_indicator[t_i] = 1
-                        elif train_config.uq_switching_type == 'alternating':
-                            # alternating between no and numerical arbitrarily
-                            # if indicator is 1, then use numerical scheme, otherwise no scheme
-                            switching_indicator[t_i] = e_t
-
-                        # (3) Select the sub-controller
-                        if switching_indicator[t_i] == 0:
-                            P_switching[t_i, :] = P_no[t_i, :]
-                            p_no_count += 1
-                        else:
-                            P_numerical[t_i, :] = solve_integral(
-                                Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
-                                dataset_config=dataset_config, delay=dataset_config.delay).solution
-                            P_switching[t_i, :] = P_numerical[t_i, :]
-                            p_numerical_count += 1
-                        alpha_t += train_config.uq_gamma * (train_config.uq_alpha - e_t)
-                        alpha_ts[t_i] = alpha_t
-                        q_ts[t_i] = Q
-                        e_ts[t_i] = e_t
-                    else:
-                        # Warm start
-                        P_numerical[t_i, :] = solve_integral(
-                            Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
-                            dataset_config=dataset_config, delay=dataset_config.delay).solution
-                        P_switching[t_i, :] = P_numerical[t_i, :]
-                        p_numerical_count += 1
-                        switching_indicator[t_i] = 1
-
-                    U[t_i] = system.kappa(P_switching[t_i, :], t)
-                end = time.time()
-                runtime += end - begin
-            elif method == 'scheduled_sampling':
-                solution = solve_integral(
-                    Z_t=Z_t, P_D=P_no[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t, dataset_config=dataset_config,
-                    delay=dataset_config.delay)
-                P_numerical[t_i, :] = solution.solution
-                if np.random.binomial(n=1, p=train_config.scheduled_sampling_p) == 1:
-                    # Teacher Forcing
-                    P_no[t_i, :] = solution.solution
+            U_D = pad_zeros(segment=U[t_i_delayed:t_i], length=n_point_start)
+            P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
+            end = time.time()
+            runtime += end - begin
+            U[t_i] = system.kappa(P_numerical[t_i, :], t)
+        elif method == 'switching':
+            U_D = pad_zeros(segment=U[t_i_delayed:t_i], length=max_n_point_delay)
+            begin = time.time()
+            P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
+            # actuate the controller
+            start_point = 2 * n_point_start
+            # start_point = n_point_start
+            if t_i >= start_point:
+                # System switching
+                # (1) Get the uncertainty of no model
+                P_no_Ri[t_i] = np.linalg.norm(P_no[t_i - n_point_start, :] - Z_t)
+                if train_config.uq_adaptive:
+                    quantile = (1 - min(1, max(alpha_t, 0))) * 100
                 else:
-                    # Not Teacher Forcing
-                    P_no[t_i, :] = solve_integral_nn(model=model, U_D=pad_zeros(
-                        segment=U[t_i_delayed:t_i], length=max_n_point_delay), Z_t=Z_t, t=t)
-                if t_i >= n_point_start:
-                    U[t_i] = system.kappa(P_no[t_i, :], t)
+                    quantile = (1 - alpha) * 100
+
+                Ris = P_no_Ri[start_point:t_i + 1]
+                if train_config.uq_type == 'conformal prediction':
+                    Q = np.percentile(Ris, quantile)
+                else:
+                    Q = norm.ppf(quantile, loc=np.mean(Ris), scale=np.std(Ris))
+
+                e_t = 0 if P_no_Ri[t_i] <= Q else 1
+                # (2) Assign the indicator
+                if train_config.uq_switching_type == 'switching':
+                    if e_t == 0:
+                        # switch to no scheme if possible
+                        if switching_indicator[t_i - 1] == 1:
+                            t_last_no = np.where(switching_indicator[:t_i] == 0)[0][-1]
+                            if t_i - t_last_no > n_point_start:
+                                # switch back
+                                switching_indicator[t_i] = 0
+                            else:
+                                # cannot switch
+                                switching_indicator[t_i] = 1
+                        else:
+                            # keeping using no
+                            switching_indicator[t_i] = 0
+                    else:
+                        # use to numerical scheme
+                        switching_indicator[t_i] = 1
+                elif train_config.uq_switching_type == 'alternating':
+                    # alternating between no and numerical arbitrarily
+                    # if indicator is 1, then use numerical scheme, otherwise no scheme
+                    switching_indicator[t_i] = e_t
+
+                # (3) Select the sub-controller
+                if switching_indicator[t_i] == 0:
+                    P_switching[t_i, :] = P_no[t_i, :]
+                    p_no_count += 1
+                else:
+                    P_numerical[t_i, :] = solve_integral(
+                        Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
+                        dataset_config=dataset_config, delay=dataset_config.delay).solution
+                    P_switching[t_i, :] = P_numerical[t_i, :]
+                    p_numerical_count += 1
+                alpha_t += train_config.uq_gamma * (train_config.uq_alpha - e_t)
+                alpha_ts[t_i] = alpha_t
+                q_ts[t_i] = Q
+                e_ts[t_i] = e_t
             else:
-                raise NotImplementedError()
+                # Warm start
+                P_numerical[t_i, :] = solve_integral(
+                    Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
+                    dataset_config=dataset_config, delay=dataset_config.delay).solution
+                P_switching[t_i, :] = P_numerical[t_i, :]
+                p_numerical_count += 1
+                switching_indicator[t_i] = 1
+
+            U[t_i] = system.kappa(P_switching[t_i, :], t)
+            end = time.time()
+            runtime += end - begin
+        elif method == 'scheduled_sampling':
+            solution = solve_integral(
+                Z_t=Z_t, P_D=P_no[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t, dataset_config=dataset_config,
+                delay=dataset_config.delay)
+            P_numerical[t_i, :] = solution.solution
+            if np.random.binomial(n=1, p=train_config.scheduled_sampling_p) == 1:
+                # Teacher Forcing
+                P_no[t_i, :] = solution.solution
+            else:
+                # Not Teacher Forcing
+                P_no[t_i, :] = solve_integral_nn(model=model, U_D=pad_zeros(
+                    segment=U[t_i_delayed:t_i], length=max_n_point_delay), Z_t=Z_t, t=t)
+            U[t_i] = system.kappa(P_no[t_i, :], t)
+        else:
+            raise NotImplementedError()
 
     plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_switching, Z, U, method)
 
@@ -844,9 +830,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     dataset_config_, model_config_, train_config_ = config.get_config(system_=args.s, delay=args.delay,
                                                                       model_name=args.model_name)
-    # dataset_config_.n_dataset = 10
-    # train_config_.batch_size = 2
-    # train_config_.n_epoch = 0
+    dataset_config_.n_dataset = 10
+    train_config_.batch_size = 2
+    train_config_.n_epoch = 3
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
     if args.training_type == 'offline' or args.training_type == 'sequence':
