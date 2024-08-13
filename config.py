@@ -302,7 +302,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-6)
         if model_name == 'GRU':
-            dataset_config.n_dataset = 250
+            dataset_config.n_dataset = 150
             train_config.n_epoch = 250
             model_config.gru_n_layer = 3
             model_config.gru_layer_width = 128
@@ -333,9 +333,9 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             # model_config.fno_gru_gru_n_layer = 4
             # model_config.fno_gru_gru_layer_width = 32
             train_config.learning_rate = 1e-4
-            dataset_config.n_dataset = 2000
+            dataset_config.n_dataset = 500
             train_config.n_epoch = 500
-            train_config.weight_decay = 1e-4
+            train_config.weight_decay = 0
             model_config.fno_gru_fno_n_layer = 2
             model_config.fno_gru_fno_n_modes_height = 64
             model_config.fno_gru_fno_hidden_channels = 64
