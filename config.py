@@ -319,9 +319,9 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             # model_config.fno_hidden_channels = 32
             dataset_config.n_dataset = 1000
             train_config.n_epoch = 500
-            model_config.fno_n_layer = 4
-            model_config.fno_n_modes_height = 16
-            model_config.fno_hidden_channels = 16
+            model_config.fno_n_layer = 3
+            model_config.fno_n_modes_height = 64
+            model_config.fno_hidden_channels = 64
         elif model_name == 'FNO-GRU':
             # dataset_config.n_dataset = 250
             # train_config.n_epoch = 500
@@ -336,8 +336,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.n_epoch = 500
             train_config.weight_decay = 1e-4
             model_config.fno_gru_fno_n_layer = 2
-            model_config.fno_gru_fno_n_modes_height = 16
-            model_config.fno_gru_fno_hidden_channels = 16
+            model_config.fno_gru_fno_n_modes_height = 64
+            model_config.fno_gru_fno_hidden_channels = 64
             # model_config.fno_gru_gru_n_layer = 5
             # model_config.fno_gru_gru_layer_width = 16
             model_config.fno_gru_gru_n_layer = 3
@@ -390,6 +390,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO':
             dataset_config.n_dataset = 200
             train_config.n_epoch = 250
+            train_config.learning_rate = 5e-5
             train_config.batch_size = 256
             model_config.fno_n_layer = 4
             model_config.fno_n_modes_height = 32
@@ -397,6 +398,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO-GRU':
             dataset_config.n_dataset = 200
             train_config.n_epoch = 200
+            train_config.learning_rate = 5e-5
             model_config.fno_gru_fno_n_layer = 4
             model_config.fno_gru_fno_n_modes_height = 16
             model_config.fno_gru_fno_hidden_channels = 16
@@ -422,26 +424,26 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         if model_name == 'GRU':
             dataset_config.n_dataset = 250
             train_config.n_epoch = 250
-            model_config.gru_n_layer = 6
-            model_config.gru_layer_width = 64
+            model_config.gru_n_layer = 3
+            model_config.gru_layer_width = 128
             train_config.batch_size = 16
             train_config.learning_rate = 5e-5
         elif model_name == 'FNO':
             dataset_config.n_dataset = 250
-            train_config.n_epoch = 750
+            train_config.n_epoch = 250
             train_config.batch_size = 64
-            model_config.fno_n_layer = 6
-            model_config.fno_n_modes_height = 32
-            model_config.fno_hidden_channels = 128
+            model_config.fno_n_layer = 3
+            model_config.fno_n_modes_height = 128
+            model_config.fno_hidden_channels = 256
             train_config.weight_decay = 1e-2
         elif model_name == 'FNO-GRU':
             dataset_config.n_dataset = 250
             train_config.n_epoch = 500
             model_config.fno_gru_fno_n_layer = 3
-            model_config.fno_gru_fno_n_modes_height = 32
-            model_config.fno_gru_fno_hidden_channels = 32
+            model_config.fno_gru_fno_n_modes_height = 64
+            model_config.fno_gru_fno_hidden_channels = 64
             model_config.fno_gru_gru_n_layer = 2
-            model_config.fno_gru_gru_layer_width = 32
+            model_config.fno_gru_gru_layer_width = 128
     else:
         raise NotImplementedError()
     if n_iteration is not None:
