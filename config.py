@@ -302,7 +302,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-6)
         if model_name == 'GRU':
-            dataset_config.n_dataset = 1000
+            dataset_config.n_dataset = 200
             train_config.n_epoch = 250
             model_config.gru_n_layer = 3
             model_config.gru_layer_width = 256
@@ -312,19 +312,13 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             # model_config.gru_n_layer = 8
             # model_config.gru_layer_width = 16
             # train_config.learning_rate = 1e-4
-        elif model_name == 'LSTM':
-            dataset_config.n_dataset = 1000
-            train_config.n_epoch = 250
-            model_config.lstm_n_layer = 5
-            model_config.lstm_layer_width = 128
-            train_config.weight_decay = 0
         elif model_name == 'FNO':
             # dataset_config.n_dataset = 1000
             # train_config.n_epoch = 500
             # model_config.fno_n_layer = 4
             # model_config.fno_n_modes_height = 16
             # model_config.fno_hidden_channels = 32
-            dataset_config.n_dataset = 1000
+            dataset_config.n_dataset = 200
             train_config.n_epoch = 500
             model_config.fno_n_layer = 3
             model_config.fno_n_modes_height = 64
@@ -339,7 +333,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             # model_config.fno_gru_gru_n_layer = 4
             # model_config.fno_gru_gru_layer_width = 32
             train_config.learning_rate = 1e-4
-            dataset_config.n_dataset = 500
+            dataset_config.n_dataset = 200
             train_config.n_epoch = 500
             train_config.weight_decay = 0
             model_config.fno_gru_fno_n_layer = 2
