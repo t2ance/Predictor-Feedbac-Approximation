@@ -302,47 +302,39 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-6)
         if model_name == 'GRU':
-            dataset_config.n_dataset = 200
+            dataset_config.n_dataset = 1000
             train_config.n_epoch = 250
             model_config.gru_n_layer = 3
-            model_config.gru_layer_width = 256
+            # model_config.gru_layer_width = 256
+            model_config.gru_layer_width = 32
             train_config.weight_decay = 0
-            # dataset_config.n_dataset = 5000
-            # train_config.n_epoch = 500
-            # model_config.gru_n_layer = 8
-            # model_config.gru_layer_width = 16
-            # train_config.learning_rate = 1e-4
+        elif model_name == 'LSTM':
+            dataset_config.n_dataset = 1000
+            train_config.n_epoch = 250
+            model_config.lstm_n_layer = 5
+            model_config.lstm_layer_width = 128
+            train_config.weight_decay = 0
         elif model_name == 'FNO':
-            # dataset_config.n_dataset = 1000
-            # train_config.n_epoch = 500
-            # model_config.fno_n_layer = 4
-            # model_config.fno_n_modes_height = 16
-            # model_config.fno_hidden_channels = 32
-            dataset_config.n_dataset = 200
+            dataset_config.n_dataset = 1000
             train_config.n_epoch = 500
             model_config.fno_n_layer = 3
-            model_config.fno_n_modes_height = 64
-            model_config.fno_hidden_channels = 64
+            # model_config.fno_n_modes_height = 64
+            # model_config.fno_hidden_channels = 64
+            model_config.fno_n_modes_height = 16
+            model_config.fno_hidden_channels = 16
         elif model_name == 'FNO-GRU':
-            # dataset_config.n_dataset = 250
-            # train_config.n_epoch = 500
-            # train_config.weight_decay = 1e-4
-            # model_config.fno_gru_fno_n_layer = 6
-            # model_config.fno_gru_fno_n_modes_height = 64
-            # model_config.fno_gru_fno_hidden_channels = 64
-            # model_config.fno_gru_gru_n_layer = 4
-            # model_config.fno_gru_gru_layer_width = 32
             train_config.learning_rate = 1e-4
-            dataset_config.n_dataset = 200
+            dataset_config.n_dataset = 500
             train_config.n_epoch = 500
             train_config.weight_decay = 0
             model_config.fno_gru_fno_n_layer = 2
-            model_config.fno_gru_fno_n_modes_height = 256
-            model_config.fno_gru_fno_hidden_channels = 256
-            # model_config.fno_gru_gru_n_layer = 5
-            # model_config.fno_gru_gru_layer_width = 16
+            # model_config.fno_gru_fno_n_modes_height = 256
+            # model_config.fno_gru_fno_hidden_channels = 256
+            model_config.fno_gru_fno_n_modes_height = 16
+            model_config.fno_gru_fno_hidden_channels = 16
             model_config.fno_gru_gru_n_layer = 3
-            model_config.fno_gru_gru_layer_width = 256
+            # model_config.fno_gru_gru_layer_width = 256
+            model_config.fno_gru_gru_layer_width = 16
     elif system_ == 's2':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(1), duration=8, dt=0.05, n_dataset=100,
