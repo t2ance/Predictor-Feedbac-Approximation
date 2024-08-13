@@ -400,9 +400,9 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             dataset_config.n_dataset = 200
             train_config.n_epoch = 200
             train_config.learning_rate = 5e-5
-            model_config.fno_gru_fno_n_layer = 4
-            model_config.fno_gru_fno_n_modes_height = 16
-            model_config.fno_gru_fno_hidden_channels = 16
+            model_config.fno_gru_fno_n_layer = 3
+            model_config.fno_gru_fno_n_modes_height = 64
+            model_config.fno_gru_fno_hidden_channels = 64
             model_config.fno_gru_gru_n_layer = 4
             model_config.fno_gru_gru_layer_width = 64
     elif system_ == 's6':
