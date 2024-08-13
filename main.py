@@ -467,20 +467,20 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         n_point_start = dataset_config.n_point_start()
         n_point_delay = dataset_config.n_point_delay
 
-        # predictions = result.P_numerical[n_point_start:]
-        # true_values = result.Z[n_point_start:]
-        # Ps = np.array(predictions)
-        # Zs = np.array(true_values)
-        # horizon = np.array(dataset_config.ts[n_point_start:])
-        # Us = [pad_zeros(result.U[idx + n_point_start - n_point_delay(t): idx + n_point_start], max_n_point_delay,
-        #                 leading=True) for idx, t in enumerate(horizon)]
-
-        predictions = result.P_numerical
-        true_values = result.Z
+        predictions = result.P_numerical[n_point_start:]
+        true_values = result.Z[n_point_start:]
         Ps = np.array(predictions)
         Zs = np.array(true_values)
-        horizon = dataset_config.ts
-        Us = [pad_zeros(result.U[idx - n_point_delay(t): idx], max_n_point_delay) for idx, t in enumerate(horizon)]
+        horizon = np.array(dataset_config.ts[n_point_start:])
+        Us = [pad_zeros(result.U[idx + n_point_start - n_point_delay(t): idx + n_point_start], max_n_point_delay,
+                        leading=True) for idx, t in enumerate(horizon)]
+
+        # predictions = result.P_numerical
+        # true_values = result.Z
+        # Ps = np.array(predictions)
+        # Zs = np.array(true_values)
+        # horizon = dataset_config.ts
+        # Us = [pad_zeros(result.U[idx - n_point_delay(t): idx], max_n_point_delay) for idx, t in enumerate(horizon)]
 
         samples = []
         for p, z, t, u in zip(Ps, Zs, horizon, Us):
