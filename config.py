@@ -337,8 +337,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.n_epoch = 500
             train_config.weight_decay = 0
             model_config.fno_gru_fno_n_layer = 2
-            model_config.fno_gru_fno_n_modes_height = 64
-            model_config.fno_gru_fno_hidden_channels = 64
+            model_config.fno_gru_fno_n_modes_height = 256
+            model_config.fno_gru_fno_hidden_channels = 256
             # model_config.fno_gru_gru_n_layer = 5
             # model_config.fno_gru_gru_layer_width = 16
             model_config.fno_gru_gru_n_layer = 3
