@@ -566,7 +566,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
             f'{model_config.model_name} training loss': training_loss,
             f'{model_config.model_name} validating loss': validating_loss,
             f'{model_config.model_name} learning rate': optimizer.param_groups[0]['lr'],
-        }, step=epoch)
+        })
         training_loss_arr.append(training_loss)
 
     fig = plt.figure(figsize=set_size())
