@@ -58,7 +58,7 @@ class TrainConfig:
     load_model: Optional[bool] = field(default=False)
 
     scheduler_step_size: Optional[int] = field(default=1)
-    scheduler_gamma: Optional[float] = field(default=1.)
+    scheduler_gamma: Optional[float] = field(default=.99)
     scheduler_min_lr: Optional[float] = field(default=0.)
     scheduler_ratio_warmup: Optional[float] = field(default=0.02)
     scheduled_sampling_frequency: Optional[int] = field(default=10)
