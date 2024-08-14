@@ -148,7 +148,8 @@ def load_cp_hyperparameters(case: str):
         raise NotImplementedError()
 
 
-def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_config: DatasetConfig):
+def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_config: DatasetConfig,
+               fno: FNOProjection = None):
     model_name = model_config.model_name
     device = train_config.device
     n_state = dataset_config.system.n_state
@@ -191,7 +192,8 @@ def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_con
                                  hidden_channels=model_config.fno_gru_fno_hidden_channels, n_state=n_state,
                                  fno_n_layers=model_config.fno_gru_fno_n_layer,
                                  gru_n_layers=model_config.fno_gru_gru_n_layer,
-                                 gru_layer_width=model_config.fno_gru_gru_layer_width)
+                                 gru_layer_width=model_config.fno_gru_gru_layer_width,
+                                 fno=fno)
     else:
         raise NotImplementedError()
     n_params = count_params(model)

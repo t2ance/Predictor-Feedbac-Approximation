@@ -344,27 +344,6 @@ def fft_transform(input_tensor, target_length):
     return output.to(input_tensor.device)
 
 
-class FNOProjectionGRU(torch.nn.Module):
-    def __init__(self, n_modes_height: int, hidden_channels: int, fno_n_layers: int, gru_n_layers: int,
-                 gru_layer_width: int, n_state: int, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fno = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
-                                 n_layers=fno_n_layers)
-        self.gru = GRUNet(input_size=n_state, hidden_size=n_state * gru_layer_width, num_layers=gru_n_layers,
-                          output_size=n_state)
-        self.mse_loss = torch.nn.MSELoss()
-
-    def forward(self, x: torch.Tensor, label: torch.Tensor = None):
-        x = self.fno(x)
-        x = self.gru(x)
-        if label is None:
-            return x
-        return x, self.mse_loss(x, label)
-
-    def reset_state(self):
-        self.gru.reset_state()
-
-
 class FNOProjection(torch.nn.Module):
     def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, n_state: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -431,6 +410,31 @@ class FNOTwoStage(torch.nn.Module):
         if label is None:
             return x
         return x, self.mse_loss(x, label)
+
+
+class FNOProjectionGRU(torch.nn.Module):
+    def __init__(self, n_modes_height: int, hidden_channels: int, fno_n_layers: int, gru_n_layers: int,
+                 gru_layer_width: int, n_state: int, fno: FNOProjection = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if fno is None:
+            fno = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
+                                n_layers=fno_n_layers)
+        else:
+            print('Pretrained FNO model loaded to FNO-GRU')
+        self.fno = fno
+        self.gru = GRUNet(input_size=n_state, hidden_size=n_state * gru_layer_width, num_layers=gru_n_layers,
+                          output_size=n_state)
+        self.mse_loss = torch.nn.MSELoss()
+
+    def forward(self, x: torch.Tensor, label: torch.Tensor = None):
+        x = self.fno(x)
+        x = self.gru(x)
+        if label is None:
+            return x
+        return x, self.mse_loss(x, label)
+
+    def reset_state(self):
+        self.gru.reset_state()
 
 
 if __name__ == '__main__':

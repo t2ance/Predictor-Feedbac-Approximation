@@ -444,25 +444,15 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
     return model
 
 
-def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
-    device = train_config.device
-    batch_size = train_config.batch_size
-    img_save_path = model_config.base_path
+def create_sequence_dataset(dataset_config: DatasetConfig, train_config: TrainConfig):
     n_dataset = dataset_config.n_dataset
-    model, model_loaded = load_model(train_config, model_config, dataset_config)
-    optimizer = load_optimizer(model.parameters(), train_config)
-    scheduler = load_lr_scheduler(optimizer, train_config)
-    training_loss_arr = []
-    check_dir(img_save_path)
     max_n_point_delay = dataset_config.max_n_point_delay()
-    print('Begin Generating Dataset...')
-
     training_dataset = []
     validating_dataset = []
     for dataset_idx in tqdm(range(n_dataset)):
         Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
                                size=(dataset_config.n_state,))
-        result = simulation(dataset_config, train_config, Z0, 'numerical', model)
+        result = simulation(dataset_config, train_config, Z0, 'numerical')
 
         n_point_start = dataset_config.n_point_start()
         n_point_delay = dataset_config.n_point_delay
@@ -474,14 +464,6 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         horizon = np.array(dataset_config.ts[n_point_start:])
         Us = [pad_zeros(result.U[idx + n_point_start - n_point_delay(t): idx + n_point_start], max_n_point_delay,
                         leading=True) for idx, t in enumerate(horizon)]
-
-        # predictions = result.P_numerical
-        # true_values = result.Z
-        # Ps = np.array(predictions)
-        # Zs = np.array(true_values)
-        # horizon = dataset_config.ts
-        # Us = [pad_zeros(result.U[idx - n_point_delay(t): idx], max_n_point_delay) for idx, t in enumerate(horizon)]
-
         samples = []
         for p, z, t, u in zip(Ps, Zs, horizon, Us):
             samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(p)))
@@ -491,6 +473,22 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         else:
             validating_dataset.append(samples)
 
+    return training_dataset, validating_dataset
+
+
+def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig,
+                          training_dataset, validating_dataset, fno=None):
+    device = train_config.device
+    batch_size = train_config.batch_size
+    img_save_path = model_config.base_path
+    model, model_loaded = load_model(train_config, model_config, dataset_config, fno=fno)
+    if isinstance(model, FNOProjectionGRU):
+        optimizer = load_optimizer(model.gru.parameters(), train_config)
+    else:
+        optimizer = load_optimizer(model.parameters(), train_config)
+    scheduler = load_lr_scheduler(optimizer, train_config)
+    training_loss_arr = []
+    check_dir(img_save_path)
     model.train()
     print('Begin Training...')
     print(f'Training size: {len(training_dataset)}, Validating size: {len(validating_dataset)}')
@@ -565,9 +563,9 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         scheduler.step()
 
         wandb.log({
-            'training loss': training_loss,
-            'validating loss': validating_loss,
-            'learning rate': optimizer.param_groups[0]['lr'],
+            f'{model_config.model_name} training loss': training_loss,
+            f'{model_config.model_name} validating loss': validating_loss,
+            f'{model_config.model_name} learning rate': optimizer.param_groups[0]['lr'],
         }, step=epoch)
         training_loss_arr.append(training_loss)
 
@@ -776,8 +774,19 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         model = run_offline_training(dataset_config=dataset_config, model_config=model_config,
                                      train_config=train_config)
     elif train_config.training_type == 'sequence':
+        print('Begin Generating Dataset...')
+        training_dataset, validating_dataset = create_sequence_dataset(dataset_config, train_config)
+        if model_config.model_name == 'FNO-GRU':
+            model_config.model_name = 'FNO'
+            fno = run_sequence_training(dataset_config=dataset_config, model_config=model_config,
+                                        train_config=train_config, training_dataset=training_dataset,
+                                        validating_dataset=validating_dataset)
+            model_config.model_name = 'FNO-GRU'
+        else:
+            fno = None
         model = run_sequence_training(dataset_config=dataset_config, model_config=model_config,
-                                      train_config=train_config)
+                                      train_config=train_config, training_dataset=training_dataset,
+                                      validating_dataset=validating_dataset, fno=fno)
     elif train_config.training_type == 'scheduled sampling':
         model = run_scheduled_sampling_training(dataset_config=dataset_config, model_config=model_config,
                                                 train_config=train_config)
@@ -821,7 +830,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', type=str, default='s1')
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='sequence')
-    parser.add_argument('-model_name', type=str, default='GRU')
+    parser.add_argument('-model_name', type=str, default='FNO-GRU')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)
@@ -830,9 +839,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     dataset_config_, model_config_, train_config_ = config.get_config(system_=args.s, delay=args.delay,
                                                                       model_name=args.model_name)
-    # dataset_config_.n_dataset = 10
-    # train_config_.batch_size = 2
-    # train_config_.n_epoch = 3
+    dataset_config_.n_dataset = 10
+    train_config_.batch_size = 2
+    train_config_.n_epoch = 3
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
     if args.training_type == 'offline' or args.training_type == 'sequence':
