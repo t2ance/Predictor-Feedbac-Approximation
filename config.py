@@ -318,6 +318,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
         elif model_name == 'FNO-GRU':
+            train_config.scheduler_gamma = 0.995
             train_config.learning_rate = 1e-3
             dataset_config.n_dataset = 1000
             train_config.n_epoch = 500
