@@ -492,7 +492,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     model.train()
     print('Begin Training...')
     print(f'Training size: {len(training_dataset)}, Validating size: {len(validating_dataset)}')
-    for epoch in tqdm(range(train_config.n_epoch)):
+    for _ in tqdm(range(train_config.n_epoch)):
         np.random.shuffle(training_dataset)
 
         n_epoch = 0
@@ -769,39 +769,7 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, train_config: Train
     return all_samples
 
 
-def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
-    if train_config.training_type == 'offline' or train_config.training_type == 'switching':
-        model = run_offline_training(dataset_config=dataset_config, model_config=model_config,
-                                     train_config=train_config)
-    elif train_config.training_type == 'sequence':
-        print('Begin Generating Dataset...')
-        training_dataset, validating_dataset = create_sequence_dataset(dataset_config, train_config)
-        if model_config.model_name == 'FNO-GRU':
-            model_config.model_name = 'FNO'
-            fno = run_sequence_training(dataset_config=dataset_config, model_config=model_config,
-                                        train_config=train_config, training_dataset=training_dataset,
-                                        validating_dataset=validating_dataset)
-            model_config.model_name = 'FNO-GRU'
-        else:
-            fno = None
-        model = run_sequence_training(dataset_config=dataset_config, model_config=model_config,
-                                      train_config=train_config, training_dataset=training_dataset,
-                                      validating_dataset=validating_dataset, fno=fno)
-    elif train_config.training_type == 'scheduled sampling':
-        model = run_scheduled_sampling_training(dataset_config=dataset_config, model_config=model_config,
-                                                train_config=train_config)
-    else:
-        raise NotImplementedError()
-    model_save_path = f'{train_config.model_save_path}/{model_config.model_name}.pth'
-    torch.save(model.state_dict(), model_save_path)
-    arti_model = wandb.Artifact('model', type='model')
-    arti_model.add_file(model_save_path)
-    wandb.log_artifact(arti_model)
-
-    test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
-    print('All test points:')
-    print(test_points)
-
+def run_tests(model, train_config, dataset_config, model_config, test_points):
     if train_config.training_type == 'switching':
         return {
             'no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
@@ -822,6 +790,44 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
             'numerical_no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
                                      base_path=model_config.base_path, test_points=test_points, method='numerical_no')
         }
+
+
+def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
+    test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
+    print('All test points:')
+    print(test_points)
+
+    if train_config.training_type == 'offline' or train_config.training_type == 'switching':
+        model = run_offline_training(dataset_config=dataset_config, model_config=model_config,
+                                     train_config=train_config)
+    elif train_config.training_type == 'sequence':
+        print('Begin Generating Dataset...')
+        training_dataset, validating_dataset = create_sequence_dataset(dataset_config, train_config)
+        if model_config.model_name == 'FNO-GRU':
+            model_config.model_name = 'FNO'
+            fno = run_sequence_training(dataset_config=dataset_config, model_config=model_config,
+                                        train_config=train_config, training_dataset=training_dataset,
+                                        validating_dataset=validating_dataset)
+            model_config.model_name = 'FNO-GRU'
+            print('Run FNO as part of FNO-GRU')
+            run_tests(fno, train_config, dataset_config, model_config, test_points)
+        else:
+            fno = None
+        model = run_sequence_training(dataset_config=dataset_config, model_config=model_config,
+                                      train_config=train_config, training_dataset=training_dataset,
+                                      validating_dataset=validating_dataset, fno=fno)
+    elif train_config.training_type == 'scheduled sampling':
+        model = run_scheduled_sampling_training(dataset_config=dataset_config, model_config=model_config,
+                                                train_config=train_config)
+    else:
+        raise NotImplementedError()
+    model_save_path = f'{train_config.model_save_path}/{model_config.model_name}.pth'
+    torch.save(model.state_dict(), model_save_path)
+    arti_model = wandb.Artifact('model', type='model')
+    arti_model.add_file(model_save_path)
+    wandb.log_artifact(arti_model)
+
+    return run_tests(model, train_config, dataset_config, model_config, test_points)
 
 
 if __name__ == '__main__':
