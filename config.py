@@ -400,7 +400,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's7':
         dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
-                                       delay=TimeVaryingDelay(), duration=8, dt=0.02, n_dataset=250,
+                                       delay=TimeVaryingDelay(), duration=8, dt=0.01, n_dataset=250,
                                        n_sample_per_dataset=-1, ic_lower_bound=-0.5, ic_upper_bound=0.5)
         model_config = ModelConfig(model_name='FFN')
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
