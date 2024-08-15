@@ -48,6 +48,7 @@ class TrainConfig:
     do_training: Optional[bool] = field(default=True)
 
     batch_size: Optional[int] = field(default=64)
+    batch_size2_: Optional[int] = field(default=-1)
     learning_rate: Optional[float] = field(default=1e-4)
     weight_decay: Optional[float] = field(default=.0)
 
@@ -83,6 +84,10 @@ class TrainConfig:
     system: Optional[str] = field(default='s1')
 
     training_type: Optional[Literal['offline', 'switching', 'scheduled sampling']] = field(default='scheduled sampling')
+
+    @property
+    def batch_size2(self):
+        return self.batch_size2_ if self.batch_size2_ != -1 else self.batch_size
 
     @property
     def model_save_path(self):
@@ -292,7 +297,7 @@ class DatasetConfig:
 
 def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=None):
     if system_ == 's1':
-        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(1), duration=6, dt=0.1, n_dataset=1000,
                                        n_sample_per_dataset=-1, ic_lower_bound=0, ic_upper_bound=1,
                                        random_test_lower_bound=0, random_test_upper_bound=1)
@@ -326,7 +331,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             # model_config.fno_gru_gru_layer_width = 256
             model_config.fno_gru_gru_layer_width = 32
     elif system_ == 's2':
-        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(1), duration=8, dt=0.05, n_dataset=100,
                                        n_sample_per_dataset=-1, ic_lower_bound=-1, ic_upper_bound=1,
                                        successive_approximation_n_iteration=5)
@@ -336,7 +341,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         model_config = ModelConfig(model_name='FFN', fno_n_layer=5, fno_n_modes_height=32, fno_hidden_channels=64,
                                    ffn_layer_width=8)
     elif system_ == 's3':
-        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(0.3), duration=8, dt=0.05, n_dataset=10,
                                        n_sample_per_dataset=-1, ic_lower_bound=-1, ic_upper_bound=1)
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=100, batch_size=64,
@@ -355,7 +360,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    load_model=False, do_testing=False, scheduled_sampling_type='inverse sigmoid',
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's5':
-        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=10, dt=0.02, n_dataset=500,
                                        n_sample_per_dataset=-1, baxter_dof=2, ic_lower_bound=0, ic_upper_bound=1,
                                        random_test_lower_bound=0, random_test_upper_bound=1)
@@ -389,7 +394,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_gru_gru_n_layer = 4
             model_config.fno_gru_gru_layer_width = 32
     elif system_ == 's6':
-        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=32, dt=0.01, n_dataset=25,
                                        n_sample_per_dataset=-1, ic_lower_bound=-0.5,
                                        ic_upper_bound=0.5)
@@ -399,7 +404,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's7':
-        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
                                        delay=TimeVaryingDelay(), duration=8, dt=0.01, n_dataset=250,
                                        n_sample_per_dataset=-1, ic_lower_bound=-0.5, ic_upper_bound=0.5)
         model_config = ModelConfig(model_name='FFN')
@@ -421,11 +426,12 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_hidden_channels = 32
             train_config.weight_decay = 0
         elif model_name == 'FNO-GRU':
-            dataset_config.n_dataset = 500
+            dataset_config.n_dataset = 1000
             train_config.learning_rate = 1e-4
             train_config.n_epoch = 100
             train_config.weight_decay = 0
-            train_config.batch_size = 32
+            train_config.batch_size = 512
+            train_config.batch_size2_ = 16
             model_config.fno_n_layer = 3
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
