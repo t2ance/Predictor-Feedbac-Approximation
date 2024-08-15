@@ -1,5 +1,6 @@
 import argparse
 import os
+import pickle
 import random
 import time
 import uuid
@@ -802,7 +803,26 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
                                      train_config=train_config)
     elif train_config.training_type == 'sequence':
         print('Begin Generating Dataset...')
-        training_dataset, validating_dataset = create_sequence_dataset(dataset_config, train_config)
+
+        dataset_path = f'/data/feedback_control/{dataset_config.system_}/dataset.pkl'
+        if os.path.exists(dataset_path) and not dataset_config.recreate_training_dataset:
+            create_dataset = False
+        else:
+            create_dataset = True
+        if create_dataset:
+            training_dataset, validating_dataset = create_sequence_dataset(dataset_config, train_config)
+            print(f'Dataset loaded created')
+        else:
+            with open(dataset_path, 'rb') as file:
+                training_dataset, validating_dataset = pickle.load(file)
+            print(f'Dataset loaded from {dataset_path}')
+
+        if os.path.exists('/data') and create_dataset:
+            check_dir(f'/data/feedback_control/{dataset_config.system_}')
+            with open(dataset_path, 'wb') as file:
+                pickle.dump((training_dataset, validating_dataset), file)
+            print(f'Dataset saved to {dataset_path}')
+
         if model_config.model_name == 'FNO-GRU':
             model_config.model_name = 'FNO'
             fno = run_sequence_training(dataset_config=dataset_config, model_config=model_config,
