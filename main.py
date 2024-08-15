@@ -4,14 +4,14 @@ import random
 import time
 import uuid
 import warnings
-from typing import Literal, Tuple, List
+from typing import Literal, List
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import wandb
-from scipy.stats import norm
 from scipy.integrate import odeint
+from scipy.stats import norm
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -28,7 +28,7 @@ from utils import pad_zeros, metric, check_dir, predict_and_loss, load_lr_schedu
 warnings.filterwarnings('ignore')
 
 
-def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0: Tuple | np.ndarray | List,
+def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
                method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling'] = None,
                model=None, img_save_path: str = None, silence: bool = True):
     system: DynamicSystem = dataset_config.system
