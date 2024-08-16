@@ -464,7 +464,6 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_min_lr=1e-5)
-        dataset_config.n_training_dataset = 1000
         if model_name == 'GRU':
             dataset_config.n_training_dataset = 100
             dataset_config.n_validation_dataset = 10
