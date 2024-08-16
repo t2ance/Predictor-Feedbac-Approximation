@@ -829,7 +829,9 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
                                         train_config=train_config, training_dataset=training_dataset,
                                         validating_dataset=validating_dataset)
             model_config.model_name = 'FNO-GRU'
-            print('Run FNO as part of FNO-GRU')
+            print(
+                f'Run FNO as part of FNO-GRU, change batch size from {train_config.batch_size} to {train_config.batch_size2}')
+            train_config.batch_size = train_config.batch_size2
             run_tests(fno, train_config, dataset_config, model_config, test_points)
         else:
             fno = None

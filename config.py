@@ -259,8 +259,8 @@ class DatasetConfig:
             return dynamic_systems.InvertedPendulum()
         elif self.system_ == 's4':
             return dynamic_systems.VanDerPolOscillator()
-        elif self.system_ == 's5':
-            return dynamic_systems.Baxter(dof=self.baxter_dof, )
+        elif self.system_ == 's5' or self.system_ == 's8':
+            return dynamic_systems.Baxter(dof=self.baxter_dof)
         elif self.system_ == 's6':
             return dynamic_systems.DynamicSystem3()
         elif self.system_ == 's7':
@@ -305,7 +305,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         train_config = TrainConfig(learning_rate=1e-3, training_ratio=0.8, n_epoch=750, batch_size=128,
                                    do_training=True, do_testing=False, load_model=False,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
-                                   scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-6)
+                                   scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5)
         if model_name == 'GRU':
             dataset_config.n_dataset = 1000
             train_config.n_epoch = 250
@@ -368,7 +368,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', uq_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
-                                   scheduled_sampling_k=1e-2, do_testing=True)
+                                   scheduled_sampling_k=1e-2, scheduler_min_lr=1e-5)
         if model_name == 'GRU':
             dataset_config.n_dataset = 200
             train_config.n_epoch = 200
@@ -377,17 +377,17 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.batch_size = 128
         elif model_name == 'FNO':
             dataset_config.n_dataset = 500
-            train_config.n_epoch = 300
+            train_config.n_epoch = 500
             train_config.learning_rate = 1e-4
-            train_config.batch_size = 512
+            train_config.batch_size = 256
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 64
             model_config.fno_hidden_channels = 64
         elif model_name == 'FNO-GRU':
             dataset_config.n_dataset = 500
-            train_config.n_epoch = 100
-            train_config.batch_size = 512
-            train_config.batch_size2_ = 64
+            train_config.n_epoch = 500
+            train_config.batch_size = 256
+            train_config.batch_size2_ = 128
             train_config.learning_rate = 3e-4
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 64
@@ -410,10 +410,11 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                        n_sample_per_dataset=-1, ic_lower_bound=-0.5, ic_upper_bound=0.5)
         model_config = ModelConfig(model_name='FFN')
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
-                                   weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential')
+                                   weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
+                                   scheduler_min_lr=1e-5)
         if model_name == 'GRU':
-            dataset_config.n_dataset = 250
-            train_config.n_epoch = 250
+            dataset_config.n_dataset = 1000
+            train_config.n_epoch = 500
             model_config.gru_n_layer = 3
             model_config.gru_layer_width = 32
             train_config.batch_size = 32
@@ -421,7 +422,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO':
             dataset_config.n_dataset = 1000
             train_config.n_epoch = 500
-            train_config.batch_size = 1024
+            train_config.batch_size = 256
             model_config.fno_n_layer = 8
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
@@ -429,15 +430,51 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO-GRU':
             dataset_config.n_dataset = 1000
             train_config.learning_rate = 1e-4
-            train_config.n_epoch = 100
+            train_config.n_epoch = 500
             train_config.weight_decay = 0
             train_config.batch_size = 512
-            train_config.batch_size2_ = 16
+            train_config.batch_size2_ = 32
             model_config.fno_n_layer = 3
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
             model_config.fno_gru_gru_n_layer = 2
             model_config.fno_gru_gru_layer_width = 32
+    elif system_ == 's8':
+        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
+                                       delay=ConstantDelay(.5), duration=10, dt=0.05, n_dataset=500,
+                                       n_sample_per_dataset=-1, baxter_dof=5, ic_lower_bound=0, ic_upper_bound=1,
+                                       random_test_lower_bound=0, random_test_upper_bound=1)
+        model_config = ModelConfig(model_name='FNO')
+        train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
+                                   weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', uq_alpha=0.01,
+                                   scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
+                                   scheduled_sampling_k=1e-2, do_testing=True)
+        if model_name == 'GRU':
+            dataset_config.n_dataset = 200
+            train_config.n_epoch = 200
+            model_config.gru_n_layer = 4
+            model_config.gru_layer_width = 64
+            model_config.batch_size = 128
+        elif model_name == 'FNO':
+            dataset_config.n_dataset = 500
+            train_config.n_epoch = 300
+            train_config.learning_rate = 1e-4
+            train_config.batch_size = 512
+            model_config.fno_n_layer = 5
+            model_config.fno_n_modes_height = 64
+            model_config.fno_hidden_channels = 64
+        elif model_name == 'FNO-GRU':
+            dataset_config.n_dataset = 500
+            train_config.n_epoch = 100
+            train_config.batch_size = 512
+            train_config.batch_size2_ = 128
+            train_config.learning_rate = 3e-4
+            model_config.fno_n_layer = 5
+            model_config.fno_n_modes_height = 64
+            model_config.fno_hidden_channels = 64
+            model_config.fno_gru_gru_n_layer = 4
+            model_config.fno_gru_gru_layer_width = 32
+
     else:
         raise NotImplementedError()
     if n_iteration is not None:
