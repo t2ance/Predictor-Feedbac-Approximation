@@ -563,6 +563,8 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
             validating_loss /= n_epoch
 
         scheduler.step()
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = max(param_group['lr'], train_config.scheduler_min_lr)
 
         wandb.log({
             f'{model_config.model_name} training loss': training_loss,
