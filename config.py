@@ -79,12 +79,14 @@ class TrainConfig:
     training_ratio: Optional[float] = field(default=0.8)
     log_step: Optional[int] = field(default=10)
     n_epoch: Optional[int] = field(default=100)
+    n_epoch2_: Optional[int] = field(default=-1)
     device: Optional[str] = field(default='cuda')
     load_model: Optional[bool] = field(default=False)
 
     scheduler_step_size: Optional[int] = field(default=1)
     scheduler_gamma: Optional[float] = field(default=.99)
     scheduler_min_lr: Optional[float] = field(default=0.)
+    scheduler_min_lr2_: Optional[float] = field(default=-1)
     scheduler_ratio_warmup: Optional[float] = field(default=0.02)
     scheduled_sampling_frequency: Optional[int] = field(default=10)
     lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential', 'none']] = field(
@@ -112,6 +114,14 @@ class TrainConfig:
     @property
     def batch_size2(self):
         return self.batch_size2_ if self.batch_size2_ != -1 else self.batch_size
+
+    @property
+    def scheduler_min_lr2(self):
+        return self.scheduler_min_lr2_ if self.scheduler_min_lr2_ != -1 else self.scheduler_min_lr
+
+    @property
+    def n_epoch2(self):
+        return self.n_epoch2_ if self.n_epoch2_ != -1 else self.n_epoch
 
     @property
     def model_save_path(self):
@@ -367,10 +377,12 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_modes_height = 16
             model_config.fno_hidden_channels = 16
         elif model_name == 'FNO-GRU':
-            train_config.scheduler_min_lr = 1e-4
+            train_config.scheduler_min_lr = 1e-5
+            train_config.scheduler_min_lr2_ = 5e-4
+            train_config.n_epoch = 200
+            train_config.n_epoch2_ = 1000
             dataset_config.n_training_dataset = 100
             dataset_config.n_validation_dataset = 10
-            train_config.n_epoch = 1000
             train_config.weight_decay = 0
             model_config.fno_n_layer = 3
             model_config.fno_n_modes_height = 32

@@ -822,8 +822,11 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
                                         validating_dataset=validating_dataset)
             model_config.model_name = 'FNO-GRU'
             print(
-                f'Run FNO as part of FNO-GRU, change batch size from {train_config.batch_size} to {train_config.batch_size2}')
+                f'Run FNO as part of FNO-GRU, change batch size from {train_config.batch_size} to'
+                f' {train_config.batch_size2}, min lr from {train_config.scheduler_min_lr} to {train_config.scheduler_min_lr2}')
             train_config.batch_size = train_config.batch_size2
+            train_config.scheduler_min_lr = train_config.scheduler_min_lr2
+            train_config.n_epoch = train_config.n_epoch2
             run_tests(fno, train_config, dataset_config, model_config, test_points)
         else:
             fno = None
