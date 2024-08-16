@@ -1,8 +1,11 @@
 import itertools
+import os
+import pickle
 from dataclasses import dataclass, field
 from typing import Optional, Tuple, List, Literal
 
 import numpy as np
+import wandb
 
 import dynamic_systems
 from dynamic_systems import ConstantDelay, TimeVaryingDelay
@@ -294,10 +297,38 @@ class DatasetConfig:
             return 0
         return np.random.randn() * self.noise_epsilon
 
+    def load_dataset(self, run):
+        def read(dataset_dir, split):
+            with open(os.path.join(dataset_dir, split + ".pkl"), mode="rb") as file:
+                return pickle.load(file)
+
+        data = run.use_artifact(f'{self.system_}:latest')
+        dataset = data.download()
+
+        training_dataset = read(dataset, "training")
+        validation_dataset = read(dataset, "validation")
+        return training_dataset, validation_dataset
+
+    def save_dataset(self, run, training_dataset, validating_dataset):
+        datasets = [training_dataset, validating_dataset]
+        names = ["training", "validation"]
+
+        art = wandb.Artifact(
+            self.system_, type="dataset",
+            description=f"Dataset for system {self.system_}, used for training in sequence model",
+            metadata={'sizes': [len(dataset) for dataset in datasets]}
+        )
+
+        for name, data in zip(names, datasets):
+            with art.new_file(name + ".pkl", mode="wb") as file:
+                pickle.dump(data, file)
+
+        run.log_artifact(art)
+
 
 def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=None):
     if system_ == 's1':
-        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(1), duration=6, dt=0.1, n_dataset=1000,
                                        n_sample_per_dataset=-1, ic_lower_bound=0, ic_upper_bound=1,
                                        random_test_lower_bound=0, random_test_upper_bound=1)
@@ -360,7 +391,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    load_model=False, do_testing=False, scheduled_sampling_type='inverse sigmoid',
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's5':
-        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=10, dt=0.02, n_dataset=500,
                                        n_sample_per_dataset=-1, baxter_dof=2, ic_lower_bound=0, ic_upper_bound=1,
                                        random_test_lower_bound=0, random_test_upper_bound=1)
@@ -370,7 +401,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2, scheduler_min_lr=1e-5)
         if model_name == 'GRU':
-            dataset_config.n_dataset = 200
+            dataset_config.n_dataset = 500
             train_config.n_epoch = 200
             model_config.gru_n_layer = 4
             model_config.gru_layer_width = 64
@@ -405,7 +436,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's7':
-        dataset_config = DatasetConfig(recreate_training_dataset=False, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_training_dataset=True, data_generation_strategy='trajectory',
                                        delay=TimeVaryingDelay(), duration=8, dt=0.01, n_dataset=250,
                                        n_sample_per_dataset=-1, ic_lower_bound=-0.5, ic_upper_bound=0.5)
         model_config = ModelConfig(model_name='FFN')

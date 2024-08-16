@@ -804,24 +804,13 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     elif train_config.training_type == 'sequence':
         print('Begin Generating Dataset...')
 
-        dataset_path = f'/data/feedback_control/{dataset_config.system_}/dataset.pkl'
-        if os.path.exists(dataset_path) and not dataset_config.recreate_training_dataset:
-            create_dataset = False
-        else:
-            create_dataset = True
-        if create_dataset:
+        if dataset_config.recreate_training_dataset:
             training_dataset, validating_dataset = create_sequence_dataset(dataset_config, train_config)
-            print(f'Dataset loaded created')
+            dataset_config.save_dataset(run, training_dataset, validating_dataset)
+            print(f'Dataset created and saved')
         else:
-            with open(dataset_path, 'rb') as file:
-                training_dataset, validating_dataset = pickle.load(file)
-            print(f'Dataset loaded from {dataset_path}')
-
-        if os.path.exists('/data') and create_dataset:
-            check_dir(f'/data/feedback_control/{dataset_config.system_}')
-            with open(dataset_path, 'wb') as file:
-                pickle.dump((training_dataset, validating_dataset), file)
-            print(f'Dataset saved to {dataset_path}')
+            training_dataset, validating_dataset = dataset_config.load_dataset(run)
+            print(f'Dataset loaded')
 
         if model_config.model_name == 'FNO-GRU':
             model_config.model_name = 'FNO'
@@ -858,7 +847,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', type=str, default='s1')
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='sequence')
-    parser.add_argument('-model_name', type=str, default='FNO-GRU')
+    parser.add_argument('-model_name', type=str, default='FNO')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)
@@ -867,9 +856,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     dataset_config_, model_config_, train_config_ = config.get_config(system_=args.s, delay=args.delay,
                                                                       model_name=args.model_name)
-    # dataset_config_.n_dataset = 10
-    # train_config_.batch_size = 2
-    # train_config_.n_epoch = 3
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
     if args.training_type == 'offline' or args.training_type == 'sequence':
@@ -889,7 +875,7 @@ if __name__ == '__main__':
     print_args(model_config_)
     print_args(train_config_)
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
-    wandb.init(
+    run = wandb.init(
         project="no",
         name=f'{train_config_.system} {train_config_.training_type} {model_config_.model_name} {dataset_config_.delay.__class__.__name__} {get_time_str()}'
     )
