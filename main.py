@@ -871,6 +871,7 @@ if __name__ == '__main__':
         train_config_.lr_scheduler_type = 'none'
     else:
         raise NotImplementedError()
+    dataset_config_.n_training_dataset = 1000
 
     print_args(dataset_config_)
     print_args(model_config_)
