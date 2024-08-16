@@ -1,3 +1,5 @@
+import numpy as np
+
 import dynamic_systems
 from config import get_config
 from dynamic_systems import ConstantDelay, TimeVaryingDelay
@@ -32,19 +34,18 @@ def baxter_test2dof():
     print(result.runtime)
 
 
-def baxter_test5dof():
+def baxter_test_n_dof(n):
     dataset_config, model_config, train_config = get_config(system_='s5')
-    Z0 = tuple([0.2] * 10)
-    # Z0 = tuple((np.random.random(14) * 0.3).tolist())
-    # Z0 = tuple(np.zeros(14).tolist())
+    Z0 = tuple([0.2] * (n * 2))
     print('initial point', Z0)
     dataset_config.duration = 10
     dataset_config.delay = dynamic_systems.ConstantDelay(0.2)
-    dataset_config.dt = 0.01
-    dataset_config.baxter_dof = 5
+    dataset_config.successive_approximation_threshold = 1e-10
+    dataset_config.dt = 0.005
+    dataset_config.baxter_dof = n
     result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
                         img_save_path='./misc', silence=False)
-    print(result)
+    print(result.P_numerical_n_iters.mean())
     print(result.runtime)
 
 
@@ -93,7 +94,7 @@ if __name__ == '__main__':
     # baxter_test1dof()
     # baxter_test2dof()
     # baxter_test3dof()
-    baxter_test5dof()
+    baxter_test_n_dof(3)
     # baxter_test7dof()
     # baxter_test_s6()
     # baxter_test_unicycle()

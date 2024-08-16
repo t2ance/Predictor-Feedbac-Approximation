@@ -140,7 +140,7 @@ def plot_baxter(test_point, plot_name, dataset_config, train_config, model):
 
 def plot_alpha():
     dataset_config, model_config, train_config = config.get_config('s1')
-    dataset_config.recreate_training_dataset = False
+    dataset_config.recreate_dataset = False
     dataset_config.duration = 12
     train_config.do_training = False
     train_config.load_model = True
@@ -234,7 +234,7 @@ def plot_cp():
         print(f'Running with {hyperparameter}')
         tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters(hyperparameter)
         dataset_config, model_config, train_config = config.get_config(system)
-        dataset_config.recreate_training_dataset = False
+        dataset_config.recreate_dataset = False
         train_config.do_training = False
         train_config.load_model = True
         train_config.uq_gamma = cp_gamma

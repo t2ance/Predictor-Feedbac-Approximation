@@ -68,7 +68,8 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
         t = ts[t_i]
         t_i_delayed = max(t_i - dataset_config.n_point_delay(t), 0)
 
-        Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_i_delayed - 1],))[1]
+        # Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_i_delayed - 1],))[1]
+        Z[t_i, :] = Z[t_i - 1, :] + (ts[t_i] - ts[t_i - 1]) * system.dynamic(Z[t_i - 1, :], t, U[t_i_delayed - 1])
         Z_t = Z[t_i, :] + dataset_config.noise()
         # estimate prediction and control signal
 
@@ -446,7 +447,7 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
 
 
 def create_sequence_dataset(dataset_config: DatasetConfig, train_config: TrainConfig):
-    n_dataset = dataset_config.n_dataset
+    n_dataset = dataset_config.n_training_dataset
     max_n_point_delay = dataset_config.max_n_point_delay()
     training_dataset = []
     validating_dataset = []
@@ -665,7 +666,7 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
 
 def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_config: TrainConfig):
     create_dataset = not os.path.exists(
-        dataset_config.training_dataset_file) or dataset_config.recreate_training_dataset
+        dataset_config.training_dataset_file) or dataset_config.recreate_dataset
 
     def load():
         print('Loading training dataset')
@@ -678,10 +679,12 @@ def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_c
         check_dir(dataset_config.dataset_base_path)
         train_points = list(
             np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
-                              (int(dataset_config.n_dataset * train_config.training_ratio), dataset_config.n_state)))
+                              (int(dataset_config.n_training_dataset * train_config.training_ratio),
+                               dataset_config.n_state)))
         validation_points = list(
             np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
-                              (dataset_config.n_dataset - int(dataset_config.n_dataset * train_config.training_ratio),
+                              (dataset_config.n_training_dataset - int(
+                                  dataset_config.n_training_dataset * train_config.training_ratio),
                                dataset_config.n_state)))
         if dataset_config.data_generation_strategy == 'trajectory':
             training_samples = create_trajectory_dataset(dataset_config, train_config, train_points)
@@ -710,7 +713,7 @@ def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_c
     print(f'#Training sample: {int(len(training_samples) * train_config.training_ratio)}')
     print(f'#Validating sample: {len(training_samples) - int(len(training_samples) * train_config.training_ratio)}')
     path = dataset_config.training_dataset_file
-    if dataset_config.recreate_training_dataset:
+    if dataset_config.recreate_dataset:
         torch.save(training_samples, path)
         np.savetxt(f'{dataset_config.dataset_base_path}/n_sample.txt',
                    np.array([len(training_samples), train_config.training_ratio]))
@@ -721,7 +724,7 @@ def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_c
 def load_test_datasets(dataset_config, train_config):
     if not train_config.do_testing:
         return None
-    if not os.path.exists(dataset_config.testing_dataset_file) or dataset_config.recreate_testing_dataset:
+    if not os.path.exists(dataset_config.testing_dataset_file) or dataset_config.recreate_dataset:
         print('Creating testing dataset')
         testing_samples = create_trajectory_dataset(dataset_config, train_config, dataset_config.test_points)
     else:
@@ -742,7 +745,7 @@ def create_trajectory_dataset(dataset_config: DatasetConfig, train_config: Train
         print('creating datasets of Z(t), U(t-D~t), Z(t+D) pairs')
     if initial_conditions is None:
         bar = tqdm(list(np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
-                                          (dataset_config.n_dataset, dataset_config.n_state))))
+                                          (dataset_config.n_training_dataset, dataset_config.n_state))))
     else:
         bar = tqdm(initial_conditions)
     for i, Z0 in enumerate(bar):
@@ -804,7 +807,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     elif train_config.training_type == 'sequence':
         print('Begin Generating Dataset...')
 
-        if dataset_config.recreate_training_dataset:
+        if dataset_config.recreate_dataset:
             training_dataset, validating_dataset = create_sequence_dataset(dataset_config, train_config)
             dataset_config.save_dataset(run, training_dataset, validating_dataset)
             print(f'Dataset created and saved')
