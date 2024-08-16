@@ -835,12 +835,8 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
                                                 train_config=train_config)
     else:
         raise NotImplementedError()
-    model_save_path = f'{train_config.model_save_path}/{model_config.model_name}.pth'
-    torch.save(model.state_dict(), model_save_path)
-    arti_model = wandb.Artifact('model', type='model')
-    arti_model.add_file(model_save_path)
-    wandb.log_artifact(arti_model)
 
+    model_config.save_model(run, model)
     return run_tests(model, train_config, dataset_config, model_config, test_points)
 
 

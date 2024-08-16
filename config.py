@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Tuple, List, Literal
 
 import numpy as np
+import torch
 import wandb
 
 import dynamic_systems
@@ -42,6 +43,25 @@ class ModelConfig:
     @property
     def base_path(self):
         return f'./{self.system}/result/{self.model_name}'
+
+    def save_model(self, run, model):
+        model_artifact = wandb.Artifact(
+            f'{__class__.__name__}-{self.system}', type="model",
+            description=f"{__class__.__name__} model for system {self.system}", metadata=self.__dict__
+        )
+
+        torch.save(model.state_dict(), "model.pth")
+        model_artifact.add_file("model.pth")
+        wandb.save("model.pth")
+        run.log_artifact(model_artifact)
+
+    def load_model(self, run):
+        model_artifact = run.use_artifact(f"{__class__.__name__}-{self.system}:latest")
+        model_dir = model_artifact.download()
+        model_path = os.path.join(model_dir, "model.pth")
+
+        state_dict = (torch.load(model_path))
+        return state_dict
 
 
 @dataclass
