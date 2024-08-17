@@ -451,7 +451,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             dataset_config.n_validation_dataset = 10
             train_config.n_epoch = 1000
             train_config.learning_rate = 3e-4
-            train_config.scheduler_min_lr = 1e-6
+            train_config.scheduler_min_lr = 3e-6
             train_config.batch_size = 256
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 16
