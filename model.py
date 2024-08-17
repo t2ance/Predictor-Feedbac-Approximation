@@ -129,7 +129,13 @@ class FNOProjection(torch.nn.Module):
     def forward(self, x: torch.Tensor, label: torch.Tensor = None):
         U = x[:, self.n_state:]
         Z = x[:, :self.n_state]
-        x_in = torch.einsum('bi,bj->bij', torch.cat([Z, torch.ones_like(Z)[:, 0:1]], dim=1), U)
+
+        U_expanded = U.unsqueeze(1)
+        Z_expanded = Z.unsqueeze(2)
+        broadcast_sum = U_expanded + Z_expanded
+        x_in = torch.cat((U_expanded, broadcast_sum), dim=1)
+
+        # x_in = torch.einsum('bi,bj->bij', torch.cat([Z, torch.ones_like(Z)[:, 0:1]], dim=1), U)
         # x_in = x.unsqueeze(-2)
         x = self.fno(x_in)
         x = fft_transform(x.squeeze(1), self.n_modes_height)
