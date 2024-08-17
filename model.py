@@ -45,12 +45,6 @@ class GRUNet(nn.Module):
         self.mse_loss = torch.nn.MSELoss()
         self.hidden = None
 
-        with torch.no_grad():
-            for name, param in self.gru.named_parameters():
-                param.data.fill_(0.0)
-            self.fc.weight.fill_(0)
-            self.fc.bias.fill_(0)
-
     def forward(self, x: torch.Tensor, labels: torch.Tensor = None):
         if self.hidden is None:
             self.hidden = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
@@ -61,7 +55,7 @@ class GRUNet(nn.Module):
         # self.hidden = hidden.detach()  
         self.hidden = hidden
 
-        out = self.fc(out[:, -1, :]) + x
+        out = self.fc(out[:, -1, :])
         if labels is None:
             return out
         return out, self.mse_loss(out, labels)
@@ -83,11 +77,6 @@ class LSTMNet(nn.Module):
         self.hidden = None
         self.cell = None
         self.mse_loss = torch.nn.MSELoss()
-        with torch.no_grad():
-            for name, param in self.lstm.named_parameters():
-                param.data.fill_(0.0)
-            self.fc.weight.fill_(0)
-            self.fc.bias.fill_(0)
 
     def forward(self, x: torch.Tensor, labels: torch.Tensor = None):
         if self.hidden is None or self.cell is None:
@@ -99,7 +88,7 @@ class LSTMNet(nn.Module):
         self.hidden = hidden.detach()
         self.cell = cell.detach()
 
-        out = self.fc(out[:, -1, :]) + x
+        out = self.fc(out[:, -1, :])
         if labels is None:
             return out
         return out, self.mse_loss(out, labels)
@@ -162,11 +151,14 @@ class FNOProjectionGRU(torch.nn.Module):
         self.fno = fno
         self.gru = GRUNet(input_size=n_state, layer_width=gru_layer_width, num_layers=gru_n_layers,
                           output_size=n_state)
+        with torch.no_grad():
+            for name, param in self.gru.named_parameters():
+                param.data.fill_(0.0)
         self.mse_loss = torch.nn.MSELoss()
 
     def forward(self, x: torch.Tensor, label: torch.Tensor = None):
         x = self.fno(x)
-        x = self.gru(x)
+        x = self.gru(x) + x
         if label is None:
             return x
         return x, self.mse_loss(x, label)
