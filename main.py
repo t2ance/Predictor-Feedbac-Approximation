@@ -849,7 +849,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', type=str, default='s1')
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='sequence')
-    parser.add_argument('-model_name', type=str, default='FNO-GRU')
+    parser.add_argument('-model_name', type=str, default='FNO')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)
@@ -860,20 +860,7 @@ if __name__ == '__main__':
                                                                       model_name=args.model_name)
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
-    if args.training_type == 'offline' or args.training_type == 'sequence':
-        ...
-    elif args.training_type == 'switching':
-        ...
-    elif args.training_type == 'scheduled sampling':
-        if dataset_config_.system_ == 's1':
-            train_config_.n_epoch = 3000
-        else:
-            train_config_.n_epoch = 2000
-        train_config_.lr_scheduler_type = 'none'
-    else:
-        raise NotImplementedError()
-    # dataset_config_.n_training_dataset = 1000
-    train_config_.n_epoch = 0
+    train_config_.n_epoch = 1
 
     print_args(dataset_config_)
     print_args(model_config_)
