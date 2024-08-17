@@ -860,7 +860,7 @@ if __name__ == '__main__':
                                                                       model_name=args.model_name)
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
-    train_config_.n_epoch = 1
+    # train_config_.n_epoch = 1
 
     print_args(dataset_config_)
     print_args(model_config_)

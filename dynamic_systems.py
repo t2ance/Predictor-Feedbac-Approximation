@@ -474,7 +474,8 @@ def solve_integral_nn(model, U_D, Z_t, t):
     z_tensor = torch.tensor(Z_t, dtype=torch.float32, device=device).view(1, -1)
     t_tensor = torch.tensor(t, dtype=torch.float32, device=device).view(1, -1)
     # outputs = model(torch.cat([z_tensor, u_tensor], dim=1))
-    outputs = model(torch.cat([t_tensor, z_tensor, u_tensor], dim=1))
+    # outputs = model(torch.cat([t_tensor, z_tensor, u_tensor], dim=1))
+    outputs = model(torch.cat([z_tensor, u_tensor], dim=1))
     return outputs.to('cpu').detach().numpy()[0]
 
 
