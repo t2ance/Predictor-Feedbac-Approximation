@@ -209,17 +209,21 @@ class FFN(torch.nn.Module):
 
 
 class GRUNet(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, output_size):
+    def __init__(self, input_size, layer_width, num_layers, output_size):
         super(GRUNet, self).__init__()
-        self.hidden_size = hidden_size
+        self.hidden_size = layer_width * input_size
         self.num_layers = num_layers
 
-        self.gru = nn.GRU(input_size, hidden_size, num_layers, batch_first=True)
-
-        self.fc = nn.Linear(hidden_size, output_size)
-
+        self.gru = nn.GRU(input_size, self.hidden_size, num_layers, batch_first=True)
+        self.fc = nn.Linear(self.hidden_size, output_size)
         self.mse_loss = torch.nn.MSELoss()
         self.hidden = None
+
+        with torch.no_grad():
+            for name, param in self.gru.named_parameters():
+                param.data.fill_(0.0)
+            self.fc.weight.fill_(0)
+            self.fc.bias.fill_(0)
 
     def forward(self, x: torch.Tensor, labels: torch.Tensor = None):
         if self.hidden is None:
@@ -228,10 +232,10 @@ class GRUNet(nn.Module):
             x = x[:, None, :]
 
         out, hidden = self.gru(x, self.hidden)
-        # self.hidden = hidden.detach()
+        # self.hidden = hidden.detach()  
         self.hidden = hidden
 
-        out = self.fc(out[:, -1, :])
+        out = self.fc(out[:, -1, :]) + x
         if labels is None:
             return out
         return out, self.mse_loss(out, labels)
@@ -241,18 +245,23 @@ class GRUNet(nn.Module):
 
 
 class LSTMNet(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, output_size):
+    def __init__(self, input_size, layer_width, num_layers, output_size):
         super(LSTMNet, self).__init__()
-        self.hidden_size = hidden_size
+        self.hidden_size = layer_width * input_size
         self.num_layers = num_layers
 
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(input_size, self.hidden_size, num_layers, batch_first=True)
 
-        self.fc = nn.Linear(hidden_size, output_size)
+        self.fc = nn.Linear(self.hidden_size, output_size)
 
         self.hidden = None
         self.cell = None
         self.mse_loss = torch.nn.MSELoss()
+        with torch.no_grad():
+            for name, param in self.lstm.named_parameters():
+                param.data.fill_(0.0)
+            self.fc.weight.fill_(0)
+            self.fc.bias.fill_(0)
 
     def forward(self, x: torch.Tensor, labels: torch.Tensor = None):
         if self.hidden is None or self.cell is None:
@@ -264,7 +273,7 @@ class LSTMNet(nn.Module):
         self.hidden = hidden.detach()
         self.cell = cell.detach()
 
-        out = self.fc(out[:, -1, :])
+        out = self.fc(out[:, -1, :]) + x
         if labels is None:
             return out
         return out, self.mse_loss(out, labels)
@@ -392,7 +401,7 @@ class FNOProjectionGRU(torch.nn.Module):
         else:
             print('Pretrained FNO model loaded to FNO-GRU')
         self.fno = fno
-        self.gru = GRUNet(input_size=n_state, hidden_size=n_state * gru_layer_width, num_layers=gru_n_layers,
+        self.gru = GRUNet(input_size=n_state, layer_width=gru_layer_width, num_layers=gru_n_layers,
                           output_size=n_state)
         self.mse_loss = torch.nn.MSELoss()
 

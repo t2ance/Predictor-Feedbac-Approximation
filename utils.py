@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 from config import DatasetConfig, TrainConfig, ModelConfig
 from dataset import PredictionDataset
-from model import FNOProjection, FNOTwoStage, PIFNO, FFN, GRUNet, LSTMNet, FNOProjectionGRU
+from model import FNOProjection, FFN, GRUNet, LSTMNet, FNOProjectionGRU
 
 
 @dataclass
@@ -180,12 +180,10 @@ def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_con
         model = FFN(n_state=n_state, n_point_delay=n_point_start, n_input=n_input, n_layers=model_config.ffn_n_layer,
                     layer_width=model_config.ffn_layer_width)
     elif model_name == 'GRU':
-        model = GRUNet(input_size=n_state + n_point_start * n_input + 1,
-                       hidden_size=model_config.gru_layer_width * (n_state + n_point_start + 1),
+        model = GRUNet(input_size=n_state + n_point_start * n_input, layer_width=model_config.gru_layer_width,
                        num_layers=model_config.gru_n_layer, output_size=n_state)
     elif model_name == 'LSTM':
-        model = LSTMNet(input_size=n_state + n_point_start * n_input + 1,
-                        hidden_size=model_config.lstm_layer_width * (n_state + n_point_start + 1),
+        model = LSTMNet(input_size=n_state + n_point_start * n_input, layer_width=model_config.lstm_layer_width,
                         num_layers=model_config.lstm_n_layer, output_size=n_state)
     elif model_name == 'FNO-GRU':
         model = FNOProjectionGRU(n_modes_height=model_config.fno_gru_fno_n_modes_height,
@@ -272,7 +270,7 @@ def check_dir(path):
 
 
 def predict_and_loss(inputs, labels, model):
-    return model(inputs, labels)
+    return model(inputs[:, 1:], labels)
 
 
 def prediction_comparison(P, n_point_delay, ts):

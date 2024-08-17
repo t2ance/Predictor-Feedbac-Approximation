@@ -494,7 +494,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     print(f'Training size: {len(training_dataset)}, Validating size: {len(validating_dataset)}')
     for _ in tqdm(range(train_config.n_epoch)):
         np.random.shuffle(training_dataset)
-
+        # seq index; time index; input-output pair; data
         n_epoch = 0
         training_loss = 0.0
         for dataset_idx in range(0, len(training_dataset), batch_size):
@@ -849,7 +849,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', type=str, default='s1')
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='sequence')
-    parser.add_argument('-model_name', type=str, default='FNO')
+    parser.add_argument('-model_name', type=str, default='FNO-GRU')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)
@@ -873,6 +873,7 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError()
     # dataset_config_.n_training_dataset = 1000
+    train_config_.n_epoch = 0
 
     print_args(dataset_config_)
     print_args(model_config_)
