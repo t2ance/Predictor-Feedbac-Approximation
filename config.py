@@ -462,10 +462,10 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.n_epoch2_ = 1500
             train_config.learning_rate = 3e-4
             model_config.fno_n_layer = 5
-            model_config.fno_n_modes_height = 64
-            model_config.fno_hidden_channels = 64
+            model_config.fno_n_modes_height = 16
+            model_config.fno_hidden_channels = 16
             model_config.fno_gru_gru_n_layer = 4
-            model_config.fno_gru_gru_layer_width = 32
+            model_config.fno_gru_gru_layer_width = 16
     elif system_ == 's6':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=32, dt=0.01, n_training_dataset=900,
@@ -519,10 +519,10 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.batch_size = 512
             train_config.batch_size2_ = 16
             model_config.fno_n_layer = 3
-            model_config.fno_n_modes_height = 32
-            model_config.fno_hidden_channels = 32
+            model_config.fno_n_modes_height = 16
+            model_config.fno_hidden_channels = 16
             model_config.fno_gru_gru_n_layer = 2
-            model_config.fno_gru_gru_layer_width = 32
+            model_config.fno_gru_gru_layer_width = 16
     elif system_ == 's8':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=10, dt=0.05, n_training_dataset=900,
