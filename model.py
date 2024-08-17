@@ -121,21 +121,21 @@ class FNOProjection(torch.nn.Module):
         self.mse_loss = torch.nn.MSELoss()
         self.n_modes_height = n_modes_height
         self.fno = FNO1d(n_modes_height=n_modes_height, n_layers=n_layers, hidden_channels=hidden_channels,
-                         in_channels=1,
-                         # in_channels=n_state + 1,
+                         # in_channels=1,
+                         in_channels=n_state + 1,
                          out_channels=1)
         self.projection = torch.nn.Linear(in_features=n_modes_height, out_features=n_state)
 
     def forward(self, x: torch.Tensor, label: torch.Tensor = None):
-        # U = x[:, self.n_state:]
-        # Z = x[:, :self.n_state]
-        # U_expanded = U.unsqueeze(1)
-        # Z_expanded = Z.unsqueeze(2)
-        # broadcast_sum = U_expanded + Z_expanded
-        # x_in = torch.cat((U_expanded, broadcast_sum), dim=1)
+        U = x[:, self.n_state:]
+        Z = x[:, :self.n_state]
+        U_expanded = U.unsqueeze(1)
+        Z_expanded = Z.unsqueeze(2)
+        broadcast_sum = U_expanded + Z_expanded
+        x_in = torch.cat((U_expanded, broadcast_sum), dim=1)
         # x_in = torch.einsum('bi,bj->bij', torch.cat([Z, torch.ones_like(Z)[:, 0:1]], dim=1), U)
 
-        x_in = x.unsqueeze(-2)
+        # x_in = x.unsqueeze(-2)
         x = self.fno(x_in)
         x = fft_transform(x.squeeze(1), self.n_modes_height)
         x = self.projection(x)
