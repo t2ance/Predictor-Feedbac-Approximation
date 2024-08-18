@@ -839,8 +839,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     else:
         raise NotImplementedError()
 
-    model_config.save_model(run, model)
-    return run_tests(model, train_config, dataset_config, model_config, test_points)
+    return run_tests(model, train_config, dataset_config, model_config, test_points), model
 
 
 if __name__ == '__main__':
@@ -860,7 +859,6 @@ if __name__ == '__main__':
                                                                       model_name=args.model_name)
     assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
-    # train_config_.n_epoch = 1
 
     print_args(dataset_config_)
     print_args(model_config_)
@@ -870,10 +868,11 @@ if __name__ == '__main__':
         project="no",
         name=f'{train_config_.system} {train_config_.training_type} {model_config_.model_name} {dataset_config_.delay.__class__.__name__} {get_time_str()}'
     )
-    results_ = main(dataset_config_, model_config_, train_config_)
+    results_, model = main(dataset_config_, model_config_, train_config_)
     for method_, result_ in results_.items():
         print(method_)
         print_result(result_, dataset_config_)
         speedup = results_["numerical"].runtime / result_.runtime
         print(f'Speedup w.r.t numerical: {speedup :.3f}; $\\times {speedup:.3f}$')
+    model_config_.save_model(run, model)
     wandb.finish()
