@@ -15,6 +15,9 @@ from config import DatasetConfig, TrainConfig, ModelConfig
 from dataset import PredictionDataset
 from model import FNOProjection, FFN, GRUNet, LSTMNet, FNOProjectionGRU
 
+from torch import nn
+from torch.nn import init
+
 
 @dataclass
 class SimulationResult:
@@ -46,6 +49,13 @@ class TestResult:
     runtime: float = None
     l2: float = None
     success_cases: int = None
+
+
+def initialize_weights(m):
+    if isinstance(m, nn.Linear):
+        init.xavier_normal_(m.weight)
+        if m.bias is not None:
+            init.zeros_(m.bias)
 
 
 def print_args(args):
@@ -210,6 +220,7 @@ def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_con
         elif not os.path.exists(pth):
             print(f"Model save path {pth} doesn't exist")
         loaded = False
+    initialize_weights(model)
     return model.to(device), loaded
 
 

@@ -3,6 +3,7 @@ from neuralop.models import FNO1d
 from torch import nn
 
 
+
 class FFN(torch.nn.Module):
     def __init__(self, n_state: int, n_point_delay: int, n_input: int, n_layers: int, layer_width: int, *args,
                  **kwargs):
@@ -146,7 +147,7 @@ def resize_rfft(ar, s):
 
 class FNOProjectionGRU(torch.nn.Module):
     def __init__(self, n_modes_height: int, hidden_channels: int, fno_n_layers: int, gru_n_layers: int,
-                 gru_layer_width: int, n_state: int, fno = None, *args, **kwargs):
+                 gru_layer_width: int, n_state: int, fno=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if fno is None:
             fno = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
