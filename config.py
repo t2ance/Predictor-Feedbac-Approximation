@@ -371,7 +371,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.gru_layer_width = 16
             train_config.weight_decay = 0
         elif model_name == 'FNO':
-            dataset_config.n_training_dataset = 100
+            dataset_config.n_training_dataset = 500
             dataset_config.n_validation_dataset = 10
             train_config.learning_rate = 1e-4
             train_config.scheduler_min_lr = 1e-6
@@ -455,8 +455,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 6e-6
             train_config.batch_size = 512
             model_config.fno_n_layer = 5
-            model_config.fno_n_modes_height = 16
-            model_config.fno_hidden_channels = 16
+            model_config.fno_n_modes_height = 64
+            model_config.fno_hidden_channels = 64
         elif model_name == 'FNO-GRU':
             dataset_config.n_training_dataset = 100
             dataset_config.n_validation_dataset = 10
@@ -503,21 +503,21 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.learning_rate = 5e-5
             train_config.scheduler_min_lr = 5e-6
         elif model_name == 'FNO':
-            dataset_config.n_training_dataset = 300
+            dataset_config.n_training_dataset = 500
             dataset_config.n_validation_dataset = 10
             train_config.n_epoch = 500
             train_config.batch_size = 512
             train_config.scheduler_min_lr = 3e-5
             model_config.fno_n_layer = 5
-            model_config.fno_n_modes_height = 16
-            model_config.fno_hidden_channels = 16
+            model_config.fno_n_modes_height = 64
+            model_config.fno_hidden_channels = 64
             train_config.weight_decay = 0
         elif model_name == 'FNO-GRU':
             train_config.scheduler_min_lr = 1e-6
             train_config.scheduler_min_lr2_ = 3e-4
             train_config.n_epoch = 500
             train_config.n_epoch2_ = 1500
-            dataset_config.n_training_dataset = 100
+            dataset_config.n_training_dataset = 500
             dataset_config.n_validation_dataset = 10
             train_config.learning_rate = 5e-5
             train_config.n_epoch = 500
