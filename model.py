@@ -3,7 +3,6 @@ from neuralop.models import FNO1d
 from torch import nn
 
 
-
 class FFN(torch.nn.Module):
     def __init__(self, n_state: int, n_point_delay: int, n_input: int, n_layers: int, layer_width: int, *args,
                  **kwargs):

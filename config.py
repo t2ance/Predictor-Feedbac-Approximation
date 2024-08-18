@@ -381,18 +381,20 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_modes_height = 64
             model_config.fno_hidden_channels = 64
         elif model_name == 'FNO-GRU':
-            train_config.learning_rate = 1e-4
-            train_config.scheduler_min_lr = 3e-6
+            train_config.scheduler_min_lr = 5e-6
             train_config.scheduler_min_lr2_ = 1e-3
-            train_config.batch_size = 128
+            train_config.batch_size = 1024
+            train_config.batch_size2_ = 128
             train_config.n_epoch = 500
-            train_config.n_epoch2_ = 1500
-            dataset_config.n_training_dataset = 100
+            train_config.n_epoch2_ = 500
+
+            train_config.learning_rate = 1e-4
+            dataset_config.n_training_dataset = 1000
             dataset_config.n_validation_dataset = 10
             train_config.weight_decay = 0
-            model_config.fno_n_layer = 3
-            model_config.fno_n_modes_height = 32
-            model_config.fno_hidden_channels = 32
+            model_config.fno_n_layer = 5
+            model_config.fno_n_modes_height = 64
+            model_config.fno_hidden_channels = 64
             model_config.fno_gru_gru_n_layer = 3
             model_config.fno_gru_gru_layer_width = 16
     elif system_ == 's2':
@@ -458,18 +460,20 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
         elif model_name == 'FNO-GRU':
-            dataset_config.n_training_dataset = 100
+            train_config.learning_rate = 1e-4
+            train_config.scheduler_min_lr = 3e-5
+            train_config.scheduler_min_lr2_ = 1e-4
+            train_config.batch_size = 512
+            train_config.batch_size2_ = 64
+            train_config.n_epoch = 200
+            train_config.n_epoch2_ = 200
+
+            dataset_config.n_training_dataset = 500
             dataset_config.n_validation_dataset = 10
-            train_config.batch_size = 256
-            train_config.batch_size2_ = 128
-            train_config.scheduler_min_lr = 3e-6
-            train_config.scheduler_min_lr2_ = 7e-4
-            train_config.n_epoch = 1000
-            train_config.n_epoch2_ = 1500
-            train_config.learning_rate = 3e-4
-            model_config.fno_n_layer = 5
-            model_config.fno_n_modes_height = 16
-            model_config.fno_hidden_channels = 16
+
+            model_config.fno_n_layer = 6
+            model_config.fno_n_modes_height = 32
+            model_config.fno_hidden_channels = 32
             model_config.fno_gru_gru_n_layer = 4
             model_config.fno_gru_gru_layer_width = 16
     elif system_ == 's6':
@@ -513,20 +517,21 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_hidden_channels = 32
             train_config.weight_decay = 0
         elif model_name == 'FNO-GRU':
-            train_config.scheduler_min_lr = 1e-6
-            train_config.scheduler_min_lr2_ = 3e-4
-            train_config.n_epoch = 500
-            train_config.n_epoch2_ = 1500
             dataset_config.n_training_dataset = 500
             dataset_config.n_validation_dataset = 10
-            train_config.learning_rate = 5e-5
-            train_config.n_epoch = 500
-            train_config.weight_decay = 0
+
+            train_config.learning_rate = 1e-4
+            train_config.scheduler_min_lr = 3e-5
+            train_config.scheduler_min_lr2_ = 1e-4
             train_config.batch_size = 512
-            train_config.batch_size2_ = 16
-            model_config.fno_n_layer = 3
-            model_config.fno_n_modes_height = 16
-            model_config.fno_hidden_channels = 16
+            train_config.batch_size2_ = 64
+            train_config.n_epoch = 200
+            train_config.n_epoch2_ = 200
+            train_config.weight_decay = 0
+
+            model_config.fno_n_layer = 5
+            model_config.fno_n_modes_height = 32
+            model_config.fno_hidden_channels = 32
             model_config.fno_gru_gru_n_layer = 2
             model_config.fno_gru_gru_layer_width = 16
     elif system_ == 's8':
