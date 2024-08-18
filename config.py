@@ -429,7 +429,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's5':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
-                                       delay=ConstantDelay(.5), duration=10, dt=0.02, n_training_dataset=900,
+                                       delay=ConstantDelay(.5), duration=8, dt=0.02, n_training_dataset=900,
                                        n_validation_dataset=100,
                                        n_sample_per_dataset=-1, baxter_dof=2, ic_lower_bound=0, ic_upper_bound=1,
                                        random_test_lower_bound=0, random_test_upper_bound=1)
@@ -452,11 +452,11 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             dataset_config.n_validation_dataset = 10
             train_config.n_epoch = 500
             train_config.learning_rate = 1e-4
-            train_config.scheduler_min_lr = 6e-6
+            train_config.scheduler_min_lr = 1e-5
             train_config.batch_size = 512
-            model_config.fno_n_layer = 5
+            model_config.fno_n_layer = 6
             model_config.fno_n_modes_height = 16
-            model_config.fno_hidden_channels = 16
+            model_config.fno_hidden_channels = 32
         elif model_name == 'FNO-GRU':
             dataset_config.n_training_dataset = 100
             dataset_config.n_validation_dataset = 10
