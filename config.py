@@ -375,9 +375,9 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             dataset_config.n_validation_dataset = 10
             train_config.learning_rate = 1e-4
             train_config.scheduler_min_lr = 6e-6
-            train_config.n_epoch = 250
-            train_config.batch_size = 512
-            model_config.fno_n_layer = 5
+            train_config.n_epoch = 100
+            train_config.batch_size = 1024
+            model_config.fno_n_layer = 7
             model_config.fno_n_modes_height = 16
             model_config.fno_hidden_channels = 32
         elif model_name == 'FNO-GRU':
