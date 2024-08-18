@@ -99,8 +99,7 @@ class LSTMNet(nn.Module):
 
 
 def fft_transform(input_tensor, target_length):
-    fft_result = torch.fft.rfft(input_tensor).real
-
+    fft_result = torch.fft.rfft(input_tensor)
     current_length = fft_result.shape[1]
 
     if current_length > target_length:
@@ -111,6 +110,7 @@ def fft_transform(input_tensor, target_length):
     else:
         output = fft_result
 
+    output = torch.concatenate([output.real, output.imag], -1)
     return output.to(input_tensor.device)
 
 
@@ -124,7 +124,7 @@ class FNOProjection(torch.nn.Module):
                          # in_channels=1,
                          in_channels=n_state + 1,
                          out_channels=1)
-        self.projection = torch.nn.Linear(in_features=n_modes_height, out_features=n_state)
+        self.projection = torch.nn.Linear(in_features=n_modes_height * 2, out_features=n_state)
 
     def forward(self, x: torch.Tensor, label: torch.Tensor = None):
         U = x[:, self.n_state:]
