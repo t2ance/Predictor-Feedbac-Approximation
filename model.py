@@ -114,39 +114,39 @@ def fft_transform(input_tensor, target_length):
     return output.to(input_tensor.device)
 
 
-class FNOProjection(torch.nn.Module):
-    def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, n_state: int, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.n_state = n_state
-        self.mse_loss = torch.nn.MSELoss()
-        self.n_modes_height = n_modes_height
-        self.fno = FNO1d(n_modes_height=n_modes_height, n_layers=n_layers, hidden_channels=hidden_channels,
-                         in_channels=1,
-                         # in_channels=n_state + 1,
-                         out_channels=1)
-        self.projection = torch.nn.Linear(in_features=n_modes_height * 2, out_features=n_state)
+def compl_mul(input_tensor, weights):
+    """
+    Complex multiplication:
+    (batch, in_channel, ...), (in_channel, out_channel, ...) -> (batch, out_channel, ...), where ``...'' represents the spatial part of the input.
+    """
+    return torch.einsum("bi...,io...->bo...", input_tensor, weights)
 
-    def forward(self, x: torch.Tensor, label: torch.Tensor = None):
-        # U = x[:, self.n_state:]
-        # Z = x[:, :self.n_state]
-        # U_expanded = U.unsqueeze(1)
-        # Z_expanded = Z.unsqueeze(2)
-        # broadcast_sum = U_expanded + Z_expanded
-        # x_in = torch.cat((U_expanded, broadcast_sum), dim=1)
-        # x_in = torch.einsum('bi,bj->bij', torch.cat([Z, torch.ones_like(Z)[:, 0:1]], dim=1), U)
 
-        x_in = x.unsqueeze(-2)
-        x = self.fno(x_in)
-        x = fft_transform(x.squeeze(1), self.n_modes_height)
-        x = self.projection(x)
-        if label is None:
-            return x
-        return x, self.mse_loss(x, label)
+def resize_rfft(ar, s):
+    """
+    Truncates or zero pads the highest frequencies of ``ar'' such that torch.fft.irfft(ar, n=s) is either an interpolation to a finer grid or a subsampling to a coarser grid.
+    Args
+        ar: (..., N) tensor, must satisfy real conjugate symmetry (not checked)
+        s: (int), desired irfft output dimension >= 1
+    Output
+        out: (..., s//2 + 1) tensor
+    """
+    N = ar.shape[-1]
+    s = s // 2 + 1 if s >= 1 else s // 2
+    if s >= N:  # zero pad or leave alone
+        out = torch.zeros(list(ar.shape[:-1]) + [s - N], dtype=torch.cfloat, device=ar.device)
+        out = torch.cat((ar[..., :N], out), dim=-1)
+    elif s >= 1:  # truncate
+        out = ar[..., :s]
+    else:  # edge case
+        raise ValueError("s must be greater than or equal to 1.")
+
+    return out
 
 
 class FNOProjectionGRU(torch.nn.Module):
     def __init__(self, n_modes_height: int, hidden_channels: int, fno_n_layers: int, gru_n_layers: int,
-                 gru_layer_width: int, n_state: int, fno: FNOProjection = None, *args, **kwargs):
+                 gru_layer_width: int, n_state: int, fno = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if fno is None:
             fno = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
@@ -170,6 +170,121 @@ class FNOProjectionGRU(torch.nn.Module):
 
     def reset_state(self):
         self.gru.reset_state()
+
+
+class FNOProjection(torch.nn.Module):
+    def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, n_state: int, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.n_state = n_state
+        self.mse_loss = torch.nn.MSELoss()
+        self.n_modes_height = n_modes_height
+        self.fno = FNO1d(n_modes_height=n_modes_height, n_layers=n_layers, hidden_channels=hidden_channels,
+                         in_channels=2,
+                         # in_channels=n_state + 1,
+                         out_channels=1)
+        self.projection = torch.nn.Linear(in_features=n_modes_height * 2, out_features=n_state)
+        self.linear_decoder = LinearDecoder(n_state, 1, n_modes_height)
+        self.linear_functional = LinearFunctional(1, n_state, n_modes_height)
+
+    def forward(self, x: torch.Tensor, label: torch.Tensor = None):
+        # u = x[:, self.n_state:]
+        # z = x[:, :self.n_state]
+        # U_expanded = u.unsqueeze(1)
+        # Z_expanded = z.unsqueeze(2)
+        # broadcast_sum = U_expanded + Z_expanded
+        # x_in = torch.cat((U_expanded, broadcast_sum), dim=1)
+        # x_in = torch.einsum('bi,bj->bij', torch.cat([z, torch.ones_like(z)[:, 0:1]], dim=1), u)
+
+        # x_in = x.unsqueeze(-2)
+        # x = self.fno(x_in)
+        # x = fft_transform(x.squeeze(1), self.n_modes_height)
+        # x = self.projection(x)
+
+        u = x[:, self.n_state:].unsqueeze(-2)
+        z = x[:, :self.n_state]
+        z = self.linear_decoder(z, u.shape[-1])
+        x = torch.concatenate([u, z], 1)
+        x = self.fno(x)
+        x = self.linear_functional(x)
+
+        if label is None:
+            return x
+        return x, self.mse_loss(x, label)
+
+
+class LinearDecoder(nn.Module):
+    def __init__(self, in_channels, out_channels, modes):
+        """
+        Fourier neural decoder layer for functions over the torus. Maps vectors to functions.
+        Inputs:
+            in_channels  (int): dimension of input vectors
+            out_channels (int): total number of functions to extract
+        """
+        super(LinearDecoder, self).__init__()
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+
+        # Number of Fourier modes to multiply, at most floor(N/2) + 1
+        self.modes = modes
+
+        self.scale = 1. / (self.in_channels * self.out_channels)
+        self.weights = nn.Parameter(
+            self.scale * torch.rand(self.in_channels, self.out_channels, self.modes + 1, dtype=torch.cfloat))
+
+    def forward(self, x, s):
+        """
+        Input shape (of x):     (batch, in_channels, ...)
+        s            (int):     desired spatial resolution (nx,) of functions
+        Output shape:           (batch, out_channels, ..., nx)
+        """
+        # Multiply relevant Fourier modes
+        x = compl_mul(x[..., None].type(torch.cfloat), self.weights)
+
+        # Zero pad modes
+        x = resize_rfft(x, s)
+
+        # Return to physical space
+        return torch.fft.irfft(x, n=s)
+
+
+class LinearFunctional(nn.Module):
+    def __init__(self, in_channels, out_channels, modes):
+        """
+        Fourier neural functionals (encoder) layer for functions over the torus. Maps functions to vectors.
+        Inputs:
+            in_channels  (int): number of input functions
+            out_channels (int): total number of linear functionals to extract
+        """
+        super(LinearFunctional, self).__init__()
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+
+        # Number of Fourier modes to multiply, at most floor(N/2) + 1
+        self.modes = modes
+
+        # Complex conjugation in L^2 inner product is absorbed into parametrization
+        self.scale = 1. / (self.in_channels * self.out_channels)
+        self.weights = nn.Parameter(
+            self.scale * torch.rand(self.in_channels, self.out_channels, self.modes + 1, dtype=torch.cfloat))
+
+    def forward(self, x):
+        """
+        Input shape (of x):     (batch, in_channels, ..., nx_in)
+        Output shape:           (batch, out_channels, ...)
+        """
+        # Compute Fourier coeffcients (scaled to approximate integration)
+        x = torch.fft.rfft(x, norm="forward")
+
+        # Truncate input modes
+        x = resize_rfft(x, 2 * self.modes)
+
+        # Multiply relevant Fourier modes and take the real part
+        x = compl_mul(x, self.weights).real
+
+        # Integrate the conjugate product in physical space by summing Fourier coefficients
+        return 2 * torch.sum(x, dim=-1) - x[..., 0]
 
 
 class FNOTwoStage(torch.nn.Module):
