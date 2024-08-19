@@ -223,53 +223,53 @@ def plot_rnn_ablation(test_point, plot_name, dataset_config, train_config, n_row
     dataset_config, model_config, train_config = config.get_config(system_='s5', model_name='FNO-GRU')
     model, model_loaded = load_model(train_config, model_config, dataset_config)
     model_config.load_model(run, model)
-    no = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point, method='no')
+    gru = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point, method='no')
 
-    switching = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point,
-                           method='switching')
+    dataset_config, model_config, train_config = config.get_config(system_='s5', model_name='FNO-LSTM')
+    model, model_loaded = load_model(train_config, model_config, dataset_config)
+    model_config.load_model(run, model)
+    lstm = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point, method='no')
+
     print(f'End simulation {plot_name}')
 
-    min_p, max_p = interval(min(no.P_numerical.min(), no.P_no.min(), switching.P_switching.min()),
-                            max(no.P_numerical.max(), no.P_no.max(), switching.P_switching.max()))
+    min_p, max_p = interval(min(no.P_no.min(), gru.P_no.min(), lstm.P_no.min()),
+                            max(no.P_no.max(), gru.P_no.max(), lstm.P_no.max()))
 
-    plot_comparison(ts, [no.P_numerical], no.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
-                    ax=lstm_axes[0], comment=False)
     plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=no_axes[0],
                     comment=False)
-    plot_comparison(ts, [switching.P_switching], switching.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
-                    ax=gru_axes[0], comment=True)
-    min_d, max_d = interval(min(no.D_numerical.min(), no.D_no.min(), switching.D_switching.min()),
-                            max(no.D_numerical.max(), no.D_no.max(), switching.D_switching.max()))
+    plot_comparison(ts, [gru.P_no], gru.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=gru_axes[0],
+                    comment=False)
+    plot_comparison(ts, [lstm.P_no], lstm.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=lstm_axes[0],
+                    comment=True)
+    min_d, max_d = interval(min(no.D_no.min(), gru.D_no.min(), lstm.D_no.min()),
+                            max(no.D_no.max(), gru.D_no.max(), lstm.D_no.max()))
 
-    plot_difference(ts, [no.P_numerical], no.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
-                    ax=lstm_axes[1], comment=False, differences=[no.D_numerical])
     plot_difference(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
                     comment=False, differences=[no.D_no])
-    plot_difference(ts, [switching.P_switching], switching.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
-                    ax=gru_axes[1], comment=True, differences=[switching.D_switching])
+    plot_difference(ts, [gru.P_no], gru.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=gru_axes[1],
+                    comment=False, differences=[gru.D_no])
+    plot_difference(ts, [lstm.P_no], lstm.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=lstm_axes[1],
+                    comment=True, differences=[lstm.D_no])
 
-    min_u, max_u = interval(min(no.U.min(), no.U.min(), switching.U.min()),
-                            max(no.U.max(), no.U.max(), switching.U.max()))
-    plot_control(ts, no.U, None, n_point_delay, ax=lstm_axes[2], comment=False, ylim=[min_u, max_u],
-                 linestyle='--')
+    min_u, max_u = interval(min(no.U.min(), gru.U.min(), lstm.U.min()),
+                            max(no.U.max(), gru.U.max(), lstm.U.max()))
     plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
-    plot_switch_segments(ts, switching, n_point_delay(0), ax=gru_axes[2], comment=True, ylim=[min_u, max_u])
+    plot_control(ts, gru.U, None, n_point_delay, ax=gru_axes[2], comment=False, ylim=[min_u, max_u])
+    plot_control(ts, lstm.U, None, n_point_delay, ax=lstm_axes[2], comment=False, ylim=[min_u, max_u])
 
     if n_row == 4:
         q_des = np.array([dataset_config.system.q_des(t) for t in ts])
-        q_numerical = q_des - no.Z[:, :2]
         q_no = q_des - no.Z[:, :2]
-        q_switching = q_des - switching.Z[:, :2]
+        q_gru = q_des - gru.Z[:, :2]
+        q_lstm = q_des - lstm.Z[:, :2]
         n_point_start = n_point_delay(0)
         q_des = q_des[n_point_start:]
-        q_numerical = q_numerical[n_point_start:]
         q_no = q_no[n_point_start:]
-        q_switching = q_switching[n_point_start:]
-        plot_q(ts[n_point_start:], [q_numerical], q_des, None, dataset_config.system.n_input, ax=lstm_axes[3],
-               comment=False)
+        q_gru = q_gru[n_point_start:]
+        q_lstm = q_lstm[n_point_start:]
         plot_q(ts[n_point_start:], [q_no], q_des, None, dataset_config.system.n_input, ax=no_axes[3], comment=False)
-        plot_q(ts[n_point_start:], [q_switching], q_des, None, dataset_config.system.n_input, ax=gru_axes[3],
-               comment=True)
+        plot_q(ts[n_point_start:], [q_gru], q_des, None, dataset_config.system.n_input, ax=gru_axes[3], comment=False)
+        plot_q(ts[n_point_start:], [q_lstm], q_des, None, dataset_config.system.n_input, ax=lstm_axes[3], comment=True)
 
     plt.savefig(f"./misc/plots/{plot_name}.pdf")
 

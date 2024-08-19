@@ -18,7 +18,7 @@ import config
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral, solve_integral_successive_batched
-from model import GRUNet, LSTMNet, FNOProjectionGRU
+from model import GRUNet, LSTMNet, FNOProjectionGRU, FNOProjectionLSTM
 from plot_utils import plot_result, set_size, plot_switch_system, difference
 from utils import pad_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, \
     set_everything, print_result, postprocess, load_model, load_optimizer, prediction_comparison, print_args, \
@@ -56,7 +56,8 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
     p_no_count = 0
     Z[n_point_start, :] = Z0
     runtime = 0.
-    if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU):
+    if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU) or isinstance(
+            model, FNOProjectionLSTM):
         model.reset_state()
     if silence:
         bar = range(n_point_start + 1, dataset_config.n_point)
@@ -507,7 +508,9 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         for dataset_idx in range(0, len(training_dataset), batch_size):
             sequences = training_dataset[dataset_idx:dataset_idx + batch_size]
             batch_len = len(sequences)
-            if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU):
+            if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model,
+                                                                                     FNOProjectionGRU) or isinstance(
+                model, FNOProjectionLSTM):
                 model.reset_state()
             losses = []
             for batch in zip(*sequences):
@@ -529,7 +532,8 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
             for dataset_idx in range(0, len(validating_dataset), batch_size):
                 sequences = validating_dataset[dataset_idx:dataset_idx + batch_size]
                 batch_len = len(sequences)
-                if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU):
+                if isinstance(model, GRUNet) or isinstance(model, LSTMNet) \
+                        or isinstance(model, FNOProjectionGRU) or isinstance(model, FNOProjectionLSTM):
                     model.reset_state()
                 losses = []
                 for batch in zip(*sequences):

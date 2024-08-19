@@ -177,7 +177,7 @@ class FNOProjectionLSTM(torch.nn.Module):
             fno = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
                                 n_layers=fno_n_layers)
         else:
-            print('Pretrained FNO model loaded to FNO-GRU')
+            print('Pretrained FNO model loaded to FNO-LSTM')
         self.fno = fno
         self.lstm = LSTMNet(input_size=n_state, layer_width=lstm_layer_width, num_layers=lstm_n_layers,
                             output_size=n_state)
