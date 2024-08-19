@@ -524,9 +524,9 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 3e-5
             train_config.scheduler_min_lr2_ = 1e-4
             train_config.batch_size = 512
-            train_config.batch_size2_ = 16
+            train_config.batch_size2_ = 512
             train_config.n_epoch = 200
-            train_config.n_epoch2_ = 200
+            train_config.n_epoch2_ = 300
             train_config.weight_decay = 0
 
             model_config.fno_n_layer = 5
