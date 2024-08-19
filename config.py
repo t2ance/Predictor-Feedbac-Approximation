@@ -462,11 +462,11 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO-GRU':
             train_config.learning_rate = 1e-4
             train_config.scheduler_min_lr = 3e-5
-            train_config.scheduler_min_lr2_ = 3e-5
+            train_config.scheduler_min_lr2_ = 1e-5
             train_config.batch_size = 512
             # train_config.batch_size2_ = 64
             train_config.n_epoch = 200
-            train_config.n_epoch2_ = 500
+            train_config.n_epoch2_ = 1000
             train_config.weight_decay = 1e-2
             dataset_config.n_training_dataset = 500
             dataset_config.n_validation_dataset = 10

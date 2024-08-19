@@ -124,9 +124,11 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
                 Ris = P_no_Ri[start_point:t_i + 1]
                 if train_config.uq_type == 'conformal prediction':
                     Q = np.percentile(Ris, quantile)
+                elif train_config.uq_type == 'gaussian process':
+                    Q = norm.ppf(quantile / 100, loc=np.mean(Ris), scale=np.std(Ris) + 1e-7)
                 else:
-                    Q = norm.ppf(quantile, loc=np.mean(Ris), scale=np.std(Ris))
-
+                    raise NotImplementedError()
+                # print(Q)
                 e_t = 0 if P_no_Ri[t_i] <= Q else 1
                 # (2) Assign the indicator
                 if train_config.uq_switching_type == 'switching':
@@ -583,7 +585,6 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
             wandb.log({f'{method}-difference': wandb.Image(f"{img_save_path}/{method}_diff_fit.png")})
             wandb.log({f'{method}-u': wandb.Image(f"{img_save_path}/{method}_u.png")})
         plt.close()
-        n_point_start = dataset_config.n_point_start()
         if method == 'no':
             P = result.P_no
         elif method == 'numerical':
@@ -603,7 +604,7 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
 
         if method == 'switching':
             print()
-            plot_switch_system(train_config, dataset_config, result, n_point_start, img_save_path)
+            # plot_switch_system(train_config, dataset_config, result, n_point_start, img_save_path)
             print('no count:', result.p_no_count)
             print('numerical count:', result.p_numerical_count)
 

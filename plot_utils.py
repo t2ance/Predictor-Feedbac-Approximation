@@ -201,11 +201,11 @@ def plot_switch_system(train_config, dataset_config, result: SimulationResult, n
     ax.axvline(x=Q, color='red', linestyle='--',
                label=f'{(1 - train_config.uq_alpha) * 100}% quantile: {Q:.2f}')
     ax.legend(loc=legend_loc)
-    ax.title(f'Distribution of $R$ and the ${1 - train_config.uq_alpha}$ quantile')
+    # ax.title(f'Distribution of $R$ and the ${1 - train_config.uq_alpha}$ quantile')
     ax.set_xlabel('$R$')
     ax.set_ylabel('frequency')
-    ax.savefig(f'{img_save_path}/quantile.png')
-    ax.close()
+    # ax.savefig(f'{img_save_path}/quantile.png')
+    # ax.close()
 
     ax.plot(dataset_config.ts[2 * n_point_delay:], result.q_ts[2 * n_point_delay:], label='$q_t$')
     ax.set_xlabel('Time t')
