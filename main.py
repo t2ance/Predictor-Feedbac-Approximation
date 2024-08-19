@@ -817,9 +817,11 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 
         if model_config.model_name == 'FNO-GRU':
             model_config.model_name = 'FNO'
-            fno = run_sequence_training(dataset_config=dataset_config, model_config=model_config,
-                                        train_config=train_config, training_dataset=training_dataset,
-                                        validating_dataset=validating_dataset)
+            fno, _ = load_model(train_config, model_config, dataset_config)
+            model_config.load_model(run, fno)
+            # fno = run_sequence_training(dataset_config=dataset_config, model_config=model_config,
+            #                             train_config=train_config, training_dataset=training_dataset,
+            #                             validating_dataset=validating_dataset)
             model_config.model_name = 'FNO-GRU'
             print(
                 f'Run FNO as part of FNO-GRU, change batch size from {train_config.batch_size} to'
