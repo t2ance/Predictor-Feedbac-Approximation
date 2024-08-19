@@ -17,26 +17,16 @@ class ModelConfig:
     deeponet_hidden_size: Optional[int] = field(default=512)
     deeponet_merge_size: Optional[int] = field(default=256)
     deeponet_n_hidden: Optional[int] = field(default=5)
-
     fno_n_modes_height: Optional[int] = field(default=16)
     fno_hidden_channels: Optional[int] = field(default=32)
     fno_n_layer: Optional[int] = field(default=4)
-
     ffn_n_layer: Optional[int] = field(default=4)
     ffn_layer_width: Optional[int] = field(default=8)
-
     gru_n_layer: Optional[int] = field(default=4)
     gru_layer_width: Optional[int] = field(default=8)
     lstm_n_layer: Optional[int] = field(default=4)
     lstm_layer_width: Optional[int] = field(default=8)
-    model_name: Optional[Literal['FFN', 'FNO', 'DeepONet', 'GRU', 'LSTM']] = field(
-        default='FNO')
-
-    fno_gru_fno_n_modes_height: Optional[int] = field(default=16)
-    fno_gru_fno_hidden_channels: Optional[int] = field(default=32)
-    fno_gru_fno_n_layer: Optional[int] = field(default=4)
-    fno_gru_gru_n_layer: Optional[int] = field(default=4)
-    fno_gru_gru_layer_width: Optional[int] = field(default=8)
+    model_name: Optional[Literal['FFN', 'FNO', 'DeepONet', 'GRU', 'LSTM']] = field(default='FNO')
 
     system: Optional[str] = field(default='s1')
 
@@ -395,8 +385,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 64
             model_config.fno_hidden_channels = 64
-            model_config.fno_gru_gru_n_layer = 3
-            model_config.fno_gru_gru_layer_width = 16
+            model_config.gru_n_layer = 3
+            model_config.gru_layer_width = 16
     elif system_ == 's2':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(1), duration=8, dt=0.05, n_training_dataset=900,
@@ -449,6 +439,14 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.gru_layer_width = 16
             model_config.batch_size = 32
             train_config.scheduler_min_lr = 5e-5
+        elif model_name == 'LSTM':
+            dataset_config.n_training_dataset = 100
+            dataset_config.n_validation_dataset = 10
+            train_config.n_epoch = 1000
+            model_config.lstm_n_layer = 5
+            model_config.lstm_layer_width = 16
+            model_config.batch_size = 32
+            train_config.scheduler_min_lr = 5e-5
         elif model_name == 'FNO':
             dataset_config.n_training_dataset = 500
             dataset_config.n_validation_dataset = 10
@@ -464,7 +462,6 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 3e-5
             train_config.scheduler_min_lr2_ = 5e-7
             train_config.batch_size = 512
-            # train_config.batch_size2_ = 64
             train_config.n_epoch = 200
             train_config.n_epoch2_ = 1000
             train_config.weight_decay = 1e-2
@@ -474,8 +471,24 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_layer = 6
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
-            model_config.fno_gru_gru_n_layer = 4
-            model_config.fno_gru_gru_layer_width = 16
+            model_config.gru_n_layer = 4
+            model_config.gru_layer_width = 16
+        elif model_name == 'FNO-LSTM':
+            train_config.learning_rate = 1e-4
+            train_config.scheduler_min_lr = 3e-5
+            train_config.scheduler_min_lr2_ = 5e-7
+            train_config.batch_size = 512
+            train_config.n_epoch = 200
+            train_config.n_epoch2_ = 1000
+            train_config.weight_decay = 1e-2
+            dataset_config.n_training_dataset = 500
+            dataset_config.n_validation_dataset = 10
+
+            model_config.fno_n_layer = 6
+            model_config.fno_n_modes_height = 32
+            model_config.fno_hidden_channels = 32
+            model_config.lstm_n_layer = 4
+            model_config.lstm_layer_width = 16
     elif system_ == 's6':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=32, dt=0.01, n_training_dataset=900,
@@ -532,8 +545,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
-            model_config.fno_gru_gru_n_layer = 2
-            model_config.fno_gru_gru_layer_width = 16
+            model_config.gru_n_layer = 2
+            model_config.gru_layer_width = 16
     elif system_ == 's8':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=10, dt=0.05, n_training_dataset=900,
@@ -568,8 +581,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 64
             model_config.fno_hidden_channels = 64
-            model_config.fno_gru_gru_n_layer = 4
-            model_config.fno_gru_gru_layer_width = 32
+            model_config.gru_n_layer = 4
+            model_config.gru_layer_width = 32
     elif system_ == 's9':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=TimeVaryingDelay(), duration=8, dt=0.005, n_training_dataset=900,
@@ -612,8 +625,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
-            model_config.fno_gru_gru_n_layer = 2
-            model_config.fno_gru_gru_layer_width = 16
+            model_config.gru_n_layer = 2
+            model_config.gru_layer_width = 16
     else:
         raise NotImplementedError()
     if n_iteration is not None:

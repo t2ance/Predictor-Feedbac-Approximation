@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 from config import DatasetConfig, TrainConfig, ModelConfig
 from dataset import PredictionDataset
-from model import FNOProjection, FFN, GRUNet, LSTMNet, FNOProjectionGRU
+from model import FNOProjection, FFN, GRUNet, LSTMNet, FNOProjectionGRU, FNOProjectionLSTM
 
 from torch import nn
 from torch.nn import init
@@ -204,9 +204,16 @@ def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_con
         model = FNOProjectionGRU(n_modes_height=model_config.fno_n_modes_height,
                                  hidden_channels=model_config.fno_hidden_channels, n_state=n_state,
                                  fno_n_layers=model_config.fno_n_layer,
-                                 gru_n_layers=model_config.fno_gru_gru_n_layer,
-                                 gru_layer_width=model_config.fno_gru_gru_layer_width,
+                                 gru_n_layers=model_config.gru_n_layer,
+                                 gru_layer_width=model_config.gru_layer_width,
                                  fno=fno)
+    elif model_name == 'FNO-LSTM':
+        model = FNOProjectionLSTM(n_modes_height=model_config.fno_n_modes_height,
+                                  hidden_channels=model_config.fno_hidden_channels, n_state=n_state,
+                                  fno_n_layers=model_config.fno_n_layer,
+                                  lstm_n_layers=model_config.lstm_n_layer,
+                                  lstm_layer_width=model_config.lstm_layer_width,
+                                  fno=fno)
     else:
         raise NotImplementedError()
     n_params = count_params(model)
