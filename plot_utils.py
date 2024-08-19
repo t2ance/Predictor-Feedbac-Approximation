@@ -418,7 +418,7 @@ def plot_difference(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
         plt.close(figure)
 
 
-def plot_control(ts, U, save_path, n_point_delay, ylim=None, ax=None, comment=True, figure=None):
+def plot_control(ts, U, save_path, n_point_delay, ylim=None, ax=None, comment=True, figure=None, linestyle='-'):
     if ax is None:
         figure = plt.figure(figsize=set_size(width=fig_width))
         ax = figure.gca()
@@ -428,7 +428,7 @@ def plot_control(ts, U, save_path, n_point_delay, ylim=None, ax=None, comment=Tr
     n_point_start = n_point_delay(0)
     U = U.T
     for i, u in enumerate(U):
-        ax.plot(ts[n_point_start:], u[n_point_start:], label=f'$U_{i + 1}(t)$', color=colors[i])
+        ax.plot(ts[n_point_start:], u[n_point_start:], label=f'$U_{i + 1}(t)$', color=colors[i], linestyle=linestyle)
     if ylim is not None:
         try:
             ax.set_ylim(ylim)

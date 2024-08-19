@@ -474,6 +474,11 @@ def create_sequence_dataset(dataset_config: DatasetConfig, train_config: TrainCo
             training_dataset.append(samples)
         else:
             validating_dataset.append(samples)
+        wandb.log(
+            {
+                'dataset progress': dataset_idx / n_dataset
+            }
+        )
 
     return training_dataset, validating_dataset
 

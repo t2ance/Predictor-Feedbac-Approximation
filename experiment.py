@@ -1,11 +1,13 @@
+import uuid
+
 import numpy as np
 from matplotlib import pyplot as plt
 
 import config
-from main import simulation
+from main import simulation, run_test
 from plot_utils import plot_comparison, plot_difference, plot_control, set_size, fig_width, plot_switch_segments, \
     plot_q, plot_quantile
-from utils import set_everything, load_cp_hyperparameters, load_model, get_time_str
+from utils import set_everything, load_cp_hyperparameters, load_model, get_time_str, TestResult
 
 
 def interval(min_, max_):
@@ -64,7 +66,8 @@ def plot_toy(test_point, plot_name, dataset_config, train_config, model):
 
     min_u, max_u = interval(min(numerical.U.min(), no.U.min(), switching.U.min()),
                             max(numerical.U.max(), no.U.max(), switching.U.max()))
-    plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[2], comment=False, ylim=[min_u, max_u])
+    plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[2], comment=False, ylim=[min_u, max_u],
+                 linestyle='--')
     plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
     plot_switch_segments(ts, switching, n_point_delay(0), ax=switching_axes[2], comment=True, ylim=[min_u, max_u])
 
@@ -115,7 +118,8 @@ def plot_baxter(test_point, plot_name, dataset_config, train_config, model):
 
     min_u, max_u = interval(min(numerical.U.min(), no.U.min(), switching.U.min()),
                             max(numerical.U.max(), no.U.max(), switching.U.max()))
-    plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[3], comment=False, ylim=[min_u, max_u])
+    plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[3], comment=False, ylim=[min_u, max_u],
+                 linestyle='--')
     plot_control(ts, no.U, None, n_point_delay, ax=no_axes[3], comment=False, ylim=[min_u, max_u])
     plot_switch_segments(ts, switching, n_point_delay(0), ax=switching_axes[3], comment=True, ylim=[min_u, max_u])
 
@@ -222,23 +226,21 @@ def plot_alpha(system='s1'):
     plt.savefig(f"./misc/plots/alpha.pdf")
 
 
-def plot_cp():
+def plot_cp_figure(model_name='FNO-GRU'):
     cases = [
-        'toy_id',
-        'toy_ood',
-        'baxter_id',
-        'baxter_ood1',
-        'baxter_ood2',
+        # 'toy_id',
+        # 'toy_ood',
+        # 'baxter_id',
+        # 'baxter_ood1',
+        # 'baxter_ood2',
         'unicycle_id',
         'unicycle_ood'
     ]
     for case in cases:
         print(f'Running with {case}')
         tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters(case)
-        dataset_config, model_config, train_config = config.get_config(system)
-        dataset_config.recreate_dataset = False
-        train_config.do_training = False
-        train_config.load_model = True
+        dataset_config, model_config, train_config = config.get_config(system_=system, model_name=model_name)
+        model_config.model_name = model_name
         train_config.uq_gamma = cp_gamma
         train_config.uq_alpha = cp_alpha
         dataset_config.random_test_lower_bound = tlb
@@ -253,8 +255,47 @@ def plot_cp():
     plot_alpha()
 
 
-def plot_table():
-    ...
+def plot_table(model_name='FNO-GRU'):
+    cases = [
+        # 'toy_id',
+        # 'toy_ood',
+        # 'baxter_id',
+        # 'baxter_ood1',
+        # 'baxter_ood2',
+        'unicycle_id',
+        'unicycle_ood'
+    ]
+    for case in cases:
+        print(f'Running with {case}')
+        tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters(case)
+        dataset_config, model_config, train_config = config.get_config(system_=system, model_name=model_name)
+        model_config.model_name = model_name
+        train_config.uq_gamma = cp_gamma
+        train_config.uq_alpha = cp_alpha
+        dataset_config.random_test_lower_bound = tlb
+        dataset_config.random_test_upper_bound = tub
+        model, model_loaded = load_model(train_config, model_config, dataset_config)
+        model_config.load_model(run, model)
+
+        test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
+
+        result_no: TestResult = run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                         base_path=model_config.base_path, test_points=test_points, method='no')
+        result_switching: TestResult = run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                                base_path=model_config.base_path, test_points=test_points,
+                                                method='switching')
+        result_numerical: TestResult = run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                                base_path=model_config.base_path, test_points=test_points,
+                                                method='numerical')
+        raw_prediction_times = [result_no.runtime, result_switching.runtime, result_numerical.runtime]
+        speedups = [result_numerical.runtime / result_no.runtime, result_numerical.runtime / result_switching.runtime,
+                    result_numerical.runtime / result_numerical.runtime]
+        l2s = [result_no.l2, result_switching.l2, result_numerical.l2]
+        success_cases = [result_no.success_cases, result_switching.success_cases, result_numerical.success_cases]
+        print('&'.join([f'${t:.3f}$' for t in raw_prediction_times]))
+        print('&'.join([f'${t:.3f}$' for t in speedups]))
+        print('&'.join([f'${t:.3f}$' for t in l2s]))
+        print(success_cases)
 
 
 def plot_no_numerical_compare(plot_name, system):
@@ -311,4 +352,6 @@ if __name__ == '__main__':
         project="no",
         name=f'result-plotting {get_time_str()}'
     )
-    plot_no_numerical_compare('s1-gru', 's1')
+    # plot_cp_figure('FNO-GRU')
+    plot_table('FNO-GRU')
+    # plot_no_numerical_compare('s1-gru', 's1')

@@ -291,7 +291,7 @@ class DatasetConfig:
             return dynamic_systems.Baxter(dof=self.baxter_dof)
         elif self.system_ == 's6':
             return dynamic_systems.DynamicSystem3()
-        elif self.system_ == 's7':
+        elif self.system_ == 's7' or self.system_ == 's9':
             return dynamic_systems.Unicycle()
         else:
             raise NotImplementedError()
@@ -570,7 +570,53 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_hidden_channels = 64
             model_config.fno_gru_gru_n_layer = 4
             model_config.fno_gru_gru_layer_width = 32
+    elif system_ == 's9':
+        dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
+                                       delay=TimeVaryingDelay(), duration=8, dt=0.005, n_training_dataset=900,
+                                       n_validation_dataset=100,
+                                       n_sample_per_dataset=-1, ic_lower_bound=-0.5, ic_upper_bound=0.5)
+        model_config = ModelConfig(model_name='FFN')
+        train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
+                                   weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
+                                   scheduler_min_lr=1e-5)
+        if model_name == 'GRU':
+            dataset_config.n_training_dataset = 250
+            dataset_config.n_validation_dataset = 10
+            train_config.n_epoch = 1000
+            model_config.gru_n_layer = 3
+            # model_config.gru_layer_width = 32
+            model_config.gru_layer_width = 8
+            train_config.batch_size = 32
+            train_config.learning_rate = 5e-5
+            train_config.scheduler_min_lr = 5e-6
+        elif model_name == 'FNO':
+            dataset_config.n_training_dataset = 250
+            dataset_config.n_validation_dataset = 10
+            train_config.n_epoch = 500
+            train_config.batch_size = 512
+            train_config.scheduler_min_lr = 1e-5
+            model_config.fno_n_layer = 5
+            model_config.fno_n_modes_height = 32
+            model_config.fno_hidden_channels = 32
+            train_config.weight_decay = 0
+        elif model_name == 'FNO-GRU':
+            dataset_config.n_training_dataset = 250
+            dataset_config.n_validation_dataset = 10
 
+            train_config.learning_rate = 1e-4
+            train_config.scheduler_min_lr = 3e-5
+            train_config.scheduler_min_lr2_ = 1e-4
+            train_config.batch_size = 512
+            train_config.batch_size2_ = 512
+            train_config.n_epoch = 200
+            train_config.n_epoch2_ = 300
+            train_config.weight_decay = 0
+
+            model_config.fno_n_layer = 5
+            model_config.fno_n_modes_height = 32
+            model_config.fno_hidden_channels = 32
+            model_config.fno_gru_gru_n_layer = 2
+            model_config.fno_gru_gru_layer_width = 16
     else:
         raise NotImplementedError()
     if n_iteration is not None:
