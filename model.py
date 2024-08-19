@@ -52,8 +52,8 @@ class GRUNet(nn.Module):
             x = x[:, None, :]
 
         out, hidden = self.gru(x, self.hidden)
-        # self.hidden = hidden.detach()  
-        self.hidden = hidden
+        self.hidden = hidden.detach()
+        # self.hidden = hidden
 
         out = self.fc(out[:, -1, :])
         if labels is None:
