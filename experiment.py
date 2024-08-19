@@ -5,7 +5,7 @@ import config
 from main import simulation
 from plot_utils import plot_comparison, plot_difference, plot_control, set_size, fig_width, plot_switch_segments, \
     plot_q, plot_quantile
-from utils import set_everything, load_cp_hyperparameters, load_model
+from utils import set_everything, load_cp_hyperparameters, load_model, get_time_str
 
 
 def interval(min_, max_):
@@ -138,8 +138,8 @@ def plot_baxter(test_point, plot_name, dataset_config, train_config, model):
     plt.savefig(f"./misc/plots/{plot_name}.pdf")
 
 
-def plot_alpha():
-    dataset_config, model_config, train_config = config.get_config('s1')
+def plot_alpha(system='s1'):
+    dataset_config, model_config, train_config = config.get_config(system)
     dataset_config.recreate_dataset = False
     dataset_config.duration = 12
     train_config.do_training = False
@@ -223,16 +223,18 @@ def plot_alpha():
 
 
 def plot_cp():
-    hyperparameters = [
-        # 'toy_id',
-        # 'toy_ood',
+    cases = [
+        'toy_id',
+        'toy_ood',
         'baxter_id',
         'baxter_ood1',
-        'baxter_ood2'
+        'baxter_ood2',
+        'unicycle_id',
+        'unicycle_ood'
     ]
-    for hyperparameter in hyperparameters:
-        print(f'Running with {hyperparameter}')
-        tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters(hyperparameter)
+    for case in cases:
+        print(f'Running with {case}')
+        tlb, tub, cp_gamma, cp_alpha, system = load_cp_hyperparameters(case)
         dataset_config, model_config, train_config = config.get_config(system)
         dataset_config.recreate_dataset = False
         train_config.do_training = False
@@ -242,12 +244,17 @@ def plot_cp():
         dataset_config.random_test_lower_bound = tlb
         dataset_config.random_test_upper_bound = tub
         model, model_loaded = load_model(train_config, model_config, dataset_config)
-        if hyperparameter.startswith('toy'):
-            plot_toy(dataset_config.test_points[0], hyperparameter, dataset_config, train_config, model)
+        model_config.load_model(run, model)
+        if not case.startswith('baxter'):
+            plot_toy(dataset_config.test_points[0], case, dataset_config, train_config, model)
         else:
-            plot_baxter(dataset_config.test_points[0], hyperparameter, dataset_config, train_config, model)
+            plot_baxter(dataset_config.test_points[0], case, dataset_config, train_config, model)
 
     plot_alpha()
+
+
+def plot_table():
+    ...
 
 
 def plot_no_numerical_compare(plot_name, system):
@@ -297,5 +304,11 @@ def plot_no_numerical_compare(plot_name, system):
 
 
 if __name__ == '__main__':
+    import wandb
+
     set_everything(0)
+    run = wandb.init(
+        project="no",
+        name=f'result-plotting {get_time_str()}'
+    )
     plot_no_numerical_compare('s1-gru', 's1')

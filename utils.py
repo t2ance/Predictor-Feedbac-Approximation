@@ -137,6 +137,11 @@ def load_cp_hyperparameters(case: str):
     elif case == 'baxter_ood2':
         return 1.5, 2., 0.01, 0.3, 's5'
 
+    elif case == 'unicycle_id':
+        return 0., 1., 0.01, 0.1, 's7'
+    elif case == 'unicycle_ood':
+        return 1., 1.5, 0.01, 0.1, 's7'
+
     elif case == 'toy_alpha_0.01':
         return 1.4, 1.6, 0.01, 0.01, 's1'
     elif case == 'toy_alpha_0.05':
