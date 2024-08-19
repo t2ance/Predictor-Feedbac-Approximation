@@ -164,7 +164,9 @@ class FNOProjectionGRU(torch.nn.Module):
         self.mse_loss = torch.nn.MSELoss()
 
     def forward(self, x: torch.Tensor, label: torch.Tensor = None):
-        x = self.fno(x)
+        with torch.no_grad():
+            x = self.fno(x)
+            x = x.detach()
         # x = self.gru(x) + x
         x = self.gru(x)
         if label is None:
