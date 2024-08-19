@@ -571,7 +571,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_gru_gru_n_layer = 4
             model_config.fno_gru_gru_layer_width = 32
     elif system_ == 's9':
-        dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=TimeVaryingDelay(), duration=8, dt=0.005, n_training_dataset=900,
                                        n_validation_dataset=100,
                                        n_sample_per_dataset=-1, ic_lower_bound=-0.5, ic_upper_bound=0.5)
@@ -582,7 +582,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         if model_name == 'GRU':
             dataset_config.n_training_dataset = 250
             dataset_config.n_validation_dataset = 10
-            train_config.n_epoch = 1000
+            train_config.n_epoch = 250
             model_config.gru_n_layer = 3
             # model_config.gru_layer_width = 32
             model_config.gru_layer_width = 8
@@ -592,7 +592,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO':
             dataset_config.n_training_dataset = 250
             dataset_config.n_validation_dataset = 10
-            train_config.n_epoch = 500
+            train_config.n_epoch = 250
             train_config.batch_size = 512
             train_config.scheduler_min_lr = 1e-5
             model_config.fno_n_layer = 5
@@ -604,11 +604,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             dataset_config.n_validation_dataset = 10
 
             train_config.learning_rate = 1e-4
-            train_config.scheduler_min_lr = 3e-5
             train_config.scheduler_min_lr2_ = 1e-4
-            train_config.batch_size = 512
             train_config.batch_size2_ = 512
-            train_config.n_epoch = 200
             train_config.n_epoch2_ = 300
             train_config.weight_decay = 0
 

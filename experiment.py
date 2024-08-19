@@ -21,21 +21,198 @@ def interval(min_, max_):
     return new_min, new_max
 
 
-def plot_toy(test_point, plot_name, dataset_config, train_config, model):
-    dataset_config.duration = 10
+def plot_no_numerical_comparison(test_point, plot_name, dataset_config, train_config, model_config, model, n_row):
     ts = dataset_config.ts
     delay = dataset_config.delay
     n_state = dataset_config.n_state
     n_point_delay = dataset_config.n_point_delay
-    fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(3, 3), height_add=0.6))
+    fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(n_row, 2), height_add=0.6))
+    subfigs = fig.subfigures(nrows=1, ncols=2)
+    numerical_fig, no_fig = subfigs
+    numerical_fig.suptitle('Successive \n Approximation')
+    no_fig.suptitle(model_config.model_name)
+    numerical_axes = numerical_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
+    no_axes = no_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
+
+    print(f'Begin simulation {plot_name}')
+    numerical = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point,
+                           method='numerical')
+    no = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point, method='no')
+    print(f'End simulation {plot_name}')
+
+    min_p, max_p = interval(min(numerical.P_numerical.min(), no.P_no.min()),
+                            max(numerical.P_numerical.max(), no.P_no.max()))
+
+    plot_comparison(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
+                    ax=numerical_axes[0], comment=False)
+    plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=no_axes[0],
+                    comment=False)
+    min_d, max_d = interval(min(numerical.D_numerical.min(), no.D_no.min()),
+                            max(numerical.D_numerical.max(), no.D_no.max()))
+
+    plot_difference(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
+                    ax=numerical_axes[1], comment=False, differences=[numerical.D_numerical])
+    plot_difference(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
+                    comment=False, differences=[no.D_no])
+
+    min_u, max_u = interval(min(numerical.U.min(), no.U.min()),
+                            max(numerical.U.max(), no.U.max()))
+    plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[2], comment=False, ylim=[min_u, max_u],
+                 linestyle='--')
+    plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
+
+    if n_row == 4:
+        q_des = np.array([dataset_config.system.q_des(t) for t in ts])
+        q_numerical = q_des - numerical.Z[:, :2]
+        q_no = q_des - no.Z[:, :2]
+        n_point_start = n_point_delay(0)
+        q_des = q_des[n_point_start:]
+        q_numerical = q_numerical[n_point_start:]
+        q_no = q_no[n_point_start:]
+        plot_q(ts[n_point_start:], [q_numerical], q_des, None, dataset_config.system.n_input, ax=numerical_axes[3],
+               comment=False)
+        plot_q(ts[n_point_start:], [q_no], q_des, None, dataset_config.system.n_input, ax=no_axes[3], comment=False)
+
+    plt.savefig(f"./misc/plots/{plot_name}.pdf")
+
+
+def plot_comparison_main(test_point, plot_name, dataset_config, train_config, model_config, model, n_row):
+    ts = dataset_config.ts
+    delay = dataset_config.delay
+    n_state = dataset_config.n_state
+    n_point_delay = dataset_config.n_point_delay
+    fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(n_row, 2), height_add=0.6))
+    subfigs = fig.subfigures(nrows=1, ncols=2)
+    numerical_fig, cp_fig = subfigs
+    numerical_fig.suptitle('Successive \n Approximation')
+    cp_fig.suptitle(model_config.model_name + '-CP')
+    numerical_axes = numerical_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
+    switching_axes = cp_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
+
+    print(f'Begin simulation {plot_name}')
+    numerical = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point,
+                           method='numerical')
+    cp = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point,
+                    method='switching')
+    print(f'End simulation {plot_name}')
+
+    min_p, max_p = interval(min(numerical.P_numerical.min(), cp.P_switching.min()),
+                            max(numerical.P_numerical.max(), cp.P_switching.max()))
+
+    plot_comparison(ts, [numerical.P_no], numerical.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
+                    ax=numerical_axes[0],
+                    comment=False)
+    plot_comparison(ts, [cp.P_switching], cp.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
+                    ax=switching_axes[0], comment=True)
+    min_d, max_d = interval(min(numerical.D_numerical.min(), cp.D_switching.min()),
+                            max(numerical.D_numerical.max(), cp.D_switching.max()))
+
+    plot_difference(ts, [numerical.P_no], numerical.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
+                    ax=numerical_axes[1],
+                    comment=False, differences=[numerical.D_no])
+    plot_difference(ts, [cp.P_switching], cp.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
+                    ax=switching_axes[1], comment=True, differences=[cp.D_switching])
+
+    min_u, max_u = interval(min(numerical.U.min(), cp.U.min()), max(numerical.U.max(), cp.U.max()))
+    plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[2], comment=False, ylim=[min_u, max_u])
+    plot_switch_segments(ts, cp, n_point_delay(0), ax=switching_axes[2], comment=True, ylim=[min_u, max_u])
+
+    if n_row == 4:
+        q_des = np.array([dataset_config.system.q_des(t) for t in ts])
+        q_numerical = q_des - numerical.Z[:, :2]
+        q_switching = q_des - cp.Z[:, :2]
+        n_point_start = n_point_delay(0)
+        q_des = q_des[n_point_start:]
+        q_numerical = q_numerical[n_point_start:]
+        q_switching = q_switching[n_point_start:]
+        plot_q(ts[n_point_start:], [q_numerical], q_des, None, dataset_config.system.n_input, ax=numerical_axes[3],
+               comment=False)
+        plot_q(ts[n_point_start:], [q_switching], q_des, None, dataset_config.system.n_input, ax=switching_axes[3],
+               comment=True)
+
+    plt.savefig(f"./misc/plots/{plot_name}.pdf")
+
+
+def plot_uq_ablation(test_point, plot_name, dataset_config, train_config, model_config, model, n_row):
+    ts = dataset_config.ts
+    delay = dataset_config.delay
+    n_state = dataset_config.n_state
+    n_point_delay = dataset_config.n_point_delay
+    fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(n_row, 3), height_add=0.6))
+    subfigs = fig.subfigures(nrows=1, ncols=3)
+    no_fig, cp_fig, gp_fig = subfigs
+    no_fig.suptitle(model_config.model_name)
+    cp_fig.suptitle(model_config.model_name + '-CP')
+    gp_fig.suptitle(model_config.model_name + '-GP')
+    no_axes = no_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
+    cp_axes = cp_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
+    gp_axes = gp_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
+
+    print(f'Begin simulation {plot_name}')
+    no = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point, method='no')
+    train_config.uq_type = 'conformal prediction'
+    cp = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point,
+                    method='switching')
+    train_config.uq_type = 'gaussian process'
+    gp = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point,
+                    method='switching')
+    print(f'End simulation {plot_name}')
+
+    min_p, max_p = interval(min(no.P_numerical.min(), cp.P_no.min(), gp.P_switching.min()),
+                            max(no.P_numerical.max(), cp.P_no.max(), gp.P_switching.max()))
+
+    plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=no_axes[0],
+                    comment=False)
+    plot_comparison(ts, [cp.P_switching], cp.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
+                    ax=cp_axes[0], comment=True)
+    plot_comparison(ts, [gp.P_switching], gp.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
+                    ax=cp_axes[0], comment=True)
+    min_d, max_d = interval(min(no.D_no.min(), cp.D_switching.min(), gp.D_switching.min()),
+                            max(no.D_no.max(), cp.D_switching.max(), gp.D_switching.max()))
+
+    plot_difference(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
+                    comment=False, differences=[no.D_no])
+    plot_difference(ts, [cp.P_switching], cp.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
+                    ax=cp_axes[1], comment=True, differences=[cp.D_switching])
+    plot_difference(ts, [gp.P_switching], gp.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
+                    ax=cp_axes[1], comment=True, differences=[gp.D_switching])
+    min_u, max_u = interval(min(no.U.min(), cp.U.min(), gp.U.min()),
+                            max(no.U.max(), cp.U.max(), gp.U.max()))
+    plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
+    plot_switch_segments(ts, cp, n_point_delay(0), ax=cp_axes[2], comment=True, ylim=[min_u, max_u])
+    plot_switch_segments(ts, gp, n_point_delay(0), ax=cp_axes[2], comment=True, ylim=[min_u, max_u])
+
+    if n_row == 4:
+        q_des = np.array([dataset_config.system.q_des(t) for t in ts])
+        q_no = q_des - no.Z[:, :2]
+        q_cp = q_des - cp.Z[:, :2]
+        q_gp = q_des - cp.Z[:, :2]
+        n_point_start = n_point_delay(0)
+        q_des = q_des[n_point_start:]
+        q_no = q_no[n_point_start:]
+        q_cp = q_cp[n_point_start:]
+        q_gp = q_gp[n_point_start:]
+        plot_q(ts[n_point_start:], [q_no], q_des, None, dataset_config.system.n_input, ax=no_axes[3], comment=False)
+        plot_q(ts[n_point_start:], [q_cp], q_des, None, dataset_config.system.n_input, ax=cp_axes[3], comment=True)
+        plot_q(ts[n_point_start:], [q_gp], q_des, None, dataset_config.system.n_input, ax=gp_axes[3], comment=True)
+
+    plt.savefig(f"./misc/plots/{plot_name}.pdf")
+
+
+def plot_rnn_ablation(test_point, plot_name, dataset_config, train_config, model_config, model, n_row):
+    ts = dataset_config.ts
+    delay = dataset_config.delay
+    n_state = dataset_config.n_state
+    n_point_delay = dataset_config.n_point_delay
+    fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(n_row, 3), height_add=0.6))
     subfigs = fig.subfigures(nrows=1, ncols=3)
     numerical_fig, no_fig, switching_fig = subfigs
     numerical_fig.suptitle('Successive \n Approximation')
-    no_fig.suptitle('FNO')
+    no_fig.suptitle(model_config.model_name)
     switching_fig.suptitle('FNO$_{ACP}$')
-    numerical_axes = numerical_fig.subplots(nrows=3, ncols=1, gridspec_kw={'hspace': 0.5})
-    no_axes = no_fig.subplots(nrows=3, ncols=1, gridspec_kw={'hspace': 0.5})
-    switching_axes = switching_fig.subplots(nrows=3, ncols=1, gridspec_kw={'hspace': 0.5})
+    numerical_axes = numerical_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
+    no_axes = no_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
+    switching_axes = switching_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
 
     print(f'Begin simulation {plot_name}')
     numerical = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point,
@@ -71,73 +248,21 @@ def plot_toy(test_point, plot_name, dataset_config, train_config, model):
     plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
     plot_switch_segments(ts, switching, n_point_delay(0), ax=switching_axes[2], comment=True, ylim=[min_u, max_u])
 
-    plt.savefig(f"./misc/plots/{plot_name}.pdf")
-
-
-def plot_baxter(test_point, plot_name, dataset_config, train_config, model):
-    ts = dataset_config.ts
-    delay = dataset_config.delay
-    n_state = dataset_config.n_state
-    n_point_delay = dataset_config.n_point_delay
-    fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(4, 3), height_add=0.6))
-    subfigs = fig.subfigures(nrows=1, ncols=3)
-    numerical_fig, no_fig, switching_fig = subfigs
-    numerical_fig.suptitle('Successive \n Approximation')
-    no_fig.suptitle('FNO')
-    switching_fig.suptitle('FNO$_{ACP}$')
-    numerical_axes = numerical_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
-    no_axes = no_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
-    switching_axes = switching_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
-
-    print(f'Begin simulation {plot_name}')
-    numerical = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point,
-                           method='numerical')
-    no = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point, method='no')
-    switching = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point,
-                           method='switching')
-    print(f'End simulation {plot_name}')
-
-    min_p, max_p = interval(min(numerical.P_numerical.min(), no.P_no.min(), switching.P_switching.min()),
-                            max(numerical.P_numerical.max(), no.P_no.max(), switching.P_switching.max()))
-
-    plot_comparison(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
-                    ax=numerical_axes[1], comment=False)
-    plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=no_axes[1],
-                    comment=False)
-    plot_comparison(ts, [switching.P_switching], switching.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
-                    ax=switching_axes[1], comment=True)
-    min_d, max_d = interval(min(numerical.D_numerical.min(), no.D_no.min(), switching.D_switching.min()),
-                            max(numerical.D_numerical.max(), no.D_no.max(), switching.D_switching.max()))
-
-    plot_difference(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
-                    ax=numerical_axes[2], comment=False, differences=[numerical.D_numerical])
-    plot_difference(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[2],
-                    comment=False, differences=[no.D_no])
-    plot_difference(ts, [switching.P_switching], switching.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
-                    ax=switching_axes[2], comment=True, differences=[switching.D_switching])
-
-    min_u, max_u = interval(min(numerical.U.min(), no.U.min(), switching.U.min()),
-                            max(numerical.U.max(), no.U.max(), switching.U.max()))
-    plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[3], comment=False, ylim=[min_u, max_u],
-                 linestyle='--')
-    plot_control(ts, no.U, None, n_point_delay, ax=no_axes[3], comment=False, ylim=[min_u, max_u])
-    plot_switch_segments(ts, switching, n_point_delay(0), ax=switching_axes[3], comment=True, ylim=[min_u, max_u])
-
-    q_des = np.array([dataset_config.system.q_des(t) for t in ts])
-    q_numerical = q_des - numerical.Z[:, :2]
-    q_no = q_des - no.Z[:, :2]
-    q_switching = q_des - switching.Z[:, :2]
-
-    n_point_start = n_point_delay(0)
-    q_des = q_des[n_point_start:]
-    q_numerical = q_numerical[n_point_start:]
-    q_no = q_no[n_point_start:]
-    q_switching = q_switching[n_point_start:]
-    plot_q(ts[n_point_start:], [q_numerical], q_des, None, dataset_config.system.n_input, ax=numerical_axes[0],
-           comment=False)
-    plot_q(ts[n_point_start:], [q_no], q_des, None, dataset_config.system.n_input, ax=no_axes[0], comment=False)
-    plot_q(ts[n_point_start:], [q_switching], q_des, None, dataset_config.system.n_input, ax=switching_axes[0],
-           comment=True)
+    if n_row == 4:
+        q_des = np.array([dataset_config.system.q_des(t) for t in ts])
+        q_numerical = q_des - numerical.Z[:, :2]
+        q_no = q_des - no.Z[:, :2]
+        q_switching = q_des - switching.Z[:, :2]
+        n_point_start = n_point_delay(0)
+        q_des = q_des[n_point_start:]
+        q_numerical = q_numerical[n_point_start:]
+        q_no = q_no[n_point_start:]
+        q_switching = q_switching[n_point_start:]
+        plot_q(ts[n_point_start:], [q_numerical], q_des, None, dataset_config.system.n_input, ax=numerical_axes[3],
+               comment=False)
+        plot_q(ts[n_point_start:], [q_no], q_des, None, dataset_config.system.n_input, ax=no_axes[3], comment=False)
+        plot_q(ts[n_point_start:], [q_switching], q_des, None, dataset_config.system.n_input, ax=switching_axes[3],
+               comment=True)
 
     plt.savefig(f"./misc/plots/{plot_name}.pdf")
 
@@ -228,13 +353,13 @@ def plot_alpha(system='s1'):
 
 def plot_cp_figure(model_name='FNO-GRU'):
     cases = [
-        # 'toy_id',
+        'toy_id',
         # 'toy_ood',
-        # 'baxter_id',
+        'baxter_id',
         # 'baxter_ood1',
         # 'baxter_ood2',
-        'unicycle_id',
-        'unicycle_ood'
+        # 'unicycle_id',
+        # 'unicycle_ood',
     ]
     for case in cases:
         print(f'Running with {case}')
@@ -248,9 +373,11 @@ def plot_cp_figure(model_name='FNO-GRU'):
         model, model_loaded = load_model(train_config, model_config, dataset_config)
         model_config.load_model(run, model)
         if not case.startswith('baxter'):
-            plot_toy(dataset_config.test_points[0], case, dataset_config, train_config, model)
+            plot_no_numerical_comparison(dataset_config.test_points[0], case, dataset_config, train_config,
+                                         model_config, model, n_row=3)
         else:
-            plot_baxter(dataset_config.test_points[0], case, dataset_config, train_config, model)
+            plot_no_numerical_comparison(dataset_config.test_points[0], case, dataset_config, train_config,
+                                         model_config, model, n_row=4)
 
     plot_alpha()
 
@@ -298,52 +425,6 @@ def plot_table(model_name='FNO-GRU'):
         print(success_cases)
 
 
-def plot_no_numerical_compare(plot_name, system):
-    dataset_config, model_config, train_config = config.get_config(system_=system)
-    model, model_loaded = load_model(train_config, model_config, dataset_config)
-    test_point = dataset_config.test_points[0]
-    ts = dataset_config.ts
-    delay = dataset_config.delay
-    n_state = dataset_config.n_state
-    n_point_delay = dataset_config.n_point_delay
-    fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(3, 2), height_add=0.6))
-    subfigs = fig.subfigures(nrows=1, ncols=2)
-    numerical_fig, no_fig, switching_fig = subfigs
-    numerical_fig.suptitle('Successive \n Approximation')
-    no_fig.suptitle('FNO')
-    switching_fig.suptitle('FNO$_{ACP}$')
-    numerical_axes = numerical_fig.subplots(nrows=2, ncols=1, gridspec_kw={'hspace': 0.5})
-    no_axes = no_fig.subplots(nrows=2, ncols=1, gridspec_kw={'hspace': 0.5})
-
-    print(f'Begin simulation {plot_name}')
-    numerical = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point,
-                           method='numerical')
-    no = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point, method='no')
-    print(f'End simulation {plot_name}')
-
-    min_p, max_p = interval(min(numerical.P_numerical.min(), no.P_no.min()),
-                            max(numerical.P_numerical.max(), no.P_no.max()))
-
-    plot_comparison(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
-                    ax=numerical_axes[0], comment=False)
-    plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=no_axes[0],
-                    comment=False)
-    min_d, max_d = interval(min(numerical.D_numerical.min(), no.D_no.min()),
-                            max(numerical.D_numerical.max(), no.D_no.max()))
-
-    plot_difference(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
-                    ax=numerical_axes[1], comment=False, differences=[numerical.D_numerical])
-    plot_difference(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
-                    comment=False, differences=[no.D_no])
-
-    min_u, max_u = interval(min(numerical.U.min(), no.U.min()), max(numerical.U.max(), no.U.max()))
-    plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[2], comment=False, ylim=[min_u, max_u])
-    plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
-
-    plt.savefig(f"./misc/plots/{plot_name}.pdf")
-    ...
-
-
 if __name__ == '__main__':
     import wandb
 
@@ -352,6 +433,6 @@ if __name__ == '__main__':
         project="no",
         name=f'result-plotting {get_time_str()}'
     )
-    # plot_cp_figure('FNO-GRU')
-    plot_table('FNO-GRU')
+    plot_cp_figure('FNO-GRU')
+    # plot_table('FNO-GRU')
     # plot_no_numerical_compare('s1-gru', 's1')
