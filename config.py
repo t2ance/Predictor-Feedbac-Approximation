@@ -467,7 +467,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             # train_config.batch_size2_ = 64
             train_config.n_epoch = 200
             train_config.n_epoch2_ = 500
-
+            train_config.weight_decay = 1e-2
             dataset_config.n_training_dataset = 500
             dataset_config.n_validation_dataset = 10
 
