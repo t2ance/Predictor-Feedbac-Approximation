@@ -7,9 +7,9 @@ from main import run_test
 from utils import load_model, get_time_str
 
 if __name__ == '__main__':
-    dataset_config, model_config, train_config = get_config('s1', model_name='FNO')
-    # dataset_config.duration = 7
-    dataset_config.dt = 0.01
+    dataset_config, model_config, train_config = get_config('s7', model_name='GRU')
+    # dataset_config.duration = 15
+    # dataset_config.dt = 0.2
     model, loaded = load_model(train_config, model_config, dataset_config)
     run = wandb.init(
         project="no",
