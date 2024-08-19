@@ -156,14 +156,17 @@ class FNOProjectionGRU(torch.nn.Module):
         self.fno = fno
         self.gru = GRUNet(input_size=n_state, layer_width=gru_layer_width, num_layers=gru_n_layers,
                           output_size=n_state)
-        with torch.no_grad():
-            for name, param in self.gru.named_parameters():
-                param.data.fill_(0.0)
+
+        # with torch.no_grad():
+        #     for name, param in self.gru.named_parameters():
+        #         param.data.fill_(0.0)
+
         self.mse_loss = torch.nn.MSELoss()
 
     def forward(self, x: torch.Tensor, label: torch.Tensor = None):
         x = self.fno(x)
-        x = self.gru(x) + x
+        # x = self.gru(x) + x
+        x = self.gru(x)
         if label is None:
             return x
         return x, self.mse_loss(x, label)
