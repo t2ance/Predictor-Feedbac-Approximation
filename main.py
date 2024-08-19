@@ -501,31 +501,32 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
             sequences = training_dataset[dataset_idx:dataset_idx + batch_size]
             batch_len = len(sequences)
             if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU):
-                optimizer.zero_grad()
                 model.reset_state()
-                losses = []
-                for batch in zip(*sequences):
-                    inputs, labels = torch.vstack([batch[i][0] for i in range(batch_len)]), torch.vstack(
-                        [batch[i][1] for i in range(batch_len)])
-                    inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
-                    outputs, loss = predict_and_loss(inputs, labels, model)
-                    losses.append(loss)
-                loss_ = sum(losses) / len(losses)
-                loss_.backward()
+                # losses = []
+
+                # optimizer.zero_grad()
+                # for batch in zip(*sequences):
+                #     inputs, labels = torch.vstack([batch[i][0] for i in range(batch_len)]), torch.vstack(
+                #         [batch[i][1] for i in range(batch_len)])
+                #     inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
+                #     outputs, loss = predict_and_loss(inputs, labels, model)
+                #     losses.append(loss)
+                # loss_ = sum(losses) / len(losses)
+                # loss_.backward()
+                # optimizer.step()
+                # training_loss += loss_.item()
+            # else:
+            losses = []
+            for batch in zip(*sequences):
+                optimizer.zero_grad()
+                inputs, labels = torch.vstack([batch[i][0] for i in range(batch_len)]), torch.vstack(
+                    [batch[i][1] for i in range(batch_len)])
+                inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
+                outputs, loss = predict_and_loss(inputs, labels, model)
+                loss.backward()
                 optimizer.step()
-                training_loss += loss_.item()
-            else:
-                losses = []
-                for batch in zip(*sequences):
-                    optimizer.zero_grad()
-                    inputs, labels = torch.vstack([batch[i][0] for i in range(batch_len)]), torch.vstack(
-                        [batch[i][1] for i in range(batch_len)])
-                    inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
-                    outputs, loss = predict_and_loss(inputs, labels, model)
-                    loss.backward()
-                    optimizer.step()
-                    losses.append(loss.detach())
-                training_loss += (sum(losses) / len(losses)).item()
+                losses.append(loss.detach())
+            training_loss += (sum(losses) / len(losses)).item()
             n_epoch += 1
         training_loss /= n_epoch
 
