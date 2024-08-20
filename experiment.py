@@ -377,9 +377,10 @@ def plot_figure():
     # train_config, dataset_config, model_config, model = load_config('unicycle_id', 'FNO-GRU')
     # plot_comparison_main(dataset_config.test_points[0], 'unicycle_id', dataset_config, train_config, model_config,
     #                      model, n_row=3)
-
     train_config, dataset_config, model_config, model = load_config('baxter_id', 'FNO-GRU')
-    plot_uq_ablation(dataset_config.test_points[0], 'baxter_id', dataset_config, train_config, model_config,
+    # test_point = dataset_config.test_points[0]
+    test_point = (1.2, 1.2, 0.5, 0.5)
+    plot_uq_ablation(test_point, 'baxter_id', dataset_config, train_config, model_config,
                      model, n_row=4)
 
     # train_config, dataset_config, model_config, model = load_config('baxter_id', 'FNO')

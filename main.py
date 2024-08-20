@@ -129,7 +129,6 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
                     Q = norm.ppf(quantile / 100, loc=np.mean(Ris), scale=np.std(Ris) + 1e-7)
                 else:
                     raise NotImplementedError()
-                # print(Q)
                 e_t = 0 if P_no_Ri[t_i] <= Q else 1
                 # (2) Assign the indicator
                 if train_config.uq_switching_type == 'switching':
