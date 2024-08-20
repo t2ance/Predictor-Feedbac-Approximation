@@ -571,7 +571,8 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
 
 def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method: str, base_path: str = None,
              silence: bool = False, test_points: List = None, plot: bool = False):
-    base_path = f'{base_path}/{method}'
+    if base_path is not None:
+        base_path = f'{base_path}/{method}'
     if test_points is None:
         test_points = dataset_config.test_points
 
@@ -579,16 +580,24 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
     l2_list = []
     prediction_time = []
     n_iter_list = []
-    for i, (test_point, name) in enumerate(bar):
+    results = []
+    for i, test_point in enumerate(bar):
+        if isinstance(test_point, tuple) and len(test_point) == 2:
+            test_point, name = test_point
+        else:
+            name = None
         if not silence:
             bar.set_description(f'Solving system with initial point {np.round(test_point, decimals=3)}.')
             bar.set_description(f'Save to {name}.')
-
-        img_save_path = f'{base_path}/{name}'
-        check_dir(img_save_path)
+        if base_path is not None:
+            img_save_path = f'{base_path}/{name}'
+            check_dir(img_save_path)
+        else:
+            img_save_path = None
         result = simulation(dataset_config=dataset_config, train_config=train_config, model=m, Z0=test_point,
                             method=method, img_save_path=img_save_path)
-        if i == 0:
+        results.append(result)
+        if i == 0 and img_save_path is not None:
             wandb.log({f'{method}-comparison': wandb.Image(f"{img_save_path}/{method}_comp_fit.png")})
             wandb.log({f'{method}-difference': wandb.Image(f"{img_save_path}/{method}_diff_fit.png")})
             wandb.log({f'{method}-u': wandb.Image(f"{img_save_path}/{method}_u.png")})
@@ -628,7 +637,6 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
         n_iter = np.concatenate(n_iter_list).mean()
         to_save.append(n_iter)
         print(f'Numerical method uses {n_iter} iterations on average.')
-    np.savetxt(f'{base_path}/metric.txt', np.array(to_save))
     if plot or base_path is not None:
         def plot_result(data, label, title, xlabel, path):
             fig = plt.figure(figsize=set_size())
@@ -646,7 +654,7 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
 
         plot_result(data=l2_list, label=f'L2 error', title='L2 error', xlabel='L2 error',
                     path=f'{base_path}/l2.png')
-    return TestResult(runtime=runtime, l2=l2, success_cases=len(l2_list))
+    return TestResult(runtime=runtime, l2=l2, success_cases=len(l2_list), results=results)
 
 
 def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_config: TrainConfig):

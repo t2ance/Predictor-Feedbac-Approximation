@@ -3,6 +3,7 @@ import os
 import random
 import time
 from dataclasses import dataclass
+from typing import List
 
 import numpy as np
 import torch
@@ -49,6 +50,7 @@ class TestResult:
     runtime: float = None
     l2: float = None
     success_cases: int = None
+    results: List = None
 
 
 def initialize_weights(m):
