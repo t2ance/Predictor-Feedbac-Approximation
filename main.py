@@ -448,7 +448,7 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
 
 
 def create_sequence_dataset(dataset_config: DatasetConfig, train_config: TrainConfig):
-    n_dataset = dataset_config.n_training_dataset
+    n_dataset = dataset_config.n_training_dataset + dataset_config.n_validation_dataset
     max_n_point_delay = dataset_config.max_n_point_delay()
     training_dataset = []
     validating_dataset = []
@@ -471,7 +471,7 @@ def create_sequence_dataset(dataset_config: DatasetConfig, train_config: TrainCo
         for p, z, t, u in zip(Ps, Zs, horizon, Us):
             samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(p)))
 
-        if dataset_idx < n_dataset * train_config.training_ratio:
+        if dataset_idx < dataset_config.n_training_dataset:
             training_dataset.append(samples)
         else:
             validating_dataset.append(samples)
