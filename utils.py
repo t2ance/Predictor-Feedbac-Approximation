@@ -131,14 +131,14 @@ def load_cp_hyperparameters(case: str):
         return 1.2, 1.6, 0.01, 0.1, 's1'
 
     elif case == 'baxter_id':
-        return 0., 1., 0.01, 0.1, 's5'
+        return 0., 1., 0.01, 0.01, 's5'
     elif case == 'baxter_ood1':
-        return 1., 1.5, 0.01, 0.1, 's5'
+        return 1., 1.1, 0.01, 0.1, 's5'
     elif case == 'baxter_ood2':
         return 1.5, 2., 0.01, 0.3, 's5'
 
     elif case == 'unicycle_id':
-        return 0., 1., 0.01, 0.1, 's7'
+        return 0., 1., 0.01, 0.01, 's7'
     elif case == 'unicycle_ood':
         return 1., 1.5, 0.01, 0.1, 's7'
 

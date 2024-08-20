@@ -114,7 +114,7 @@ def plot_comparison_main(test_point, plot_name, dataset_config, train_config, mo
 
     min_u, max_u = interval(min(numerical.U.min(), cp.U.min()), max(numerical.U.max(), cp.U.max()))
     plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[2], comment=False, ylim=[min_u, max_u])
-    plot_switch_segments(ts, cp, n_point_delay(0), ax=cp_axes[2], comment=True, ylim=[min_u, max_u])
+    plot_switch_segments(ts, cp, n_point_delay(0), ax=cp_axes[2], legend=True, ylim=[min_u, max_u])
 
     if n_row == 4:
         q_des = np.array([dataset_config.system.q_des(t) for t in ts])
@@ -163,7 +163,7 @@ def plot_uq_ablation(test_point, plot_name, dataset_config, train_config, model_
     plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=no_axes[0],
                     comment=False)
     plot_comparison(ts, [cp.P_switching], cp.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
-                    ax=cp_axes[0], comment=True)
+                    ax=gp_axes[0], comment=False)
     plot_comparison(ts, [gp.P_switching], gp.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
                     ax=cp_axes[0], comment=True)
     min_d, max_d = interval(min(no.D_no.min(), cp.D_switching.min(), gp.D_switching.min()),
@@ -172,14 +172,14 @@ def plot_uq_ablation(test_point, plot_name, dataset_config, train_config, model_
     plot_difference(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
                     comment=False, differences=[no.D_no])
     plot_difference(ts, [cp.P_switching], cp.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
-                    ax=cp_axes[1], comment=True, differences=[cp.D_switching])
+                    ax=gp_axes[1], comment=False, differences=[cp.D_switching])
     plot_difference(ts, [gp.P_switching], gp.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
                     ax=cp_axes[1], comment=True, differences=[gp.D_switching])
     min_u, max_u = interval(min(no.U.min(), cp.U.min(), gp.U.min()),
                             max(no.U.max(), cp.U.max(), gp.U.max()))
     plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
-    plot_switch_segments(ts, cp, n_point_delay(0), ax=cp_axes[2], comment=True, ylim=[min_u, max_u])
-    plot_switch_segments(ts, gp, n_point_delay(0), ax=cp_axes[2], comment=True, ylim=[min_u, max_u])
+    plot_switch_segments(ts, cp, n_point_delay(0), ax=cp_axes[2], legend=False, ylim=[min_u, max_u])
+    plot_switch_segments(ts, gp, n_point_delay(0), ax=gp_axes[2], legend=True, ylim=[min_u, max_u])
 
     if n_row == 4:
         q_des = np.array([dataset_config.system.q_des(t) for t in ts])
@@ -198,20 +198,20 @@ def plot_uq_ablation(test_point, plot_name, dataset_config, train_config, model_
     plt.savefig(f"./misc/plots/{plot_name}.pdf")
 
 
-def plot_rnn_ablation(test_point, plot_name, dataset_config, train_config, n_row):
+def plot_rnn_ablation(test_point, plot_name, dataset_config):
     ts = dataset_config.ts
     delay = dataset_config.delay
     n_state = dataset_config.n_state
     n_point_delay = dataset_config.n_point_delay
-    fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(n_row, 3), height_add=0.6))
+    fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(4, 3), height_add=0.6))
     subfigs = fig.subfigures(nrows=1, ncols=3)
     no_fig, gru_fig, lstm_fig = subfigs
     no_fig.suptitle('FNO')
     gru_fig.suptitle('FNO-GRU')
     lstm_fig.suptitle('FNO-LSTM')
-    no_axes = no_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
-    gru_axes = gru_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
-    lstm_axes = lstm_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
+    no_axes = no_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
+    gru_axes = gru_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
+    lstm_axes = lstm_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
 
     print(f'Begin simulation {plot_name}')
 
@@ -257,24 +257,23 @@ def plot_rnn_ablation(test_point, plot_name, dataset_config, train_config, n_row
     plot_control(ts, gru.U, None, n_point_delay, ax=gru_axes[2], comment=False, ylim=[min_u, max_u])
     plot_control(ts, lstm.U, None, n_point_delay, ax=lstm_axes[2], comment=False, ylim=[min_u, max_u])
 
-    if n_row == 4:
-        q_des = np.array([dataset_config.system.q_des(t) for t in ts])
-        q_no = q_des - no.Z[:, :2]
-        q_gru = q_des - gru.Z[:, :2]
-        q_lstm = q_des - lstm.Z[:, :2]
-        n_point_start = n_point_delay(0)
-        q_des = q_des[n_point_start:]
-        q_no = q_no[n_point_start:]
-        q_gru = q_gru[n_point_start:]
-        q_lstm = q_lstm[n_point_start:]
-        plot_q(ts[n_point_start:], [q_no], q_des, None, dataset_config.system.n_input, ax=no_axes[3], comment=False)
-        plot_q(ts[n_point_start:], [q_gru], q_des, None, dataset_config.system.n_input, ax=gru_axes[3], comment=False)
-        plot_q(ts[n_point_start:], [q_lstm], q_des, None, dataset_config.system.n_input, ax=lstm_axes[3], comment=True)
+    q_des = np.array([dataset_config.system.q_des(t) for t in ts])
+    q_no = q_des - no.Z[:, :2]
+    q_gru = q_des - gru.Z[:, :2]
+    q_lstm = q_des - lstm.Z[:, :2]
+    n_point_start = n_point_delay(0)
+    q_des = q_des[n_point_start:]
+    q_no = q_no[n_point_start:]
+    q_gru = q_gru[n_point_start:]
+    q_lstm = q_lstm[n_point_start:]
+    plot_q(ts[n_point_start:], [q_no], q_des, None, dataset_config.system.n_input, ax=no_axes[3], comment=False)
+    plot_q(ts[n_point_start:], [q_gru], q_des, None, dataset_config.system.n_input, ax=gru_axes[3], comment=False)
+    plot_q(ts[n_point_start:], [q_lstm], q_des, None, dataset_config.system.n_input, ax=lstm_axes[3], comment=True)
 
     plt.savefig(f"./misc/plots/{plot_name}.pdf")
 
 
-def plot_alpha(system='s1'):
+def plot_alpha(system='s5'):
     dataset_config, model_config, train_config = config.get_config(system)
     dataset_config.recreate_dataset = False
     dataset_config.duration = 12
@@ -340,11 +339,11 @@ def plot_alpha(system='s1'):
 
     min_u, max_u = interval(min(switching_alpha01.U.min(), switching_alpha02.U.min(), switching_alpha05.U.min()),
                             max(switching_alpha01.U.max(), switching_alpha02.U.max(), switching_alpha05.U.max()))
-    plot_switch_segments(ts, switching_alpha01, n_point_delay(0), ax=switching_alpha1_axes[2], comment=False,
+    plot_switch_segments(ts, switching_alpha01, n_point_delay(0), ax=switching_alpha1_axes[2], legend=False,
                          ylim=[min_u, max_u])
-    plot_switch_segments(ts, switching_alpha02, n_point_delay(0), ax=switching_alpha2_axes[2], comment=False,
+    plot_switch_segments(ts, switching_alpha02, n_point_delay(0), ax=switching_alpha2_axes[2], legend=False,
                          ylim=[min_u, max_u])
-    plot_switch_segments(ts, switching_alpha05, n_point_delay(0), ax=switching_alpha3_axes[2], comment=True,
+    plot_switch_segments(ts, switching_alpha05, n_point_delay(0), ax=switching_alpha3_axes[2], legend=True,
                          ylim=[min_u, max_u])
 
     n_point_start = n_point_delay(0)
@@ -371,20 +370,21 @@ def plot_figure():
         model_config.load_model(run, model)
         return train_config, dataset_config, model_config, model
 
+    # train_config, dataset_config, model_config, model = load_config('baxter_id', 'FNO-GRU')
+    # plot_comparison_main(dataset_config.test_points[0], 'baxter_id', dataset_config, train_config, model_config, model,
+    #                      n_row=4)
+    #
+    # train_config, dataset_config, model_config, model = load_config('unicycle_id', 'FNO-GRU')
+    # plot_comparison_main(dataset_config.test_points[0], 'unicycle_id', dataset_config, train_config, model_config,
+    #                      model, n_row=3)
+
     train_config, dataset_config, model_config, model = load_config('baxter_id', 'FNO-GRU')
-    plot_comparison_main(dataset_config.test_points[0], 'baxter_id', dataset_config, train_config, model_config, model,
-                         n_row=4)
-
-    train_config, dataset_config, model_config, model = load_config('unicycle_id', 'FNO-GRU')
-    plot_comparison_main(dataset_config.test_points[0], 'unicycle_id', dataset_config, train_config, model_config,
-                         model, n_row=3)
-
-    train_config, dataset_config, model_config, model = load_config('baxter_ood2', 'FNO-GRU')
-    plot_uq_ablation(dataset_config.test_points[0], 'baxter_ood2', dataset_config, train_config, model_config,
+    plot_uq_ablation(dataset_config.test_points[0], 'baxter_id', dataset_config, train_config, model_config,
                      model, n_row=4)
 
-    plot_rnn_ablation()
-    plot_alpha()
+    # train_config, dataset_config, model_config, model = load_config('baxter_id', 'FNO')
+    # plot_rnn_ablation(dataset_config.test_points[0], 'rnn_ablation', dataset_config)
+    # plot_alpha()
 
 
 def plot_table(model_name='FNO-GRU'):

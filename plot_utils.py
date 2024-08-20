@@ -129,7 +129,7 @@ def plot_system(title, ts, Z, U, P, img_save_path, ax=None):
     ax.clear()
 
 
-def plot_switch_segments(ts, result: SimulationResult, n_point_delay, ylim=None, ax=None, comment=True):
+def plot_switch_segments(ts, result: SimulationResult, n_point_delay, ylim=None, ax=None, legend=True):
     if ax is None:
         ax = plt.figure(figsize=set_size(width=fig_width)).gca()
     ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
@@ -148,19 +148,19 @@ def plot_switch_segments(ts, result: SimulationResult, n_point_delay, ylim=None,
         ax.scatter(ts[marked_indices][1:], u[marked_indices][1:], s=25, color=colors[j], facecolors='none',
                    linewidth=0.5)
 
-        ax.plot(ts[:marked_indices[0] + 1], u[:marked_indices[0] + 1], linestyle=styles[0], label=color_labels[0],
+        ax.plot(ts[:marked_indices[0] + 1], u[:marked_indices[0] + 1], linestyle=styles[1], label=color_labels[0],
                 color=colors[j])
         for i in range(len(marked_indices) - 1):
             ax.plot(ts[marked_indices[i]:marked_indices[i + 1] + 1], u[marked_indices[i]:marked_indices[i + 1] + 1],
-                    linestyle=styles[(i + 1) % 2], label=color_labels[(i + 1) % 2] if i == 0 else "", color=colors[j])
-        ax.plot(ts[marked_indices[-1]:], u[marked_indices[-1]:], linestyle=styles[(len(marked_indices)) % 2],
+                    linestyle=styles[i % 2], label=color_labels[(i + 1) % 2] if i == 0 else "", color=colors[j])
+        ax.plot(ts[marked_indices[-1]:], u[marked_indices[-1]:], linestyle=styles[(len(marked_indices) + 1) % 2],
                 color=colors[j])
     if ylim is not None:
         try:
             ax.set_ylim(ylim)
         except:
             ...
-    if comment:
+    if legend:
         # ax.set_xlabel('Time t')
         ax.legend(loc=legend_loc)
         if n_input < display_threshold:

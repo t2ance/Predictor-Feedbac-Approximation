@@ -422,9 +422,9 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
     elif system_ == 's5':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=8, dt=0.02, n_training_dataset=900,
-                                       n_validation_dataset=100,
-                                       n_sample_per_dataset=-1, baxter_dof=2, ic_lower_bound=0, ic_upper_bound=1,
-                                       random_test_lower_bound=0, random_test_upper_bound=1)
+                                       n_validation_dataset=100, n_sample_per_dataset=-1, baxter_dof=2,
+                                       ic_lower_bound=0, ic_upper_bound=1, random_test_lower_bound=0,
+                                       random_test_upper_bound=1)
         model_config = ModelConfig(model_name='FNO')
         train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', uq_alpha=0.01,
@@ -480,7 +480,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 1e-6
             train_config.scheduler_min_lr2_ = 1e-6
             train_config.batch_size = 512
-            train_config.n_epoch = 200
+            train_config.n_epoch = 500
             train_config.n_epoch2_ = 1000
             train_config.weight_decay = 1e-2
             dataset_config.n_training_dataset = 900
