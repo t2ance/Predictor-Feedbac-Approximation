@@ -401,6 +401,7 @@ def plot_figure():
     # train_config, dataset_config, model_config, model = load_config('unicycle_id', 'FNO-GRU')
     # plot_comparison_main(dataset_config.test_points[0], 'unicycle_id', dataset_config, train_config, model_config,
     #                      model, n_row=3)
+
     train_config, dataset_config, model_config, model = load_config('baxter_ood1', 'FNO-GRU')
     test_points = [
         (np.random.uniform(1, 2), np.random.uniform(1, 2), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
