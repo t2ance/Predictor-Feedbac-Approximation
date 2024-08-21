@@ -343,7 +343,7 @@ class DatasetConfig:
 
 def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=None):
     if system_ == 's1':
-        dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(1), duration=6, dt=0.1, n_training_dataset=900,
                                        n_validation_dataset=100, n_sample_per_dataset=-1, ic_lower_bound=0,
                                        ic_upper_bound=1, random_test_lower_bound=0, random_test_upper_bound=1)
@@ -465,9 +465,9 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             # model_config.fno_hidden_channels = 32
             # model_config.gru_n_layer = 4
             # model_config.gru_layer_width = 16
-            model_config.fno_n_layer = 4
-            model_config.fno_n_modes_height = 32
-            model_config.fno_hidden_channels = 32
+            model_config.fno_n_layer = 9
+            model_config.fno_n_modes_height = 16
+            model_config.fno_hidden_channels = 16
             model_config.gru_n_layer = 1
             model_config.gru_layer_width = 16
         elif model_name == 'LSTM':
@@ -496,9 +496,9 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             # model_config.fno_hidden_channels = 32
             # model_config.lstm_n_layer = 5
             # model_config.lstm_layer_width = 64
-            model_config.fno_n_layer = 4
-            model_config.fno_n_modes_height = 32
-            model_config.fno_hidden_channels = 32
+            model_config.fno_n_layer = 9
+            model_config.fno_n_modes_height = 16
+            model_config.fno_hidden_channels = 16
             model_config.lstm_n_layer = 1
             model_config.lstm_layer_width = 16
     elif system_ == 's6':

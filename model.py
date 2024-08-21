@@ -1,6 +1,6 @@
 import torch
 # from neuralop.models import FNO1d
-from neuralop.models import TFNO1d
+from neuralop.models import UNO
 from torch import nn
 
 
@@ -204,8 +204,8 @@ class FNOProjection(torch.nn.Module):
         self.n_state = n_state
         self.mse_loss = torch.nn.MSELoss()
         self.n_modes_height = n_modes_height
-        self.fno = TFNO1d(n_modes_height=n_modes_height, n_layers=n_layers, hidden_channels=hidden_channels,
-                          in_channels=2, out_channels=1)
+        self.fno = UNO(n_modes_height=n_modes_height, n_layers=n_layers, hidden_channels=hidden_channels, in_channels=2,
+                       out_channels=1)
         self.projection = torch.nn.Linear(in_features=n_modes_height * 2, out_features=n_state)
         self.linear_decoder = LinearDecoder(n_state, 1, n_modes_height)
         self.linear_functional = LinearFunctional(1, n_state, n_modes_height)
