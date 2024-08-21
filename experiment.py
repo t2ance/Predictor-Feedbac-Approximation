@@ -417,7 +417,7 @@ def print_results(results, result_baseline=None):
     raw_prediction_times = [result.runtime for result in results]
     print('raw prediction time', '&'.join([f'${t:.3f}$' for t in raw_prediction_times]))
     if result_baseline is not None:
-        speedups = [result.runtime / result_baseline.runtime for result in results]
+        speedups = [result_baseline.runtime / result.runtime for result in results]
         print('speedup', '&'.join([f'${t:.3f}$' for t in speedups]))
     l2s = [result.l2 for result in results]
     print('l2 error', '&'.join([f'${t:.3f}$' for t in l2s]))
