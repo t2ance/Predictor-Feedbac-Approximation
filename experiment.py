@@ -88,6 +88,7 @@ def plot_comparison_main(test_points, plot_name, dataset_config, train_config, m
     train_config.uq_type = 'conformal prediction'
     result_cp = run_test(dataset_config=dataset_config, train_config=train_config, m=model, test_points=test_points,
                          method='switching')
+    print_results([result_numerical, result_cp], result_numerical)
     print(f'End simulation {plot_name}')
 
     for i, (test_point, numerical, cp) in enumerate(zip(test_points, result_numerical.results, result_cp.results)):
@@ -154,8 +155,8 @@ def plot_uq_ablation(test_points, plot_name, dataset_config, train_config, model
     train_config.uq_type = 'gaussian process'
     result_gp = run_test(dataset_config=dataset_config, train_config=train_config, m=model, test_points=test_points,
                          method='switching')
-    print(f'End simulation {plot_name}')
     print_results([result_no, result_cp, result_gp], result_numerical)
+    print(f'End simulation {plot_name}')
 
     for i, (test_point, no, cp, gp) in enumerate(
             zip(test_points, result_no.results, result_cp.results, result_gp.results)):
