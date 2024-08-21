@@ -490,7 +490,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
             model_config.lstm_n_layer = 5
-            model_config.lstm_layer_width = 32
+            model_config.lstm_layer_width = 64
     elif system_ == 's6':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=32, dt=0.01, n_training_dataset=900,

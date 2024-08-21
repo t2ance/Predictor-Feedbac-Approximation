@@ -204,19 +204,15 @@ def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_con
         model = LSTMNet(input_size=n_state + n_point_start * n_input, layer_width=model_config.lstm_layer_width,
                         num_layers=model_config.lstm_n_layer, output_size=n_state)
     elif model_name == 'FNO-GRU':
-        model = FNOProjectionGRU(n_modes_height=model_config.fno_n_modes_height,
-                                 hidden_channels=model_config.fno_hidden_channels, n_state=n_state,
-                                 fno_n_layers=model_config.fno_n_layer,
-                                 gru_n_layers=model_config.gru_n_layer,
-                                 gru_layer_width=model_config.gru_layer_width,
-                                 fno=fno)
+        model = FNOProjectionGRU(
+            n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
+            n_state=n_state, fno_n_layers=model_config.fno_n_layer, gru_n_layers=model_config.gru_n_layer,
+            gru_layer_width=model_config.gru_layer_width, fno=fno)
     elif model_name == 'FNO-LSTM':
-        model = FNOProjectionLSTM(n_modes_height=model_config.fno_n_modes_height,
-                                  hidden_channels=model_config.fno_hidden_channels, n_state=n_state,
-                                  fno_n_layers=model_config.fno_n_layer,
-                                  lstm_n_layers=model_config.lstm_n_layer,
-                                  lstm_layer_width=model_config.lstm_layer_width,
-                                  fno=fno)
+        model = FNOProjectionLSTM(
+            n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
+            n_state=n_state, fno_n_layers=model_config.fno_n_layer, lstm_n_layers=model_config.lstm_n_layer,
+            lstm_layer_width=model_config.lstm_layer_width, fno=fno)
     else:
         raise NotImplementedError()
     n_params = count_params(model)
