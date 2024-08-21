@@ -1,15 +1,13 @@
-import uuid
 from typing import List
 
 import numpy as np
 from matplotlib import pyplot as plt
 
 import config
-from main import simulation, run_test
+from main import run_test
 from plot_utils import plot_comparison, plot_difference, plot_control, set_size, fig_width, plot_switch_segments, \
     plot_q, plot_quantile
-from utils import set_everything, load_cp_hyperparameters, load_model, get_time_str, TestResult, check_dir, \
-    SimulationResult
+from utils import set_everything, load_model, get_time_str, check_dir, SimulationResult
 
 
 def interval(min_, max_):
@@ -219,6 +217,95 @@ def plot_uq_ablation(test_points, plot_name, dataset_config, train_config, model
         plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
 
 
+# def plot_rnn_ablation(test_points, plot_name):
+#     print(f'Begin simulation {plot_name}')
+#
+#     dataset_config, model_config, train_config = config.get_config(system_='s5', model_name='FNO')
+#     model, model_loaded = load_model(train_config, model_config, dataset_config)
+#     model_config.load_model(run, model)
+#
+#     result_no = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
+#                          test_points=test_points, method='no')
+#
+#     dataset_config, model_config, train_config = config.get_config(system_='s5', model_name='FNO-GRU')
+#     model, model_loaded = load_model(train_config, model_config, dataset_config)
+#     model_config.load_model(run, model)
+#     result_gru = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
+#                           test_points=test_points, method='no')
+#
+#     # dataset_config, model_config, train_config = config.get_config(system_='s5', model_name='FNO-LSTM')
+#     # model, model_loaded = load_model(train_config, model_config, dataset_config)
+#     # model_config.load_model(run, model)
+#     # result_lstm = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
+#     #                        test_points=test_points, method='no')
+#
+#     result_numerical = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
+#                                 test_points=test_points, method='numerical')
+#     # print_results([result_no, result_gru, result_lstm], result_numerical)
+#     print_results([result_no, result_gru], result_numerical)
+#
+#     print(f'End simulation {plot_name}')
+#
+#     # for i, (test_point, no, gru, lstm) in enumerate(
+#     #         zip(test_points, result_no.results, result_gru.results, result_lstm.results)):
+#     for i, (test_point, no, gru) in enumerate(
+#             zip(test_points, result_no.results, result_gru.results)):
+#         ts = dataset_config.ts
+#         delay = dataset_config.delay
+#         n_state = dataset_config.n_state
+#         n_point_delay = dataset_config.n_point_delay
+#         fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(4, 3), height_add=0.6))
+#         subfigs = fig.subfigures(nrows=1, ncols=3)
+#         no_fig, gru_fig, lstm_fig = subfigs
+#         no_fig.suptitle('FNO')
+#         gru_fig.suptitle('FNO-GRU')
+#         lstm_fig.suptitle('FNO-LSTM')
+#         no_axes = no_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
+#         gru_axes = gru_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
+#         lstm_axes = lstm_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
+#
+#         min_p, max_p = interval(min(no.P_no.min(), gru.P_no.min(), lstm.P_no.min()),
+#                                 max(no.P_no.max(), gru.P_no.max(), lstm.P_no.max()))
+#
+#         plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=no_axes[0],
+#                         comment=False)
+#         plot_comparison(ts, [gru.P_no], gru.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=gru_axes[0],
+#                         comment=False)
+#         plot_comparison(ts, [lstm.P_no], lstm.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
+#                         ax=lstm_axes[0],
+#                         comment=True)
+#         min_d, max_d = interval(min(no.D_no.min(), gru.D_no.min(), lstm.D_no.min()),
+#                                 max(no.D_no.max(), gru.D_no.max(), lstm.D_no.max()))
+#
+#         plot_difference(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
+#                         comment=False, differences=[no.D_no])
+#         plot_difference(ts, [gru.P_no], gru.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=gru_axes[1],
+#                         comment=False, differences=[gru.D_no])
+#         plot_difference(ts, [lstm.P_no], lstm.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
+#                         ax=lstm_axes[1], comment=True, differences=[lstm.D_no])
+#
+#         min_u, max_u = interval(min(no.U.min(), gru.U.min(), lstm.U.min()), max(no.U.max(), gru.U.max(), lstm.U.max()))
+#         plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
+#         plot_control(ts, gru.U, None, n_point_delay, ax=gru_axes[2], comment=False, ylim=[min_u, max_u])
+#         plot_control(ts, lstm.U, None, n_point_delay, ax=lstm_axes[2], comment=False, ylim=[min_u, max_u])
+#
+#         q_des = np.array([dataset_config.system.q_des(t) for t in ts])
+#         q_no = q_des - no.Z[:, :2]
+#         q_gru = q_des - gru.Z[:, :2]
+#         q_lstm = q_des - lstm.Z[:, :2]
+#         n_point_start = n_point_delay(0)
+#         q_des = q_des[n_point_start:]
+#         q_no = q_no[n_point_start:]
+#         q_gru = q_gru[n_point_start:]
+#         q_lstm = q_lstm[n_point_start:]
+#         plot_q(ts[n_point_start:], [q_no], q_des, None, dataset_config.system.n_input, ax=no_axes[3], comment=False)
+#         plot_q(ts[n_point_start:], [q_gru], q_des, None, dataset_config.system.n_input, ax=gru_axes[3], comment=False)
+#         plot_q(ts[n_point_start:], [q_lstm], q_des, None, dataset_config.system.n_input, ax=lstm_axes[3], comment=True)
+#
+#         check_dir(f'./misc/plots/{plot_name}')
+#         plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
+
+
 def plot_rnn_ablation(test_points, plot_name):
     print(f'Begin simulation {plot_name}')
 
@@ -235,71 +322,53 @@ def plot_rnn_ablation(test_points, plot_name):
     result_gru = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
                           test_points=test_points, method='no')
 
-    dataset_config, model_config, train_config = config.get_config(system_='s5', model_name='FNO-GRU')
-    model, model_loaded = load_model(train_config, model_config, dataset_config)
-    model_config.load_model(run, model)
-    result_lstm = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
-                           test_points=test_points, method='no')
-
     result_numerical = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
                                 test_points=test_points, method='numerical')
-    print_results([result_no, result_gru, result_lstm], result_numerical)
+    print_results([result_no, result_gru], result_numerical)
 
     print(f'End simulation {plot_name}')
 
-    for i, (test_point, no, gru, lstm) in enumerate(
-            zip(test_points, result_no.results, result_gru.results, result_lstm.results)):
+    for i, (test_point, no, gru) in enumerate(
+            zip(test_points, result_no.results, result_gru.results)):
         ts = dataset_config.ts
         delay = dataset_config.delay
         n_state = dataset_config.n_state
         n_point_delay = dataset_config.n_point_delay
-        fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(4, 3), height_add=0.6))
-        subfigs = fig.subfigures(nrows=1, ncols=3)
-        no_fig, gru_fig, lstm_fig = subfigs
+        fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(4, 2), height_add=0.6))
+        subfigs = fig.subfigures(nrows=1, ncols=2)
+        no_fig, gru_fig = subfigs
         no_fig.suptitle('FNO')
         gru_fig.suptitle('FNO-GRU')
-        lstm_fig.suptitle('FNO-LSTM')
         no_axes = no_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
         gru_axes = gru_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
-        lstm_axes = lstm_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
 
-        min_p, max_p = interval(min(no.P_no.min(), gru.P_no.min(), lstm.P_no.min()),
-                                max(no.P_no.max(), gru.P_no.max(), lstm.P_no.max()))
+        min_p, max_p = interval(min(no.P_no.min(), gru.P_no.min()), max(no.P_no.max(), gru.P_no.max()))
 
         plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=no_axes[0],
                         comment=False)
         plot_comparison(ts, [gru.P_no], gru.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=gru_axes[0],
-                        comment=False)
-        plot_comparison(ts, [lstm.P_no], lstm.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
-                        ax=lstm_axes[0],
                         comment=True)
-        min_d, max_d = interval(min(no.D_no.min(), gru.D_no.min(), lstm.D_no.min()),
-                                max(no.D_no.max(), gru.D_no.max(), lstm.D_no.max()))
+        min_d, max_d = interval(min(no.D_no.min(), gru.D_no.min()),
+                                max(no.D_no.max(), gru.D_no.max()))
 
         plot_difference(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
                         comment=False, differences=[no.D_no])
         plot_difference(ts, [gru.P_no], gru.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=gru_axes[1],
                         comment=False, differences=[gru.D_no])
-        plot_difference(ts, [lstm.P_no], lstm.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
-                        ax=lstm_axes[1], comment=True, differences=[lstm.D_no])
 
-        min_u, max_u = interval(min(no.U.min(), gru.U.min(), lstm.U.min()), max(no.U.max(), gru.U.max(), lstm.U.max()))
+        min_u, max_u = interval(min(no.U.min(), gru.U.min()), max(no.U.max(), gru.U.max()))
         plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
         plot_control(ts, gru.U, None, n_point_delay, ax=gru_axes[2], comment=False, ylim=[min_u, max_u])
-        plot_control(ts, lstm.U, None, n_point_delay, ax=lstm_axes[2], comment=False, ylim=[min_u, max_u])
 
         q_des = np.array([dataset_config.system.q_des(t) for t in ts])
         q_no = q_des - no.Z[:, :2]
         q_gru = q_des - gru.Z[:, :2]
-        q_lstm = q_des - lstm.Z[:, :2]
         n_point_start = n_point_delay(0)
         q_des = q_des[n_point_start:]
         q_no = q_no[n_point_start:]
         q_gru = q_gru[n_point_start:]
-        q_lstm = q_lstm[n_point_start:]
         plot_q(ts[n_point_start:], [q_no], q_des, None, dataset_config.system.n_input, ax=no_axes[3], comment=False)
         plot_q(ts[n_point_start:], [q_gru], q_des, None, dataset_config.system.n_input, ax=gru_axes[3], comment=False)
-        plot_q(ts[n_point_start:], [q_lstm], q_des, None, dataset_config.system.n_input, ax=lstm_axes[3], comment=True)
 
         check_dir(f'./misc/plots/{plot_name}')
         plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
@@ -368,61 +437,6 @@ def plot_alpha(test_points, plot_name, dataset_config, train_config, model, alph
         plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
 
 
-def plot_figure(n_test=10):
-    # train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', None)
-    # test_points = [
-    #     (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
-    #     in range(n_test)
-    # ]
-    # plot_no_numerical_comparison(test_points, 'baxter-id-fno-gru', dataset_config, train_config, model_config,
-    #                              model, n_row=4)
-    #
-    # train_config, dataset_config, model_config, model = load_config('s7', 'FNO-GRU', None)
-    # test_points = [
-    #     (np.random.uniform(-0.5, 0.5), np.random.uniform(-0.5, 0.5), np.random.uniform(-0.5, 0.5)) for _ in
-    #     range(n_test)
-    # ]
-    # plot_no_numerical_comparison(test_points, 'unicycle-id-fno-gru', dataset_config, train_config, model_config,
-    #                              model, n_row=3)
-    #
-    # train_config, dataset_config, model_config, model = load_config('s5', 'FNO-LSTM', None)
-    # test_points = [
-    #     (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
-    #     in range(n_test)
-    # ]
-    # plot_no_numerical_comparison(test_points, 'baxter-id-fno-lstm', dataset_config, train_config, model_config,
-    #                              model, n_row=4)
-    #
-    # train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', cp_alpha=0.1)
-    # test_points = [
-    #     (np.random.uniform(1, 2), np.random.uniform(1, 2), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
-    #     in range(n_test)
-    # ]
-    # plot_uq_ablation(test_points, 'baxter-ood-fno-gru', dataset_config, train_config, model_config, model, n_row=4)
-
-    test_points = [
-        (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
-        in range(n_test)
-    ]
-    plot_rnn_ablation(test_points, 'rnn-ablation')
-
-    # train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', None)
-    # test_points = [
-    #     (np.random.uniform(1, 1.5), np.random.uniform(1, 1.5), np.random.uniform(1, 1.5), np.random.uniform(1, 1.5)) for _
-    #     in range(n_test)
-    # ]
-    # plot_alpha(test_points, 'alpha-ablation', dataset_config, train_config, model, [0.01, 0.1, 0.5])
-
-
-def load_config(system, model_name, cp_alpha):
-    dataset_config, model_config, train_config = config.get_config(system_=system, model_name=model_name)
-    model_config.model_name = model_name
-    train_config.uq_alpha = cp_alpha
-    model, model_loaded = load_model(train_config, model_config, dataset_config)
-    model_config.load_model(run, model)
-    return train_config, dataset_config, model_config, model
-
-
 def print_results(results, result_baseline=None):
     raw_prediction_times = [result.runtime for result in results]
     print('raw prediction time', '&'.join([f'${t * 1000:.2f}$' for t in raw_prediction_times]))
@@ -435,6 +449,62 @@ def print_results(results, result_baseline=None):
     print('success case', success_cases)
 
 
+def load_config(system, model_name, cp_alpha, version='latest'):
+    dataset_config, model_config, train_config = config.get_config(system_=system, model_name=model_name)
+    model_config.model_name = model_name
+    train_config.uq_alpha = cp_alpha
+    model, model_loaded = load_model(train_config, model_config, dataset_config)
+    model_config.load_model(run, model, version=version)
+    return train_config, dataset_config, model_config, model
+
+
+def plot_figure(n_test=10):
+    train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', None)
+    test_points = [
+        (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
+        in range(n_test)
+    ]
+    plot_no_numerical_comparison(test_points, 'baxter-id-fno-gru', dataset_config, train_config, model_config,
+                                 model, n_row=4)
+
+    train_config, dataset_config, model_config, model = load_config('s7', 'FNO-GRU', None)
+    test_points = [
+        (np.random.uniform(-0.5, 0.5), np.random.uniform(-0.5, 0.5), np.random.uniform(-0.5, 0.5)) for _ in
+        range(n_test)
+    ]
+    plot_no_numerical_comparison(test_points, 'unicycle-id-fno-gru', dataset_config, train_config, model_config,
+                                 model, n_row=3)
+
+    # train_config, dataset_config, model_config, model = load_config('s5', 'FNO-LSTM', None)
+    # test_points = [
+    #     (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
+    #     in range(n_test)
+    # ]
+    # plot_no_numerical_comparison(test_points, 'baxter-id-fno-lstm', dataset_config, train_config, model_config,
+    #                              model, n_row=4)
+
+    train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', cp_alpha=0.1)
+    test_points = [
+        (np.random.uniform(1, 2), np.random.uniform(1, 2), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
+        in range(n_test)
+    ]
+    plot_uq_ablation(test_points, 'baxter-ood-fno-gru', dataset_config, train_config, model_config, model, n_row=4)
+
+    test_points = [
+        (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
+        in range(n_test)
+    ]
+    plot_rnn_ablation(test_points, 'rnn-ablation')
+
+    train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', None)
+    test_points = [
+        (np.random.uniform(1, 1.2), np.random.uniform(1, 1.2), np.random.uniform(1, 1.2), np.random.uniform(1, 1.2)) for
+        _
+        in range(n_test)
+    ]
+    plot_alpha(test_points, 'alpha-ablation', dataset_config, train_config, model, [0.01, 0.1, 0.5])
+
+
 if __name__ == '__main__':
     import wandb
 
@@ -444,4 +514,4 @@ if __name__ == '__main__':
         project="no",
         name=f'result-plotting {get_time_str()}'
     )
-    plot_figure(n_test=1)
+    plot_figure(n_test=10)

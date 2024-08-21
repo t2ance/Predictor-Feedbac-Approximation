@@ -46,8 +46,8 @@ class ModelConfig:
         wandb.save("model.pth")
         run.log_artifact(model_artifact)
 
-    def load_model(self, run, model):
-        model_artifact = run.use_artifact(f"{model.__class__.__name__}-{self.system}:latest")
+    def load_model(self, run, model, version='latest'):
+        model_artifact = run.use_artifact(f"{model.__class__.__name__}-{self.system}:{version}")
         model_dir = model_artifact.download()
         model_path = os.path.join(model_dir, "model.pth")
 
@@ -460,16 +460,16 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             dataset_config.n_training_dataset = 400
             dataset_config.n_validation_dataset = 10
 
-            # model_config.fno_n_layer = 6
-            # model_config.fno_n_modes_height = 32
-            # model_config.fno_hidden_channels = 32
-            # model_config.gru_n_layer = 4
-            # model_config.gru_layer_width = 16
-            model_config.fno_n_layer = 9
-            model_config.fno_n_modes_height = 16
-            model_config.fno_hidden_channels = 16
-            model_config.gru_n_layer = 1
+            model_config.fno_n_layer = 6
+            model_config.fno_n_modes_height = 32
+            model_config.fno_hidden_channels = 32
+            model_config.gru_n_layer = 4
             model_config.gru_layer_width = 16
+            # model_config.fno_n_layer = 9
+            # model_config.fno_n_modes_height = 16
+            # model_config.fno_hidden_channels = 16
+            # model_config.gru_n_layer = 1
+            # model_config.gru_layer_width = 16
         elif model_name == 'LSTM':
             train_config.weight_decay = 1e-1
             dataset_config.n_training_dataset = 400
@@ -515,8 +515,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
     elif system_ == 's7':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=TimeVaryingDelay(), duration=8, dt=0.01, n_training_dataset=900,
-                                       n_validation_dataset=100,
-                                       n_sample_per_dataset=-1, ic_lower_bound=-0.5, ic_upper_bound=0.5)
+                                       n_validation_dataset=100, n_sample_per_dataset=-1, ic_lower_bound=-0.5,
+                                       ic_upper_bound=0.5)
         model_config = ModelConfig(model_name='FFN')
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',

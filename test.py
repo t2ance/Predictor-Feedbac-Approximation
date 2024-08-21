@@ -5,7 +5,7 @@ import dynamic_systems
 from config import get_config
 from dynamic_systems import ConstantDelay, TimeVaryingDelay
 from main import simulation
-from utils import metric, get_time_str
+from utils import metric, get_time_str, load_model
 
 
 def baxter_test1dof():
@@ -99,11 +99,12 @@ if __name__ == '__main__':
     # baxter_test7dof()
     # baxter_test_s6()
     # baxter_test_unicycle()
-    import wandb
-    dataset_config_, model_config_, train_config_ = config.get_config(system_='s9', model_name='FNO')
-    run = wandb.init(
-        project="no",
-        name=f'{train_config_.system} {train_config_.training_type} {model_config_.model_name} {dataset_config_.delay.__class__.__name__} {get_time_str()}'
-    )
-    training_dataset, validating_dataset = dataset_config_.load_dataset(run)
-    dataset_config_.save_dataset(run, training_dataset[:40], validating_dataset[:5])
+    # import wandb
+    # dataset_config_, model_config_, train_config_ = config.get_config(system_='s9', model_name='FNO')
+    # run = wandb.init(
+    #     project="no",
+    #     name=f'{train_config_.system} {train_config_.training_type} {model_config_.model_name} {dataset_config_.delay.__class__.__name__} {get_time_str()}'
+    # )
+    # training_dataset, validating_dataset = dataset_config_.load_dataset(run)
+    # dataset_config_.save_dataset(run, training_dataset[:40], validating_dataset[:5])
+    ...
