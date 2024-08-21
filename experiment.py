@@ -368,7 +368,7 @@ def plot_alpha(test_points, plot_name, dataset_config, train_config, model, alph
         plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
 
 
-def plot_figure(n_test=1):
+def plot_figure(n_test=10):
     # train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', None)
     # test_points = [
     #     (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
@@ -408,10 +408,11 @@ def plot_figure(n_test=1):
 
     train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', None)
     test_points = [
-        (np.random.uniform(0, 2), np.random.uniform(0, 2), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
+        (np.random.uniform(1, 1.5), np.random.uniform(1, 1.5), np.random.uniform(1, 1.5), np.random.uniform(1, 1.5)) for _
         in range(n_test)
     ]
-    plot_alpha(test_points, 'alpha-ablation', dataset_config, train_config, model, [0.05, 0.1, 0.2])
+    print(test_points)
+    plot_alpha(test_points, 'alpha-ablation', dataset_config, train_config, model, [0.01, 0.1, 0.5])
 
 
 def load_config(system, model_name, cp_alpha):
@@ -444,4 +445,4 @@ if __name__ == '__main__':
         project="no",
         name=f'result-plotting {get_time_str()}'
     )
-    plot_figure()
+    plot_figure(n_test=1)

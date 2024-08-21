@@ -477,8 +477,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.batch_size = 512
         elif model_name == 'FNO-LSTM':
             train_config.learning_rate = 1e-5
-            train_config.scheduler_min_lr = 1e-6
-            train_config.scheduler_min_lr2_ = 1e-6
+            train_config.scheduler_min_lr = 3e-7
+            train_config.scheduler_min_lr2_ = 3e-7
             train_config.batch_size = 512
             train_config.n_epoch = 500
             train_config.n_epoch2_ = 1000
