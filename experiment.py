@@ -7,7 +7,7 @@ import config
 from main import simulation, run_test
 from plot_utils import plot_comparison, plot_difference, plot_control, set_size, fig_width, plot_switch_segments, \
     plot_q, plot_quantile
-from utils import set_everything, load_cp_hyperparameters, load_model, get_time_str, TestResult
+from utils import set_everything, load_cp_hyperparameters, load_model, get_time_str, TestResult, check_dir
 
 
 def interval(min_, max_):
@@ -155,7 +155,8 @@ def plot_uq_ablation(test_points, plot_name, dataset_config, train_config, model
     print(f'End simulation {plot_name}')
     print_results([result_no, result_cp, result_gp], result_numerical)
 
-    for i, (test_point, no, cp, gp) in enumerate(zip(test_points, result_no, result_cp, result_gp)):
+    for i, (test_point, no, cp, gp) in enumerate(
+            zip(test_points, result_no.results, result_cp.results, result_gp.results)):
         ts = dataset_config.ts
         delay = dataset_config.delay
         n_state = dataset_config.n_state
@@ -208,6 +209,7 @@ def plot_uq_ablation(test_points, plot_name, dataset_config, train_config, model
             plot_q(ts[n_point_start:], [q_cp], q_des, None, dataset_config.system.n_input, ax=cp_axes[3], comment=True)
             plot_q(ts[n_point_start:], [q_gp], q_des, None, dataset_config.system.n_input, ax=gp_axes[3], comment=True)
 
+        check_dir('./misc/plots/{plot_name}')
         plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
 
 

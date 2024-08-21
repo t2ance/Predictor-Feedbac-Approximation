@@ -581,6 +581,7 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
     prediction_time = []
     n_iter_list = []
     results = []
+    no_pred_ratio = []
     for i, test_point in enumerate(bar):
         if isinstance(test_point, tuple) and len(test_point) == 2:
             test_point, name = test_point
@@ -622,11 +623,10 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
         if method == 'switching':
             print()
             # plot_switch_system(train_config, dataset_config, result, n_point_start, img_save_path)
-            print('no count:', result.p_no_count)
-            print('numerical count:', result.p_numerical_count)
+            no_pred_ratio.append(result.p_no_count / (result.p_no_count + result.p_numerical_count))
 
-        np.savetxt(f'{img_save_path}/metric.txt', np.array([l2, result.runtime]))
-        np.savetxt(f'{img_save_path}/test_point.txt', test_point)
+        # np.savetxt(f'{img_save_path}/metric.txt', np.array([l2, result.runtime]))
+        # np.savetxt(f'{img_save_path}/test_point.txt', test_point)
         l2_list.append(l2)
         prediction_time.append(result.avg_prediction_time)
         n_iter_list.append(result.P_numerical_n_iters)
@@ -654,7 +654,7 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
 
         plot_result(data=l2_list, label=f'L2 error', title='L2 error', xlabel='L2 error',
                     path=f'{base_path}/l2.png')
-    return TestResult(runtime=runtime, l2=l2, success_cases=len(l2_list), results=results)
+    return TestResult(runtime=runtime, l2=l2, success_cases=len(l2_list), results=results, no_pred_ratio=no_pred_ratio)
 
 
 def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_config: TrainConfig):
