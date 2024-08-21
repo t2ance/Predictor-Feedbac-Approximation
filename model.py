@@ -207,8 +207,8 @@ class FNOProjection(torch.nn.Module):
         # self.fno = UNO(n_modes_height=n_modes_height, n_layers=n_layers, hidden_channels=hidden_channels, in_channels=2,
         #                out_channels=1)
         self.fno = UNO(n_modes_height=n_modes_height, n_layers=5, hidden_channels=hidden_channels, in_channels=2,
-                       out_channels=1, uno_out_channels=[32, 64, 128, 64, 32], uno_scalings=[1, 1, 1, 1, 1],
-                       uno_n_modes=[32, 32, 32, 32, 32])
+                       out_channels=1, uno_out_channels=[32, 64, 128, 64, 32], uno_scalings=[[1], [1], [1], [1], [1]],
+                       uno_n_modes=[[32], [32], [32], [32], [32]])
         self.projection = torch.nn.Linear(in_features=n_modes_height * 2, out_features=n_state)
         self.linear_decoder = LinearDecoder(n_state, 1, n_modes_height)
         self.linear_functional = LinearFunctional(1, n_state, n_modes_height)
