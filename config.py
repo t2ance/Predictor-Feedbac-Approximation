@@ -465,11 +465,11 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             # model_config.fno_hidden_channels = 32
             # model_config.gru_n_layer = 4
             # model_config.gru_layer_width = 16
-            model_config.fno_n_layer = 3
+            model_config.fno_n_layer = 4
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
-            model_config.gru_n_layer = 3
-            model_config.gru_layer_width = 8
+            model_config.gru_n_layer = 1
+            model_config.gru_layer_width = 16
         elif model_name == 'LSTM':
             train_config.weight_decay = 1e-1
             dataset_config.n_training_dataset = 400
@@ -496,11 +496,11 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             # model_config.fno_hidden_channels = 32
             # model_config.lstm_n_layer = 5
             # model_config.lstm_layer_width = 64
-            model_config.fno_n_layer = 3
+            model_config.fno_n_layer = 4
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
-            model_config.lstm_n_layer = 3
-            model_config.lstm_layer_width = 8
+            model_config.lstm_n_layer = 1
+            model_config.lstm_layer_width = 16
     elif system_ == 's6':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=32, dt=0.01, n_training_dataset=900,
