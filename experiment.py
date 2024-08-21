@@ -82,7 +82,15 @@ def plot_no_numerical_comparison(test_points, plot_name, dataset_config, train_c
 
 
 def plot_comparison_main(test_points, plot_name, dataset_config, train_config, model_config, model, n_row):
-    for i, test_point in enumerate(test_points):
+    print(f'Begin simulation {plot_name}')
+    result_numerical = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
+                                test_points=test_points, method='numerical')
+    train_config.uq_type = 'conformal prediction'
+    result_cp = run_test(dataset_config=dataset_config, train_config=train_config, m=model, test_points=test_points,
+                         method='switching')
+    print(f'End simulation {plot_name}')
+
+    for i, (test_point, numerical, cp) in enumerate(zip(test_points, result_numerical.results, result_cp.results)):
         ts = dataset_config.ts
         delay = dataset_config.delay
         n_state = dataset_config.n_state
@@ -94,13 +102,6 @@ def plot_comparison_main(test_points, plot_name, dataset_config, train_config, m
         cp_fig.suptitle(model_config.model_name + '-CP')
         numerical_axes = numerical_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
         cp_axes = cp_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
-
-        print(f'Begin simulation {plot_name}')
-        numerical = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point,
-                               method='numerical')
-        cp = simulation(dataset_config=dataset_config, train_config=train_config, model=model, Z0=test_point,
-                        method='switching')
-        print(f'End simulation {plot_name}')
 
         min_p, max_p = interval(min(numerical.P_numerical.min(), cp.P_switching.min()),
                                 max(numerical.P_numerical.max(), cp.P_switching.max()))
@@ -137,6 +138,7 @@ def plot_comparison_main(test_points, plot_name, dataset_config, train_config, m
             plot_q(ts[n_point_start:], [q_switching], q_des, None, dataset_config.system.n_input, ax=cp_axes[3],
                    comment=True)
 
+        check_dir(f'./misc/plots/{plot_name}')
         plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
 
 
@@ -209,7 +211,7 @@ def plot_uq_ablation(test_points, plot_name, dataset_config, train_config, model
             plot_q(ts[n_point_start:], [q_cp], q_des, None, dataset_config.system.n_input, ax=cp_axes[3], comment=True)
             plot_q(ts[n_point_start:], [q_gp], q_des, None, dataset_config.system.n_input, ax=gp_axes[3], comment=True)
 
-        check_dir('./misc/plots/{plot_name}')
+        check_dir(f'./misc/plots/{plot_name}')
         plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
 
 
@@ -391,21 +393,19 @@ def plot_figure():
         model_config.load_model(run, model)
         return train_config, dataset_config, model_config, model
 
-    # train_config, dataset_config, model_config, model = load_config('baxter_id', 'FNO-GRU')
-    # plot_comparison_main(dataset_config.test_points[0], 'baxter_id', dataset_config, train_config, model_config, model,
-    #                      n_row=4)
-    #
+    train_config, dataset_config, model_config, model = load_config('baxter_id', 'FNO-GRU')
+    plot_comparison_main(dataset_config.test_points, 'baxter_id', dataset_config, train_config, model_config, model,
+                         n_row=4)
+
     # train_config, dataset_config, model_config, model = load_config('unicycle_id', 'FNO-GRU')
     # plot_comparison_main(dataset_config.test_points[0], 'unicycle_id', dataset_config, train_config, model_config,
     #                      model, n_row=3)
     train_config, dataset_config, model_config, model = load_config('baxter_ood1', 'FNO-GRU')
-    # test_point = dataset_config.test_points[0]
-    # test_point = (0.5, 0.5, 1.2, 1.2)
     test_points = [
-        (np.random.uniform(1, 1.5), np.random.uniform(1, 1.5), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
+        (np.random.uniform(1, 2), np.random.uniform(1, 2), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
         in range(10)
     ]
-    plot_uq_ablation(test_points, 'baxter_id', dataset_config, train_config, model_config, model, n_row=4)
+    plot_uq_ablation(test_points, 'baxter_ood', dataset_config, train_config, model_config, model, n_row=4)
 
     # train_config, dataset_config, model_config, model = load_config('baxter_id', 'FNO')
     # plot_rnn_ablation(dataset_config.test_points[0], 'rnn_ablation', dataset_config)
