@@ -485,10 +485,17 @@ def plot_figure(n_test=10):
 
     train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', cp_alpha=0.1)
     test_points = [
+        (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
+        in range(n_test)
+    ]
+    plot_uq_ablation(test_points, 'baxter-id-fno-gru-uq', dataset_config, train_config, model_config, model, n_row=4)
+
+    train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', cp_alpha=0.1)
+    test_points = [
         (np.random.uniform(1, 2), np.random.uniform(1, 2), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
         in range(n_test)
     ]
-    plot_uq_ablation(test_points, 'baxter-ood-fno-gru', dataset_config, train_config, model_config, model, n_row=4)
+    plot_uq_ablation(test_points, 'baxter-ood-fno-gru-uq', dataset_config, train_config, model_config, model, n_row=4)
 
     test_points = [
         (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
@@ -514,4 +521,4 @@ if __name__ == '__main__':
         project="no",
         name=f'result-plotting {get_time_str()}'
     )
-    plot_figure(n_test=10)
+    plot_figure(n_test=1)
