@@ -460,11 +460,16 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             dataset_config.n_training_dataset = 500
             dataset_config.n_validation_dataset = 10
 
-            model_config.fno_n_layer = 6
-            model_config.fno_n_modes_height = 32
-            model_config.fno_hidden_channels = 32
-            model_config.gru_n_layer = 4
-            model_config.gru_layer_width = 16
+            # model_config.fno_n_layer = 6
+            # model_config.fno_n_modes_height = 32
+            # model_config.fno_hidden_channels = 32
+            # model_config.gru_n_layer = 4
+            # model_config.gru_layer_width = 16
+            model_config.fno_n_layer = 3
+            model_config.fno_n_modes_height = 16
+            model_config.fno_hidden_channels = 16
+            model_config.gru_n_layer = 3
+            model_config.gru_layer_width = 8
         elif model_name == 'LSTM':
             train_config.weight_decay = 1e-1
             dataset_config.n_training_dataset = 900
@@ -486,11 +491,16 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             dataset_config.n_training_dataset = 900
             dataset_config.n_validation_dataset = 10
 
-            model_config.fno_n_layer = 6
-            model_config.fno_n_modes_height = 32
-            model_config.fno_hidden_channels = 32
-            model_config.lstm_n_layer = 5
-            model_config.lstm_layer_width = 64
+            # model_config.fno_n_layer = 6
+            # model_config.fno_n_modes_height = 32
+            # model_config.fno_hidden_channels = 32
+            # model_config.lstm_n_layer = 5
+            # model_config.lstm_layer_width = 64
+            model_config.fno_n_layer = 3
+            model_config.fno_n_modes_height = 16
+            model_config.fno_hidden_channels = 16
+            model_config.lstm_n_layer = 3
+            model_config.lstm_layer_width = 8
     elif system_ == 's6':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=32, dt=0.01, n_training_dataset=900,

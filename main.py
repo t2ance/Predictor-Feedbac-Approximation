@@ -19,7 +19,7 @@ from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral, solve_integral_successive_batched
 from model import GRUNet, LSTMNet, FNOProjectionGRU, FNOProjectionLSTM
-from plot_utils import plot_result, set_size, plot_switch_system, difference
+from plot_utils import plot_result, set_size, difference
 from utils import pad_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, \
     set_everything, print_result, postprocess, load_model, load_optimizer, prediction_comparison, print_args, \
     get_time_str, SimulationResult, TestResult
@@ -489,9 +489,11 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     batch_size = train_config.batch_size
     img_save_path = model_config.base_path
     model, model_loaded = load_model(train_config, model_config, dataset_config, fno=fno)
-    if isinstance(model, FNOProjectionGRU):
+    if (isinstance(model, FNOProjectionGRU) or isinstance(model, FNOProjectionLSTM)) and fno is not None:
+        print(f'Freeze FNO and only train GRU in {model.__class__.__name__}')
         optimizer = load_optimizer(model.gru.parameters(), train_config)
     else:
+        print(f'Train all parameters in {model.__class__.__name__}')
         optimizer = load_optimizer(model.parameters(), train_config)
     scheduler = load_lr_scheduler(optimizer, train_config)
     training_loss_arr = []
@@ -507,9 +509,8 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         for dataset_idx in range(0, len(training_dataset), batch_size):
             sequences = training_dataset[dataset_idx:dataset_idx + batch_size]
             batch_len = len(sequences)
-            if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model,
-                                                                                     FNOProjectionGRU) or isinstance(
-                model, FNOProjectionLSTM):
+            if (isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU)
+                    or isinstance(model, FNOProjectionLSTM)):
                 model.reset_state()
             losses = []
             for batch in zip(*sequences):
@@ -531,8 +532,8 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
             for dataset_idx in range(0, len(validating_dataset), batch_size):
                 sequences = validating_dataset[dataset_idx:dataset_idx + batch_size]
                 batch_len = len(sequences)
-                if isinstance(model, GRUNet) or isinstance(model, LSTMNet) \
-                        or isinstance(model, FNOProjectionGRU) or isinstance(model, FNOProjectionLSTM):
+                if (isinstance(model, GRUNet) or isinstance(model, LSTMNet)
+                        or isinstance(model, FNOProjectionGRU) or isinstance(model, FNOProjectionLSTM)):
                     model.reset_state()
                 losses = []
                 for batch in zip(*sequences):
@@ -809,20 +810,22 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
             print(f'Dataset loaded')
 
         if model_config.model_name == 'FNO-GRU':
-            model_config.model_name = 'FNO'
-            fno, _ = load_model(train_config, model_config, dataset_config)
-            model_config.load_model(run, fno)
+            # model_config.model_name = 'FNO'
+            # fno, _ = load_model(train_config, model_config, dataset_config)
+            # model_config.load_model(run, fno)
             # fno = run_sequence_training(dataset_config=dataset_config, model_config=model_config,
             #                             train_config=train_config, training_dataset=training_dataset,
             #                             validating_dataset=validating_dataset)
-            model_config.model_name = 'FNO-GRU'
-            train_config.batch_size = train_config.batch_size2
-            train_config.scheduler_min_lr = train_config.scheduler_min_lr2
-            train_config.n_epoch = train_config.n_epoch2
+            # model_config.model_name = 'FNO-GRU'
+            # train_config.batch_size = train_config.batch_size2
+            # train_config.scheduler_min_lr = train_config.scheduler_min_lr2
+            # train_config.n_epoch = train_config.n_epoch2
+
             # run_tests(fno, train_config, dataset_config, model_config, test_points)
             print(
                 f'Run FNO as part of FNO-GRU, change batch size from {train_config.batch_size} to'
                 f' {train_config.batch_size2}, min lr from {train_config.scheduler_min_lr} to {train_config.scheduler_min_lr2}')
+            fno = None
         else:
             fno = None
         model = run_sequence_training(dataset_config=dataset_config, model_config=model_config,

@@ -235,7 +235,7 @@ def plot_rnn_ablation(test_points, plot_name):
     result_gru = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
                           test_points=test_points, method='no')
 
-    dataset_config, model_config, train_config = config.get_config(system_='s5', model_name='FNO-LSTM')
+    dataset_config, model_config, train_config = config.get_config(system_='s5', model_name='FNO-GRU')
     model, model_loaded = load_model(train_config, model_config, dataset_config)
     model_config.load_model(run, model)
     result_lstm = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
@@ -399,20 +399,19 @@ def plot_figure(n_test=10):
     #     in range(n_test)
     # ]
     # plot_uq_ablation(test_points, 'baxter-ood-fno-gru', dataset_config, train_config, model_config, model, n_row=4)
-    #
-    # test_points = [
-    #     (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
-    #     in range(n_test)
-    # ]
-    # plot_rnn_ablation(test_points, 'rnn-ablation')
 
-    train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', None)
     test_points = [
-        (np.random.uniform(1, 1.5), np.random.uniform(1, 1.5), np.random.uniform(1, 1.5), np.random.uniform(1, 1.5)) for _
+        (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
         in range(n_test)
     ]
-    print(test_points)
-    plot_alpha(test_points, 'alpha-ablation', dataset_config, train_config, model, [0.01, 0.1, 0.5])
+    plot_rnn_ablation(test_points, 'rnn-ablation')
+
+    # train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', None)
+    # test_points = [
+    #     (np.random.uniform(1, 1.5), np.random.uniform(1, 1.5), np.random.uniform(1, 1.5), np.random.uniform(1, 1.5)) for _
+    #     in range(n_test)
+    # ]
+    # plot_alpha(test_points, 'alpha-ablation', dataset_config, train_config, model, [0.01, 0.1, 0.5])
 
 
 def load_config(system, model_name, cp_alpha):
