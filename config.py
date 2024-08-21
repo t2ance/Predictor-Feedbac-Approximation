@@ -586,7 +586,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.gru_n_layer = 4
             model_config.gru_layer_width = 32
     elif system_ == 's9':
-        dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=TimeVaryingDelay(), duration=8, dt=0.004, n_training_dataset=900,
                                        n_validation_dataset=100, n_sample_per_dataset=-1, ic_lower_bound=-0.5,
                                        ic_upper_bound=0.5)
