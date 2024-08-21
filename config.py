@@ -473,12 +473,12 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 3e-6
             model_config.lstm_n_layer = 5
-            model_config.lstm_layer_width = 8
+            model_config.lstm_layer_width = 32
             model_config.batch_size = 512
         elif model_name == 'FNO-LSTM':
             train_config.learning_rate = 1e-5
-            train_config.scheduler_min_lr = 7e-7
-            train_config.scheduler_min_lr2_ = 7e-7
+            train_config.scheduler_min_lr = 1e-6
+            train_config.scheduler_min_lr2_ = 1e-6
             train_config.batch_size = 512
             train_config.n_epoch = 500
             train_config.n_epoch2_ = 1000
@@ -489,8 +489,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_layer = 6
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
-            model_config.lstm_n_layer = 3
-            model_config.lstm_layer_width = 16
+            model_config.lstm_n_layer = 5
+            model_config.lstm_layer_width = 32
     elif system_ == 's6':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=32, dt=0.01, n_training_dataset=900,
