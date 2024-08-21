@@ -809,7 +809,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
             training_dataset, validating_dataset = dataset_config.load_dataset(run)
             print(f'Dataset loaded')
 
-        if model_config.model_name == 'FNO-GRU':
+        # if model_config.model_name == 'FNO-GRU' or model_config.model_name == 'FNO-LSTM':
             # model_config.model_name = 'FNO'
             # fno, _ = load_model(train_config, model_config, dataset_config)
             # model_config.load_model(run, fno)
@@ -822,12 +822,12 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
             # train_config.n_epoch = train_config.n_epoch2
 
             # run_tests(fno, train_config, dataset_config, model_config, test_points)
-            print(
-                f'Run FNO as part of FNO-GRU, change batch size from {train_config.batch_size} to'
-                f' {train_config.batch_size2}, min lr from {train_config.scheduler_min_lr} to {train_config.scheduler_min_lr2}')
-            fno = None
-        else:
-            fno = None
+            # print(
+            #     f'Run FNO as part of FNO-GRU, change batch size from {train_config.batch_size} to'
+            #     f' {train_config.batch_size2}, min lr from {train_config.scheduler_min_lr} to {train_config.scheduler_min_lr2}')
+            # fno = None
+        # else:
+        fno = None
         model = run_sequence_training(dataset_config=dataset_config, model_config=model_config,
                                       train_config=train_config, training_dataset=training_dataset,
                                       validating_dataset=validating_dataset, fno=fno)

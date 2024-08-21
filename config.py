@@ -452,12 +452,12 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO-GRU':
             train_config.learning_rate = 1e-4
             train_config.scheduler_min_lr = 3e-5
-            train_config.scheduler_min_lr2_ = 5e-7
-            train_config.batch_size = 512
+            # train_config.scheduler_min_lr2_ = 5e-7
+            train_config.batch_size = 64
             train_config.n_epoch = 200
-            train_config.n_epoch2_ = 1000
-            train_config.weight_decay = 1e-2
-            dataset_config.n_training_dataset = 500
+            # train_config.n_epoch2_ = 1000
+            train_config.weight_decay = 0
+            dataset_config.n_training_dataset = 400
             dataset_config.n_validation_dataset = 10
 
             # model_config.fno_n_layer = 6
@@ -466,13 +466,13 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             # model_config.gru_n_layer = 4
             # model_config.gru_layer_width = 16
             model_config.fno_n_layer = 3
-            model_config.fno_n_modes_height = 16
-            model_config.fno_hidden_channels = 16
+            model_config.fno_n_modes_height = 32
+            model_config.fno_hidden_channels = 32
             model_config.gru_n_layer = 3
             model_config.gru_layer_width = 8
         elif model_name == 'LSTM':
             train_config.weight_decay = 1e-1
-            dataset_config.n_training_dataset = 900
+            dataset_config.n_training_dataset = 400
             dataset_config.n_validation_dataset = 10
             train_config.n_epoch = 1000
             train_config.learning_rate = 1e-5
@@ -481,14 +481,14 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.lstm_layer_width = 32
             model_config.batch_size = 512
         elif model_name == 'FNO-LSTM':
-            train_config.learning_rate = 1e-5
-            train_config.scheduler_min_lr = 3e-7
-            train_config.scheduler_min_lr2_ = 3e-7
-            train_config.batch_size = 512
-            train_config.n_epoch = 500
-            train_config.n_epoch2_ = 1000
-            train_config.weight_decay = 1e-4
-            dataset_config.n_training_dataset = 900
+            train_config.learning_rate = 1e-4
+            train_config.scheduler_min_lr = 3e-5
+            # train_config.scheduler_min_lr2_ = 3e-7
+            train_config.batch_size = 64
+            train_config.n_epoch = 200
+            # train_config.n_epoch2_ = 1000
+            train_config.weight_decay = 0
+            dataset_config.n_training_dataset = 400
             dataset_config.n_validation_dataset = 10
 
             # model_config.fno_n_layer = 6
@@ -497,8 +497,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             # model_config.lstm_n_layer = 5
             # model_config.lstm_layer_width = 64
             model_config.fno_n_layer = 3
-            model_config.fno_n_modes_height = 16
-            model_config.fno_hidden_channels = 16
+            model_config.fno_n_modes_height = 32
+            model_config.fno_hidden_channels = 32
             model_config.lstm_n_layer = 3
             model_config.lstm_layer_width = 8
     elif system_ == 's6':
