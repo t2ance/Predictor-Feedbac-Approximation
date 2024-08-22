@@ -521,4 +521,4 @@ if __name__ == '__main__':
         project="no",
         name=f'result-plotting {get_time_str()}'
     )
-    plot_figure(n_test=1)
+    plot_figure(n_test=10)
