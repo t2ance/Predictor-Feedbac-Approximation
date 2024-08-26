@@ -850,10 +850,10 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 
         training_dataset = []
         for result in training_results:
-            training_dataset += simulation_result_to_samples(result, dataset_config)
+            training_dataset.append(simulation_result_to_samples(result, dataset_config))
         validation_dataset = []
         for result in validation_results:
-            validation_dataset += simulation_result_to_samples(result, dataset_config)
+            validation_dataset.append(simulation_result_to_samples(result, dataset_config))
         # if model_config.model_name == 'FNO-GRU' or model_config.model_name == 'FNO-LSTM':
         # model_config.model_name = 'FNO'
         # fno, _ = load_model(train_config, model_config, dataset_config)
@@ -889,7 +889,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_everything(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s8')
+    parser.add_argument('-s', type=str, default='s9')
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='sequence')
     parser.add_argument('-model_name', type=str, default='FNO')
