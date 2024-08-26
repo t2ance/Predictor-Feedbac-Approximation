@@ -32,6 +32,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
                model=None, img_save_path: str = None, silence: bool = True):
     system: DynamicSystem = dataset_config.system
     ts = dataset_config.ts
+    dt = dataset_config.dt
     Z0 = np.array(Z0)
     n_point = dataset_config.n_point
     n_point_start = dataset_config.n_point_start()
@@ -54,28 +55,34 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
 
     p_numerical_count = 0
     p_no_count = 0
-    Z[n_point_start, :] = Z0
+    # Z[n_point_start, :] = Z0
+    Z[:n_point_start + 1, :] = Z0
     runtime = 0.
     if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU) or isinstance(
             model, FNOProjectionLSTM):
         model.reset_state()
+    # if silence:
+    #     bar = range(n_point_start, dataset_config.n_point)
+    # else:
+    #     bar = tqdm(range(n_point_start, dataset_config.n_point))
     if silence:
-        bar = range(n_point_start + 1, dataset_config.n_point)
+        bar = range(dataset_config.n_point)
     else:
-        bar = tqdm(range(n_point_start + 1, dataset_config.n_point))
+        bar = tqdm(range(dataset_config.n_point))
     for t_i in bar:
         t = ts[t_i]
-        t_i_delayed = max(t_i - dataset_config.n_point_delay(t), 0)
+        if t_i < n_point_start:
+            t_i_delayed = 0
+        else:
+            t_i_delayed = t_i - dataset_config.n_point_delay(t)
 
-        # Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_i_delayed - 1],))[1]
-        Z[t_i, :] = Z[t_i - 1, :] + (ts[t_i] - ts[t_i - 1]) * system.dynamic(Z[t_i - 1, :], t, U[t_i_delayed - 1])
         Z_t = Z[t_i, :] + dataset_config.noise()
-        # estimate prediction and control signal
 
         # set the ground truth
-        solution = solve_integral(Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
-                                  dataset_config=dataset_config, delay=dataset_config.delay)
-        P_numerical[t_i, :] = solution.solution
+        if method != 'numerical':
+            solution = solve_integral(Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
+                                      dataset_config=dataset_config, delay=dataset_config.delay)
+            P_numerical[t_i, :] = solution.solution
 
         if method == 'numerical':
             begin = time.time()
@@ -194,6 +201,21 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
             U[t_i] = system.kappa(P_no[t_i, :], t)
         else:
             raise NotImplementedError()
+
+        if t_i < n_point_start:
+            U[t_i] = 0
+
+        if n_point_start <= t_i < len(Z) - 1:
+            # Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_i_delayed - 1],))[1]
+            f_t = system.dynamic(Z[t_i], ts[t_i], U[t_i_delayed])
+            # if t_i - 3 >= 0 and t_i_delayed - 3 >= 0:
+            #     f_t_1 = system.dynamic(Z[t_i - 1], ts[t_i - 1], U[t_i_delayed - 1])
+            #     f_t_2 = system.dynamic(Z[t_i - 2], ts[t_i - 2], U[t_i_delayed - 2])
+            #     f_t_3 = system.dynamic(Z[t_i - 3], ts[t_i - 3], U[t_i_delayed - 3])
+            #     increment = (55 * f_t - 59 * f_t_1 + 37 * f_t_2 - 9 * f_t_3) / 24
+            #     Z[t_i + 1] = Z[t_i] + dt * increment
+            # else:
+            Z[t_i + 1] = Z[t_i] + dt * f_t
 
     plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_switching, Z, U, method)
 
@@ -446,45 +468,47 @@ def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config:
     return model
 
 
-def create_sequence_dataset(dataset_config: DatasetConfig, train_config: TrainConfig):
-    n_dataset = dataset_config.n_training_dataset + dataset_config.n_validation_dataset
+def simulation_result_to_samples(result: SimulationResult, dataset_config):
     max_n_point_delay = dataset_config.max_n_point_delay()
-    training_dataset = []
-    validating_dataset = []
-    for dataset_idx in tqdm(range(n_dataset)):
+    n_point_start = dataset_config.n_point_start()
+    n_point_delay = dataset_config.n_point_delay
+
+    Ps = np.array(result.P_numerical[n_point_start:])
+    Zs = np.array(result.Z[n_point_start:])
+    horizon = np.array(dataset_config.ts[n_point_start:])
+    Us = [pad_zeros(result.U[idx + n_point_start - n_point_delay(t): idx + n_point_start], max_n_point_delay,
+                    leading=True) for idx, t in enumerate(horizon)]
+    samples = []
+    for p, z, t, u in zip(Ps, Zs, horizon, Us):
+        samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(p)))
+    return samples
+
+
+def create_sequence_simulation_result(dataset_config: DatasetConfig, train_config: TrainConfig):
+    n_dataset = dataset_config.n_training_dataset + dataset_config.n_validation_dataset
+    training_results = []
+    validation_results = []
+    for dataset_idx in range(n_dataset):
         Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
                                size=(dataset_config.n_state,))
         result = simulation(dataset_config, train_config, Z0, 'numerical')
 
-        n_point_start = dataset_config.n_point_start()
-        n_point_delay = dataset_config.n_point_delay
-
-        predictions = result.P_numerical[n_point_start:]
-        true_values = result.Z[n_point_start:]
-        Ps = np.array(predictions)
-        Zs = np.array(true_values)
-        horizon = np.array(dataset_config.ts[n_point_start:])
-        Us = [pad_zeros(result.U[idx + n_point_start - n_point_delay(t): idx + n_point_start], max_n_point_delay,
-                        leading=True) for idx, t in enumerate(horizon)]
-        samples = []
-        for p, z, t, u in zip(Ps, Zs, horizon, Us):
-            samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(p)))
-
         if dataset_idx < dataset_config.n_training_dataset:
-            training_dataset.append(samples)
+            training_results.append(result)
         else:
-            validating_dataset.append(samples)
-        wandb.log(
-            {
-                'dataset progress': dataset_idx / n_dataset
-            }
-        )
+            validation_results.append(result)
+        # wandb.log(
+        #     {
+        #         'dataset progress': dataset_idx / n_dataset
+        #     }
+        # )
+        print(f'dataset progress: {dataset_idx / n_dataset}')
 
-    return training_dataset, validating_dataset
+    return training_results, validation_results
 
 
 def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig,
-                          training_dataset, validating_dataset, fno=None):
+                          training_dataset, validation_dataset, fno=None):
     device = train_config.device
     batch_size = train_config.batch_size
     img_save_path = model_config.base_path
@@ -500,7 +524,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     check_dir(img_save_path)
     model.train()
     print('Begin Training...')
-    print(f'Training size: {len(training_dataset)}, Validating size: {len(validating_dataset)}')
+    print(f'Training size: {len(training_dataset)}, Validating size: {len(validation_dataset)}')
     for _ in tqdm(range(train_config.n_epoch)):
         np.random.shuffle(training_dataset)
         # seq index; time index; input-output pair; data
@@ -529,8 +553,8 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         with torch.no_grad():
             n_epoch = 0
             validating_loss = 0.0
-            for dataset_idx in range(0, len(validating_dataset), batch_size):
-                sequences = validating_dataset[dataset_idx:dataset_idx + batch_size]
+            for dataset_idx in range(0, len(validation_dataset), batch_size):
+                sequences = validation_dataset[dataset_idx:dataset_idx + batch_size]
                 batch_len = len(sequences)
                 if (isinstance(model, GRUNet) or isinstance(model, LSTMNet)
                         or isinstance(model, FNOProjectionGRU) or isinstance(model, FNOProjectionLSTM)):
@@ -802,35 +826,57 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         print('Begin Generating Dataset...')
 
         if dataset_config.recreate_dataset:
-            training_dataset, validating_dataset = create_sequence_dataset(dataset_config, train_config)
-            dataset_config.save_dataset(run, training_dataset, validating_dataset)
+            import concurrent.futures
+            from copy import deepcopy
+            def execute_task(dataset_config, train_config):
+                return create_sequence_simulation_result(dataset_config, train_config)
+
+            training_results, validation_results = [], []
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                futures = [executor.submit(execute_task, deepcopy(dataset_config), deepcopy(train_config)) for _ in
+                           range(5)]
+
+                for future in concurrent.futures.as_completed(futures):
+                    training_results_one, validation_results_one = future.result()
+                    training_results += training_results_one
+                    validation_results += validation_results_one
+
+            # training_results, validation_results = create_sequence_simulation_result(dataset_config, train_config)
+            dataset_config.save_dataset(run, training_results, validation_results)
             print(f'Dataset created and saved')
         else:
-            training_dataset, validating_dataset = dataset_config.load_dataset(run)
+            training_results, validation_results = dataset_config.load_dataset(run)
             print(f'Dataset loaded')
 
+        training_dataset = []
+        for result in training_results:
+            training_dataset += simulation_result_to_samples(result, dataset_config)
+        validation_dataset = []
+        for result in validation_results:
+            validation_dataset += simulation_result_to_samples(result, dataset_config)
         # if model_config.model_name == 'FNO-GRU' or model_config.model_name == 'FNO-LSTM':
-            # model_config.model_name = 'FNO'
-            # fno, _ = load_model(train_config, model_config, dataset_config)
-            # model_config.load_model(run, fno)
-            # fno = run_sequence_training(dataset_config=dataset_config, model_config=model_config,
-            #                             train_config=train_config, training_dataset=training_dataset,
-            #                             validating_dataset=validating_dataset)
-            # model_config.model_name = 'FNO-GRU'
-            # train_config.batch_size = train_config.batch_size2
-            # train_config.scheduler_min_lr = train_config.scheduler_min_lr2
-            # train_config.n_epoch = train_config.n_epoch2
+        # model_config.model_name = 'FNO'
+        # fno, _ = load_model(train_config, model_config, dataset_config)
+        # model_config.load_model(run, fno)
+        # fno = run_sequence_training(dataset_config=dataset_config, model_config=model_config,
+        #                             train_config=train_config, training_dataset=training_dataset,
+        #                             validating_dataset=validating_dataset)
+        # model_config.model_name = 'FNO-GRU'
+        # train_config.batch_size = train_config.batch_size2
+        # train_config.scheduler_min_lr = train_config.scheduler_min_lr2
+        # train_config.n_epoch = train_config.n_epoch2
 
-            # run_tests(fno, train_config, dataset_config, model_config, test_points)
-            # print(
-            #     f'Run FNO as part of FNO-GRU, change batch size from {train_config.batch_size} to'
-            #     f' {train_config.batch_size2}, min lr from {train_config.scheduler_min_lr} to {train_config.scheduler_min_lr2}')
-            # fno = None
+        # run_tests(fno, train_config, dataset_config, model_config, test_points)
+        # print(
+        #     f'Run FNO as part of FNO-GRU, change batch size from {train_config.batch_size} to'
+        #     f' {train_config.batch_size2}, min lr from {train_config.scheduler_min_lr} to {train_config.scheduler_min_lr2}')
+        # fno = None
         # else:
         fno = None
-        model = run_sequence_training(dataset_config=dataset_config, model_config=model_config,
-                                      train_config=train_config, training_dataset=training_dataset,
-                                      validating_dataset=validating_dataset, fno=fno)
+        model = run_sequence_training(
+            dataset_config=dataset_config, model_config=model_config, train_config=train_config,
+            training_dataset=training_dataset, validation_dataset=validation_dataset, fno=fno
+        )
     elif train_config.training_type == 'scheduled sampling':
         model = run_scheduled_sampling_training(dataset_config=dataset_config, model_config=model_config,
                                                 train_config=train_config)
@@ -843,7 +889,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 if __name__ == '__main__':
     set_everything(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s1')
+    parser.add_argument('-s', type=str, default='s8')
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='sequence')
     parser.add_argument('-model_name', type=str, default='FNO')

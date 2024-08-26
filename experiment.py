@@ -54,10 +54,10 @@ def plot_no_numerical_comparison(test_points, plot_name, dataset_config, train_c
         min_d, max_d = interval(min(numerical.D_numerical.min(), no.D_no.min()),
                                 max(numerical.D_numerical.max(), no.D_no.max()))
 
-        plot_difference(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, n_state,
+        plot_difference(ts, [numerical.P_numerical], numerical.Z, n_point_delay, None, n_state,
                         ylim=[min_d, max_d],
                         ax=numerical_axes[1], comment=False, differences=[numerical.D_numerical])
-        plot_difference(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
+        plot_difference(ts, [no.P_no], no.Z, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
                         comment=False, differences=[no.D_no])
 
         min_u, max_u = interval(min(numerical.U.min(), no.U.min()),
@@ -116,11 +116,11 @@ def plot_sw_numerical_comparison(test_points, plot_name, dataset_config, train_c
         min_d, max_d = interval(min(numerical.D_numerical.min(), cp.D_switching.min()),
                                 max(numerical.D_numerical.max(), cp.D_switching.max()))
 
-        plot_difference(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, n_state,
+        plot_difference(ts, [numerical.P_numerical], numerical.Z, n_point_delay, None, n_state,
                         ylim=[min_d, max_d],
                         ax=numerical_axes[1],
                         comment=False, differences=[numerical.D_numerical])
-        plot_difference(ts, [cp.P_switching], cp.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
+        plot_difference(ts, [cp.P_switching], cp.Z, n_point_delay, None, n_state, ylim=[min_d, max_d],
                         ax=cp_axes[1], comment=True, differences=[cp.D_switching])
 
         min_u, max_u = interval(min(numerical.U.min(), cp.U.min()), max(numerical.U.max(), cp.U.max()))
@@ -154,26 +154,26 @@ def plot_uq_ablation(test_points, plot_name, dataset_config, train_config, model
     result_cp = run_test(dataset_config=dataset_config, train_config=train_config, m=model, test_points=test_points,
                          method='switching')
     train_config.uq_type = 'gaussian process'
-    result_gp = run_test(dataset_config=dataset_config, train_config=train_config, m=model, test_points=test_points,
+    result_gm = run_test(dataset_config=dataset_config, train_config=train_config, m=model, test_points=test_points,
                          method='switching')
-    print_results([result_no, result_cp, result_gp], result_numerical)
+    print_results([result_no, result_cp, result_gm], result_numerical)
     print(f'End simulation {plot_name}')
 
     for i, (test_point, no, cp, gp) in enumerate(
-            zip(test_points, result_no.results, result_cp.results, result_gp.results)):
+            zip(test_points, result_no.results, result_cp.results, result_gm.results)):
         ts = dataset_config.ts
         delay = dataset_config.delay
         n_state = dataset_config.n_state
         n_point_delay = dataset_config.n_point_delay
         fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(n_row, 3), height_add=0.6))
         subfigs = fig.subfigures(nrows=1, ncols=3)
-        no_fig, cp_fig, gp_fig = subfigs
+        no_fig, cp_fig, gm_fig = subfigs
         no_fig.suptitle(model_config.model_name)
         cp_fig.suptitle(model_config.model_name + '-CP')
-        gp_fig.suptitle(model_config.model_name + '-GP')
+        gm_fig.suptitle(model_config.model_name + '-GM')
         no_axes = no_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
         cp_axes = cp_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
-        gp_axes = gp_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
+        gp_axes = gm_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
 
         min_p, max_p = interval(min(no.P_no.min(), cp.P_switching.min(), gp.P_switching.min()),
                                 max(no.P_no.max(), cp.P_switching.max(), gp.P_switching.max()))
@@ -187,11 +187,11 @@ def plot_uq_ablation(test_points, plot_name, dataset_config, train_config, model
         min_d, max_d = interval(min(no.D_no.min(), cp.D_switching.min(), gp.D_switching.min()),
                                 max(no.D_no.max(), cp.D_switching.max(), gp.D_switching.max()))
 
-        plot_difference(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
+        plot_difference(ts, [no.P_no], no.Z, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
                         comment=False, differences=[no.D_no])
-        plot_difference(ts, [cp.P_switching], cp.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
+        plot_difference(ts, [cp.P_switching], cp.Z, n_point_delay, None, n_state, ylim=[min_d, max_d],
                         ax=gp_axes[1], comment=False, differences=[cp.D_switching])
-        plot_difference(ts, [gp.P_switching], gp.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
+        plot_difference(ts, [gp.P_switching], gp.Z, n_point_delay, None, n_state, ylim=[min_d, max_d],
                         ax=cp_axes[1], comment=True, differences=[gp.D_switching])
         min_u, max_u = interval(min(no.U.min(), cp.U.min(), gp.U.min()),
                                 max(no.U.max(), cp.U.max(), gp.U.max()))
@@ -351,9 +351,9 @@ def plot_rnn_ablation(test_points, plot_name):
         min_d, max_d = interval(min(no.D_no.min(), gru.D_no.min()),
                                 max(no.D_no.max(), gru.D_no.max()))
 
-        plot_difference(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
+        plot_difference(ts, [no.P_no], no.Z, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
                         comment=False, differences=[no.D_no])
-        plot_difference(ts, [gru.P_no], gru.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=gru_axes[1],
+        plot_difference(ts, [gru.P_no], gru.Z, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=gru_axes[1],
                         comment=False, differences=[gru.D_no])
 
         min_u, max_u = interval(min(no.U.min(), gru.U.min()), max(no.U.max(), gru.U.max()))
@@ -396,7 +396,7 @@ def plot_alpha(test_points, plot_name, dataset_config, train_config, model, alph
         subfigs = fig.subfigures(nrows=1, ncols=n_col)
         switching_alpha_axes = []
         for subfig, alpha in zip(subfigs, alphas):
-            subfig.suptitle(rf'$\alpha_0 = {alpha}$')
+            subfig.suptitle(rf'$\alpha = {alpha}$')
 
             switching_alpha_axes.append(subfig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5}))
         test_result: List[SimulationResult]
@@ -414,7 +414,7 @@ def plot_alpha(test_points, plot_name, dataset_config, train_config, model, alph
             max([switching_result.D_switching.max() for switching_result in test_result])
         )
         for switching_result, switching_alpha_ax in zip(test_result, switching_alpha_axes):
-            plot_difference(ts, [switching_result.D_switching], switching_result.Z, delay, n_point_delay, None, n_state,
+            plot_difference(ts, [switching_result.D_switching], switching_result.Z, n_point_delay, None, n_state,
                             ylim=[min_d, max_d],
                             ax=switching_alpha_ax[1], comment=False, differences=[switching_result.D_numerical])
 
@@ -475,14 +475,6 @@ def plot_figure(n_test=10):
     plot_no_numerical_comparison(test_points, 'unicycle-id-fno-gru', dataset_config, train_config, model_config,
                                  model, n_row=3)
 
-    # train_config, dataset_config, model_config, model = load_config('s5', 'FNO-LSTM', None)
-    # test_points = [
-    #     (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
-    #     in range(n_test)
-    # ]
-    # plot_no_numerical_comparison(test_points, 'baxter-id-fno-lstm', dataset_config, train_config, model_config,
-    #                              model, n_row=4)
-
     train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', cp_alpha=0.1)
     test_points = [
         (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
@@ -509,6 +501,7 @@ def plot_figure(n_test=10):
         _
         in range(n_test)
     ]
+
     plot_alpha(test_points, 'alpha-ablation', dataset_config, train_config, model, [0.01, 0.1, 0.5])
 
 
@@ -521,4 +514,4 @@ if __name__ == '__main__':
         project="no",
         name=f'result-plotting {get_time_str()}'
     )
-    plot_figure(n_test=10)
+    plot_figure(n_test=1)

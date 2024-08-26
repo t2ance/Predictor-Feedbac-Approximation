@@ -140,20 +140,36 @@ class BaxterParameters:
                 M[i, k] = sum_trace
         return M
 
+    # def compute_coriolis_centrifugal_matrix(self, q, q_dot):
+    #     num_links = self.num_links
+    #     C = np.zeros(num_links)
+    #     Uij = self.compute_Uij(q)
+    #     Uijk = self.compute_Uijk(q)
+    #
+    #     for i in range(num_links):
+    #         for k in range(num_links):
+    #             for m in range(num_links):
+    #                 hikm = 0
+    #                 for j in range(max(i, k, m), num_links):
+    #                     Ji = self.compute_Ji(self.inertia_tensors[j], self.link_masses[j], self.com_positions[j])
+    #                     hikm += np.trace(Uijk[j, k, m] @ Ji @ Uij[j, i].T)
+    #                 C[i] += hikm * q_dot[k] * q_dot[m]
+    #     return C
+
     def compute_coriolis_centrifugal_matrix(self, q, q_dot):
         num_links = self.num_links
-        C = np.zeros(num_links)
+        C = np.zeros((num_links, num_links))
         Uij = self.compute_Uij(q)
         Uijk = self.compute_Uijk(q)
 
         for i in range(num_links):
-            for k in range(num_links):
-                for m in range(num_links):
+            for m in range(num_links):
+                for k in range(num_links):
                     hikm = 0
                     for j in range(max(i, k, m), num_links):
                         Ji = self.compute_Ji(self.inertia_tensors[j], self.link_masses[j], self.com_positions[j])
                         hikm += np.trace(Uijk[j, k, m] @ Ji @ Uij[j, i].T)
-                    C[i] += hikm * q_dot[k] * q_dot[m]
+                    C[i, m] += hikm * q_dot[k]
         return C
 
     def compute_gravity_vector(self, q):
@@ -167,7 +183,6 @@ class BaxterParameters:
                 rj = np.append(self.com_positions[j], 1)
                 Gi += -self.link_masses[j] * np.dot(self.gravity, (Uij[j, i] @ rj))
             G[i] = Gi
-
         return G
 
 

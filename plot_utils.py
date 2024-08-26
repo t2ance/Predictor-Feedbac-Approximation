@@ -261,37 +261,37 @@ def plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_
     u_path = f'{img_save_path}/{method}_u.png'
     if method == 'explicit':
         plot_comparison(ts, [P_explicit], Z, delay, n_point_delay, comparison_full, n_state)
-        plot_difference(ts, [P_explicit], Z, delay, n_point_delay, difference_full, n_state)
+        plot_difference(ts, [P_explicit], Z, n_point_delay, difference_full, n_state)
         plot_comparison(ts, [P_explicit], Z, delay, n_point_delay, comparison_zoom, n_state, ylim=[-5, 5])
-        plot_difference(ts, [P_explicit], Z, delay, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
+        plot_difference(ts, [P_explicit], Z, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
         plot_control(ts, U, u_path, n_point_delay)
     elif method == 'no' or method == 'scheduled_sampling':
         plot_comparison(ts, [P_no], Z, delay, n_point_delay, comparison_full, n_state)
-        plot_difference(ts, [P_no], Z, delay, n_point_delay, difference_full, n_state)
+        plot_difference(ts, [P_no], Z, n_point_delay, difference_full, n_state)
         plot_comparison(ts, [P_no], Z, delay, n_point_delay, comparison_zoom, n_state, ylim=[-5, 5])
-        plot_difference(ts, [P_no], Z, delay, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
+        plot_difference(ts, [P_no], Z, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
         plot_control(ts, U, u_path, n_point_delay)
     elif method == 'numerical':
         plot_comparison(ts, [P_numerical], Z, delay, n_point_delay, comparison_full, n_state)
-        plot_difference(ts, [P_numerical], Z, delay, n_point_delay, difference_full, n_state)
+        plot_difference(ts, [P_numerical], Z, n_point_delay, difference_full, n_state)
         plot_comparison(ts, [P_numerical], Z, delay, n_point_delay, comparison_zoom, n_state, ylim=[-5, 5])
-        plot_difference(ts, [P_numerical], Z, delay, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
+        plot_difference(ts, [P_numerical], Z, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
         plot_control(ts, U, u_path, n_point_delay)
     elif method == 'numerical_no':
         plot_comparison(ts, [P_numerical, P_no], Z, delay, n_point_delay, comparison_full, n_state,
                         Ps_labels=['numerical', 'no'])
-        plot_difference(ts, [P_numerical, P_no], Z, delay, n_point_delay, difference_full, n_state,
+        plot_difference(ts, [P_numerical, P_no], Z, n_point_delay, difference_full, n_state,
                         Ps_labels=['numerical', 'no'])
         plot_comparison(ts, [P_numerical, P_no], Z, delay, n_point_delay, comparison_zoom, n_state,
                         Ps_labels=['numerical', 'no'], ylim=[-5, 5])
-        plot_difference(ts, [P_numerical, P_no], Z, delay, n_point_delay, difference_zoom, n_state,
+        plot_difference(ts, [P_numerical, P_no], Z, n_point_delay, difference_zoom, n_state,
                         Ps_labels=['numerical', 'no'], ylim=[-5, 5])
         plot_control(ts, U, u_path, n_point_delay)
     elif method == 'switching':
         plot_comparison(ts, [P_switching], Z, delay, n_point_delay, comparison_full, n_state)
-        plot_difference(ts, [P_switching], Z, delay, n_point_delay, difference_full, n_state)
+        plot_difference(ts, [P_switching], Z, n_point_delay, difference_full, n_state)
         plot_comparison(ts, [P_switching], Z, delay, n_point_delay, comparison_zoom, n_state, ylim=[-5, 5])
-        plot_difference(ts, [P_switching], Z, delay, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
+        plot_difference(ts, [P_switching], Z, n_point_delay, difference_zoom, n_state, ylim=[-5, 5])
         plot_control(ts, U, u_path, n_point_delay)
     else:
         raise NotImplementedError()
@@ -380,7 +380,7 @@ def difference(Z, P, n_point_start, n_point_delay, ts):
     return P_ - Z[n_point_start:]
 
 
-def plot_difference(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, ylim=None, Ps_labels=None, ax=None,
+def plot_difference(ts, Ps, Z, n_point_delay, save_path, n_state: int, ylim=None, Ps_labels=None, ax=None,
                     comment=True, differences=None, figure=None):
     if ax is None:
         figure = plt.figure(figsize=set_size(width=fig_width))
@@ -397,12 +397,19 @@ def plot_difference(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
 
     for i in range(n_state):
         for j, (d, label) in enumerate(zip(differences, Ps_labels)):
-            ax.plot(ts[n_point_start:-n_point_start], d[n_point_start:, i], linestyle=styles[j], color=colors[i],
+            ts_ = ts[n_point_start:-n_point_start] if n_point_start != 0 else ts[n_point_start:]
+            ax.plot(ts_, d[n_point_start:, i], linestyle=styles[j], color=colors[i],
                     label=f'$\Delta P^{{{label}}}_{i + 1}(t)$')
 
     if ylim is not None:
         try:
-            ax.set_ylim(ylim)
+            ax.set_yscale('log')
+            # y_locator = LogLocator(base=10.0, numticks=5)
+            # ax.yaxis.set_major_locator(y_locator)
+            # ax.yaxis.set_major_formatter(LogFormatterMathtext())
+            # ax.set_ylim([0, ylim[1]])
+            ax.set_yticks([1e-4, 1e-2, 1, 100])
+            # ax.set_ylim([0, 100])
         except:
             ...
     if comment:

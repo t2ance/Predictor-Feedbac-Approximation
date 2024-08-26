@@ -91,35 +91,39 @@ class Baxter(DynamicSystem):
         self.dof = dof
         self.alpha = np.eye(dof) if alpha is None else alpha
         self.beta = np.eye(dof) if beta is None else beta
+        # self.alpha = 0 * np.eye(dof) if alpha is None else alpha
+        # self.beta = 0 * np.eye(dof) if beta is None else beta
         self.baxter_parameters = BaxterParameters(dof=dof)
 
-    @lru_cache(maxsize=128)
+    @lru_cache(maxsize=None)
     def G(self, t):
         return self.baxter_parameters.compute_gravity_vector(self.q_des(t))
 
-    @lru_cache(maxsize=128)
+    @lru_cache(maxsize=None)
     def C(self, t):
         return self.baxter_parameters.compute_coriolis_centrifugal_matrix(self.q_des(t), self.qd_des(t))
 
-    @lru_cache(maxsize=128)
+    @lru_cache(maxsize=None)
     def M(self, t):
         return self.baxter_parameters.compute_inertia_matrix(self.q_des(t))
 
-    @lru_cache(maxsize=128)
+    @lru_cache(maxsize=None)
     def q_des(self, t):
-        return np.array([np.sin(0.2 * t), np.cos(0.2 * t), 0, 0, 0, 0, 0])[:self.dof]
+        return np.array([0, 0, 0, 0, 0, np.sin(0.2 * t), np.sin(0.2 * t)])[:self.dof]
 
-    @lru_cache(maxsize=128)
+    @lru_cache(maxsize=None)
     def qd_des(self, t):
-        return np.array([0.2 * np.cos(0.2 * t), -0.2 * np.sin(0.2 * t), 0, 0, 0, 0, 0])[:self.dof]
+        return np.array([0, 0, 0, 0, 0, 0.2 * np.cos(0.2 * t), 0.2 * np.cos(0.2 * t)])[:self.dof]
 
-    @lru_cache(maxsize=128)
+    @lru_cache(maxsize=None)
     def qdd_des(self, t):
-        return np.array([-0.04 * np.sin(0.2 * t), -0.04 * np.cos(0.2 * t), 0, 0, 0, 0, 0])[:self.dof]
+        return np.array([0, 0, 0, 0, 0, -0.04 * np.sin(0.2 * t), -0.04 * np.sin(0.2 * t)])[:self.dof]
 
     def h(self, e1, e2, t):
         return self.qdd_des(t) - self.alpha @ (self.alpha @ e1) + np.linalg.inv(self.M(t)) @ (
-                self.C(t) @ self.qd_des(t) + self.G(t) + self.C(t) @ (self.alpha @ e1) - self.C(t) @ e2)
+                self.C(t) @ self.qd_des(t)
+                # + self.G(t)
+                + self.C(t) @ (self.alpha @ e1) - self.C(t) @ e2)
 
     def q(self, E_t, t):
         e1_t, e2_t = E_t[:self.dof], E_t[self.dof:]
@@ -465,6 +469,8 @@ class TimeVaryingDelay(Delay):
         return 1 + 1 / (1 + 2 * t) ** 2
 
     def phi_inverse(self, t):
+        if t == -1:
+            return 2
         return t + (1 + t) / (((1 + t) ** 2 + 1) ** 0.5 + t)
 
 
@@ -614,7 +620,7 @@ def solve_integral_successive_batched(Z_t, n_points: int, dt: float, U_D: np.nda
 def solve_integral_rectangle(f, Z_t, P_D, U_D, ts, dt: float):
     assert len(P_D) == len(U_D)
     if len(P_D) == 0:
-        return 0
+        return Z_t
     integrand_values = np.array([f(p, t, u) for p, t, u in zip(np.array(P_D), np.array(ts), np.array(U_D))])
     integral = integrand_values.sum(0) * dt
     return integral + Z_t

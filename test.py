@@ -1,11 +1,10 @@
 import numpy as np
 
-import config
 import dynamic_systems
 from config import get_config
 from dynamic_systems import ConstantDelay, TimeVaryingDelay
 from main import simulation
-from utils import metric, get_time_str, load_model
+from utils import metric
 
 
 def baxter_test1dof():
@@ -23,16 +22,19 @@ def baxter_test1dof():
 
 def baxter_test2dof():
     dataset_config, model_config, train_config = get_config(system_='s5')
-    Z0 = tuple([0.5, -0.5, 0, 0])
+    dataset_config.baxter_dof = 5
+    Z0 = tuple(
+        np.concatenate([np.random.uniform(0, 0.3, dataset_config.baxter_dof), np.zeros(dataset_config.baxter_dof)]))
     print('initial point', Z0)
     dataset_config.duration = 10
-    dataset_config.delay = 1.
-    dataset_config.dt = 0.05
-    dataset_config.baxter_dof = 2
+    dataset_config.delay = ConstantDelay(0.5)
+    dataset_config.dt = 0.02
+    dataset_config.successive_approximation_threshold = 1e-14
     dataset_config.integral_method = 'rectangle'
     result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
                         img_save_path='./misc', silence=False)
     print(result.runtime)
+    return result
 
 
 def baxter_test_n_dof(n):
@@ -52,12 +54,12 @@ def baxter_test_n_dof(n):
 
 def baxter_test7dof():
     dataset_config, model_config, train_config = get_config(system_='s5')
-    Z0 = tuple([1, 1] + [0] * 12)
+    Z0 = tuple([0.1, 0.1] + [0] * 12)
     # Z0 = tuple((np.random.random(14) * 0.3).tolist())
     # Z0 = tuple(np.zeros(14).tolist())
     print('initial point', Z0)
     dataset_config.duration = 10
-    dataset_config.delay = .05
+    dataset_config.delay = ConstantDelay(0)
     dataset_config.dt = 0.01
     dataset_config.baxter_dof = 7
     result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
@@ -81,9 +83,9 @@ def baxter_test_unicycle():
     dataset_config, model_config, train_config = get_config(system_='s7')
     Z0 = tuple([1, 1, 1])
     print('initial point', Z0)
-    dataset_config.duration = 25
+    dataset_config.duration = 10
     dataset_config.delay = TimeVaryingDelay()
-    dataset_config.dt = 0.01
+    dataset_config.dt = 0.05
     result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
                         img_save_path='./misc', silence=False)
     l2 = metric(result.P_numerical, result.P_numerical, dataset_config.n_point_start())
@@ -92,19 +94,5 @@ def baxter_test_unicycle():
 
 
 if __name__ == '__main__':
-    # baxter_test1dof()
-    # baxter_test2dof()
-    # baxter_test3dof()
-    # baxter_test_n_dof(3)
-    # baxter_test7dof()
-    # baxter_test_s6()
-    # baxter_test_unicycle()
-    # import wandb
-    # dataset_config_, model_config_, train_config_ = config.get_config(system_='s9', model_name='FNO')
-    # run = wandb.init(
-    #     project="no",
-    #     name=f'{train_config_.system} {train_config_.training_type} {model_config_.model_name} {dataset_config_.delay.__class__.__name__} {get_time_str()}'
-    # )
-    # training_dataset, validating_dataset = dataset_config_.load_dataset(run)
-    # dataset_config_.save_dataset(run, training_dataset[:40], validating_dataset[:5])
-    ...
+    result = baxter_test2dof()
+    # result = baxter_test_unicycle()

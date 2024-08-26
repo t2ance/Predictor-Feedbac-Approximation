@@ -288,7 +288,7 @@ class DatasetConfig:
 
     @property
     def ts(self) -> np.ndarray:
-        return np.linspace(-self.delay(0), self.duration, self.n_point)
+        return np.linspace(-self.delay(0), self.duration - self.dt, self.n_point)
 
     @property
     def n_point(self) -> int:
@@ -324,8 +324,8 @@ class DatasetConfig:
         validation_dataset = read(dataset, "validation")
         return training_dataset[:self.n_training_dataset], validation_dataset[:self.n_validation_dataset]
 
-    def save_dataset(self, run, training_dataset, validating_dataset):
-        datasets = [training_dataset, validating_dataset]
+    def save_dataset(self, run, training_results, validating_results):
+        datasets = [training_results, validating_results]
         names = ["training", "validation"]
 
         art = wandb.Artifact(
@@ -560,41 +560,70 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.gru_n_layer = 2
             model_config.gru_layer_width = 16
     elif system_ == 's8':
-        dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
-                                       delay=ConstantDelay(.5), duration=10, dt=0.05, n_training_dataset=900,
-                                       n_validation_dataset=100,
-                                       n_sample_per_dataset=-1, baxter_dof=5, ic_lower_bound=0, ic_upper_bound=1,
-                                       random_test_lower_bound=0, random_test_upper_bound=1)
+        dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory',
+                                       delay=ConstantDelay(.5), duration=8, dt=0.02, n_training_dataset=900,
+                                       n_validation_dataset=100, n_sample_per_dataset=-1, baxter_dof=5,
+                                       ic_lower_bound=0, ic_upper_bound=0.3, random_test_lower_bound=0,
+                                       random_test_upper_bound=1)
         model_config = ModelConfig(model_name='FNO')
         train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', uq_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
-                                   scheduled_sampling_k=1e-2, do_testing=True)
+                                   scheduled_sampling_k=1e-2, scheduler_min_lr=1e-5)
         if model_name == 'GRU':
-            dataset_config.n_training_dataset = 200
-            train_config.n_epoch = 200
-            model_config.gru_n_layer = 4
-            model_config.gru_layer_width = 64
-            model_config.batch_size = 128
+            dataset_config.n_training_dataset = 100
+            dataset_config.n_validation_dataset = 10
+            train_config.n_epoch = 1000
+            model_config.gru_n_layer = 5
+            model_config.gru_layer_width = 16
+            model_config.batch_size = 32
+            train_config.scheduler_min_lr = 5e-5
         elif model_name == 'FNO':
-            dataset_config.n_training_dataset = 500
-            train_config.n_epoch = 300
+            dataset_config.n_training_dataset = 100
+            dataset_config.n_validation_dataset = 10
+            train_config.n_epoch = 500
             train_config.learning_rate = 1e-4
+            train_config.scheduler_min_lr = 1e-5
             train_config.batch_size = 512
-            model_config.fno_n_layer = 5
-            model_config.fno_n_modes_height = 64
-            model_config.fno_hidden_channels = 64
+            model_config.fno_n_layer = 6
+            model_config.fno_n_modes_height = 32
+            model_config.fno_hidden_channels = 32
         elif model_name == 'FNO-GRU':
-            dataset_config.n_training_dataset = 500
-            train_config.n_epoch = 100
-            train_config.batch_size = 512
-            train_config.batch_size2_ = 128
-            train_config.learning_rate = 3e-4
-            model_config.fno_n_layer = 5
-            model_config.fno_n_modes_height = 64
-            model_config.fno_hidden_channels = 64
+            dataset_config.n_training_dataset = 100
+            dataset_config.n_validation_dataset = 10
+            train_config.learning_rate = 1e-4
+            train_config.scheduler_min_lr = 3e-5
+            train_config.batch_size = 64
+            train_config.n_epoch = 200
+            train_config.weight_decay = 0
+            model_config.fno_n_layer = 6
+            model_config.fno_n_modes_height = 32
+            model_config.fno_hidden_channels = 32
             model_config.gru_n_layer = 4
-            model_config.gru_layer_width = 32
+            model_config.gru_layer_width = 16
+        elif model_name == 'LSTM':
+            dataset_config.n_training_dataset = 100
+            dataset_config.n_validation_dataset = 10
+            train_config.weight_decay = 1e-1
+            train_config.n_epoch = 1000
+            train_config.learning_rate = 1e-5
+            train_config.scheduler_min_lr = 3e-6
+            model_config.lstm_n_layer = 5
+            model_config.lstm_layer_width = 32
+            model_config.batch_size = 512
+        elif model_name == 'FNO-LSTM':
+            dataset_config.n_training_dataset = 100
+            dataset_config.n_validation_dataset = 10
+            train_config.learning_rate = 1e-4
+            train_config.scheduler_min_lr = 3e-5
+            train_config.batch_size = 64
+            train_config.n_epoch = 200
+            train_config.weight_decay = 0
+            model_config.fno_n_layer = 9
+            model_config.fno_n_modes_height = 16
+            model_config.fno_hidden_channels = 16
+            model_config.lstm_n_layer = 1
+            model_config.lstm_layer_width = 16
     elif system_ == 's9':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=TimeVaryingDelay(), duration=8, dt=0.004, n_training_dataset=900,
