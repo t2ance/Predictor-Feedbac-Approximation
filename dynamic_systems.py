@@ -109,15 +109,23 @@ class Baxter(DynamicSystem):
 
     @lru_cache(maxsize=None)
     def q_des(self, t):
-        return np.array([0, 0, 0, 0, 0, np.sin(0.2 * t), np.sin(0.2 * t)])[:self.dof]
+        return 0.2 * np.array(
+            [1 * np.sin(0.1 * t), 1 * np.cos(0.1 * t), 1 * np.sin(0.1 * t), 1 * np.cos(0.1 * t), 1 * np.sin(0.1 * t), 0,
+             0])[:self.dof]
 
     @lru_cache(maxsize=None)
     def qd_des(self, t):
-        return np.array([0, 0, 0, 0, 0, 0.2 * np.cos(0.2 * t), 0.2 * np.cos(0.2 * t)])[:self.dof]
+        return 0.2 * np.array(
+            [0.1 * np.cos(0.1 * t), -0.1 * np.sin(0.1 * t), 0.1 * np.cos(0.1 * t), -0.1 * np.sin(0.1 * t),
+             0.1 * np.cos(0.1 * t), 0, 0])[
+                     :self.dof]
 
     @lru_cache(maxsize=None)
     def qdd_des(self, t):
-        return np.array([0, 0, 0, 0, 0, -0.04 * np.sin(0.2 * t), -0.04 * np.sin(0.2 * t)])[:self.dof]
+        return 0.2 * np.array(
+            [-0.01 * np.sin(0.1 * t), -0.01 * np.cos(0.1 * t), -0.01 * np.sin(0.1 * t), -0.01 * np.cos(0.1 * t),
+             -0.01 * np.sin(0.1 * t), 0,
+             0])[:self.dof]
 
     def h(self, e1, e2, t):
         return self.qdd_des(t) - self.alpha @ (self.alpha @ e1) + np.linalg.inv(self.M(t)) @ (
