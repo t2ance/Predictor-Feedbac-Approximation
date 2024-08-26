@@ -497,12 +497,12 @@ def create_sequence_simulation_result(dataset_config: DatasetConfig, train_confi
             training_results.append(result)
         else:
             validation_results.append(result)
-        # wandb.log(
-        #     {
-        #         'dataset progress': dataset_idx / n_dataset
-        #     }
-        # )
-        print(f'dataset progress: {dataset_idx / n_dataset}')
+        wandb.log(
+            {
+                'dataset progress': dataset_idx / n_dataset
+            }
+        )
+        # print(f'dataset progress: {dataset_idx / n_dataset}')
 
     return training_results, validation_results
 
@@ -826,22 +826,22 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         print('Begin Generating Dataset...')
 
         if dataset_config.recreate_dataset:
-            import concurrent.futures
-            from copy import deepcopy
-            def execute_task(dataset_config, train_config):
-                return create_sequence_simulation_result(dataset_config, train_config)
+            # import concurrent.futures
+            # from copy import deepcopy
+            # def execute_task(dataset_config, train_config):
+            #     return create_sequence_simulation_result(dataset_config, train_config)
+            #
+            # training_results, validation_results = [], []
+            # with concurrent.futures.ThreadPoolExecutor() as executor:
+            #     futures = [executor.submit(execute_task, deepcopy(dataset_config), deepcopy(train_config)) for _ in
+            #                range(5)]
+            #
+            #     for future in concurrent.futures.as_completed(futures):
+            #         training_results_one, validation_results_one = future.result()
+            #         training_results += training_results_one
+            #         validation_results += validation_results_one
 
-            training_results, validation_results = [], []
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                futures = [executor.submit(execute_task, deepcopy(dataset_config), deepcopy(train_config)) for _ in
-                           range(5)]
-
-                for future in concurrent.futures.as_completed(futures):
-                    training_results_one, validation_results_one = future.result()
-                    training_results += training_results_one
-                    validation_results += validation_results_one
-
-            # training_results, validation_results = create_sequence_simulation_result(dataset_config, train_config)
+            training_results, validation_results = create_sequence_simulation_result(dataset_config, train_config)
             dataset_config.save_dataset(run, training_results, validation_results)
             print(f'Dataset created and saved')
         else:
