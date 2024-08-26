@@ -640,7 +640,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.gru_n_layer = 3
             # model_config.gru_layer_width = 32
             model_config.gru_layer_width = 4
-            train_config.batch_size = 128
+            train_config.batch_size = 512
             train_config.learning_rate = 5e-5
             train_config.scheduler_min_lr = 5e-6
         elif model_name == 'FNO':
@@ -656,11 +656,10 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO-GRU':
             dataset_config.n_training_dataset = 200
             dataset_config.n_validation_dataset = 10
-
             train_config.learning_rate = 1e-4
-            train_config.scheduler_min_lr2_ = 1e-4
-            train_config.batch_size2_ = 512
-            train_config.n_epoch2_ = 300
+            train_config.scheduler_min_lr = 1e-4
+            train_config.batch_size = 512
+            train_config.n_epoch = 300
             train_config.weight_decay = 0
 
             model_config.fno_n_layer = 5
