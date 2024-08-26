@@ -420,7 +420,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    load_model=False, do_testing=False, scheduled_sampling_type='inverse sigmoid',
                                    scheduled_sampling_k=1e-2)
     elif system_ == 's5':
-        dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=8, dt=0.02, n_training_dataset=900,
                                        n_validation_dataset=100, n_sample_per_dataset=-1, baxter_dof=2,
                                        ic_lower_bound=0, ic_upper_bound=1, random_test_lower_bound=0,
@@ -625,7 +625,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.lstm_n_layer = 1
             model_config.lstm_layer_width = 16
     elif system_ == 's9':
-        dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory',
                                        delay=TimeVaryingDelay(), duration=8, dt=0.004, n_training_dataset=900,
                                        n_validation_dataset=100, n_sample_per_dataset=-1, ic_lower_bound=-0.5,
                                        ic_upper_bound=0.5)
