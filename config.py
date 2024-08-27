@@ -312,7 +312,7 @@ class DatasetConfig:
             return 0
         return np.random.randn() * self.noise_epsilon
 
-    def load_dataset(self, run):
+    def load_dataset(self, run, resize: bool = True):
         def read(dataset_dir, split):
             with open(os.path.join(dataset_dir, split + ".pkl"), mode="rb") as file:
                 return pickle.load(file)
@@ -322,7 +322,10 @@ class DatasetConfig:
 
         training_dataset = read(dataset, "training")
         validation_dataset = read(dataset, "validation")
-        return training_dataset[:self.n_training_dataset], validation_dataset[:self.n_validation_dataset]
+        if resize:
+            return training_dataset[:self.n_training_dataset], validation_dataset[:self.n_validation_dataset]
+        else:
+            return training_dataset, validation_dataset
 
     def save_dataset(self, run, training_results, validating_results):
         datasets = [training_results, validating_results]
