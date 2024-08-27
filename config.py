@@ -643,17 +643,18 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.batch_size = 512
             train_config.learning_rate = 5e-5
             train_config.scheduler_min_lr = 5e-6
-            train_config.weight_decay = 1e-3
+            train_config.weight_decay = 1e-2
         elif model_name == 'FNO':
             dataset_config.n_training_dataset = 200
             dataset_config.n_validation_dataset = 10
             train_config.n_epoch = 750
             train_config.batch_size = 512
-            train_config.scheduler_min_lr = 3e-6
+            train_config.learning_rate = 5e-5
+            train_config.scheduler_min_lr = 5e-6
             model_config.fno_n_layer = 4
             model_config.fno_n_modes_height = 8
             model_config.fno_hidden_channels = 8
-            train_config.weight_decay = 1e-3
+            train_config.weight_decay = 1e-2
         elif model_name == 'FNO-GRU':
             dataset_config.n_training_dataset = 200
             dataset_config.n_validation_dataset = 10
