@@ -611,7 +611,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 1e-5
             model_config.lstm_n_layer = 5
             model_config.lstm_layer_width = 32
-            model_config.batch_size = 128
+            model_config.batch_size = 64
         elif model_name == 'FNO-LSTM':
             dataset_config.n_training_dataset = 100
             dataset_config.n_validation_dataset = 10
