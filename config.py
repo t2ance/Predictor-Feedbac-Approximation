@@ -582,7 +582,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO':
             dataset_config.n_training_dataset = 100
             dataset_config.n_validation_dataset = 10
-            train_config.n_epoch = 500
+            train_config.n_epoch = 750
             train_config.learning_rate = 5e-5
             train_config.scheduler_min_lr = 1e-5
             train_config.batch_size = 512
