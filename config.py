@@ -560,7 +560,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.gru_n_layer = 2
             model_config.gru_layer_width = 16
     elif system_ == 's8':
-        dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=8, dt=0.02, n_training_dataset=900,
                                        n_validation_dataset=100, n_sample_per_dataset=-1, baxter_dof=5,
                                        ic_lower_bound=0, ic_upper_bound=0.3, random_test_lower_bound=0,
@@ -580,8 +580,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-5
         elif model_name == 'FNO':
-            dataset_config.n_training_dataset = 100
-            dataset_config.n_validation_dataset = 10
+            dataset_config.n_training_dataset = 1
+            dataset_config.n_validation_dataset = 0
             train_config.n_epoch = 750
             train_config.learning_rate = 5e-5
             train_config.scheduler_min_lr = 1e-5
@@ -595,7 +595,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-5
             train_config.batch_size = 512
-            train_config.n_epoch = 200
+            train_config.n_epoch = 500
             train_config.weight_decay = 0
             model_config.fno_n_layer = 6
             model_config.fno_n_modes_height = 32
@@ -620,9 +620,9 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.batch_size = 512
             train_config.n_epoch = 200
             train_config.weight_decay = 0
-            model_config.fno_n_layer = 9
-            model_config.fno_n_modes_height = 16
-            model_config.fno_hidden_channels = 16
+            model_config.fno_n_layer = 6
+            model_config.fno_n_modes_height = 32
+            model_config.fno_hidden_channels = 32
             model_config.lstm_n_layer = 1
             model_config.lstm_layer_width = 16
     elif system_ == 's9':
