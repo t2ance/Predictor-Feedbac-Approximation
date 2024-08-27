@@ -629,7 +629,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.lstm_n_layer = 1
             model_config.lstm_layer_width = 16
     elif system_ == 's9':
-        dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=TimeVaryingDelay(), duration=8, dt=0.004, n_training_dataset=900,
                                        n_validation_dataset=100, n_sample_per_dataset=-1, ic_lower_bound=-0.5,
                                        ic_upper_bound=0.5)
@@ -638,7 +638,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_min_lr=1e-5)
         if model_name == 'GRU':
-            dataset_config.n_training_dataset = 200
+            dataset_config.n_training_dataset = 300
             dataset_config.n_validation_dataset = 10
             train_config.n_epoch = 350
             model_config.gru_n_layer = 3
@@ -648,7 +648,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 5e-6
             train_config.weight_decay = 1e-2
         elif model_name == 'FNO':
-            dataset_config.n_training_dataset = 100
+            dataset_config.n_training_dataset = 300
             dataset_config.n_validation_dataset = 10
             train_config.n_epoch = 750
             train_config.batch_size = 512
@@ -659,7 +659,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_hidden_channels = 8
             train_config.weight_decay = 1e-2
         elif model_name == 'FNO-GRU':
-            dataset_config.n_training_dataset = 200
+            dataset_config.n_training_dataset = 300
             dataset_config.n_validation_dataset = 10
             train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-6
