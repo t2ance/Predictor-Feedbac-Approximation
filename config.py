@@ -317,7 +317,7 @@ class DatasetConfig:
             with open(os.path.join(dataset_dir, split + ".pkl"), mode="rb") as file:
                 return pickle.load(file)
 
-        data = run.use_artifact(f'{self.system_}')
+        data = run.use_artifact(f'{self.system_}:latest')
         dataset = data.download()
 
         training_dataset = read(dataset, "training")
