@@ -638,17 +638,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_min_lr=1e-5)
-        if model_name == 'GRU':
-            dataset_config.n_training_dataset = 300
-            dataset_config.n_validation_dataset = 10
-            train_config.n_epoch = 400
-            model_config.gru_n_layer = 3
-            model_config.gru_layer_width = 4
-            train_config.batch_size = 512
-            train_config.learning_rate = 5e-5
-            train_config.scheduler_min_lr = 2e-6
-            train_config.weight_decay = 1e-1
-        elif model_name == 'FNO':
+
+        if model_name == 'FNO':
             dataset_config.n_training_dataset = 300
             dataset_config.n_validation_dataset = 10
             train_config.n_epoch = 750
@@ -659,7 +650,40 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_modes_height = 8
             model_config.fno_hidden_channels = 8
             train_config.weight_decay = 1e-1
+        elif model_name == 'GRU':
+            dataset_config.n_training_dataset = 300
+            dataset_config.n_validation_dataset = 10
+            train_config.n_epoch = 400
+            model_config.gru_n_layer = 3
+            model_config.gru_layer_width = 4
+            train_config.batch_size = 512
+            train_config.learning_rate = 5e-5
+            train_config.scheduler_min_lr = 2e-6
+            train_config.weight_decay = 1e-1
         elif model_name == 'FNO-GRU':
+            dataset_config.n_training_dataset = 300
+            dataset_config.n_validation_dataset = 10
+            train_config.learning_rate = 5e-6
+            train_config.scheduler_min_lr = 1e-6
+            train_config.batch_size = 512
+            train_config.n_epoch = 300
+            train_config.weight_decay = 0
+            model_config.fno_n_layer = 4
+            model_config.fno_n_modes_height = 8
+            model_config.fno_hidden_channels = 8
+            model_config.gru_n_layer = 3
+            model_config.gru_layer_width = 32
+        elif model_name == 'LSTM':
+            dataset_config.n_training_dataset = 300
+            dataset_config.n_validation_dataset = 10
+            train_config.n_epoch = 400
+            model_config.lstm_n_layer = 3
+            model_config.lstm_layer_width = 4
+            train_config.batch_size = 512
+            train_config.learning_rate = 5e-5
+            train_config.scheduler_min_lr = 2e-6
+            train_config.weight_decay = 1e-1
+        elif model_name == 'FNO-LSTM':
             dataset_config.n_training_dataset = 300
             dataset_config.n_validation_dataset = 10
             train_config.learning_rate = 5e-6
@@ -671,8 +695,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_layer = 4
             model_config.fno_n_modes_height = 8
             model_config.fno_hidden_channels = 8
-            model_config.gru_n_layer = 3
-            model_config.gru_layer_width = 32
+            model_config.lstm_n_layer = 3
+            model_config.lstm_layer_width = 32
     else:
         raise NotImplementedError()
     if n_iteration is not None:
