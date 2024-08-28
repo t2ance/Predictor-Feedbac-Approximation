@@ -614,8 +614,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_layer = 6
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
-            model_config.gru_n_layer = 5
-            model_config.gru_layer_width = 32
+            model_config.gru_n_layer = 4
+            model_config.gru_layer_width = 64
         elif model_name == 'FNO-LSTM':
             dataset_config.n_training_dataset = 200
             dataset_config.n_validation_dataset = 20
