@@ -845,7 +845,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
             print(f'{len(training_results_)} loaded')
             training_results, validation_results = create_sequence_simulation_result(dataset_config, train_config)
             print(f'{len(training_results)} generated')
-            training_results+= training_results_
+            training_results += training_results_
             validation_results += validation_results_
             print(f'{len(training_results)} saved')
             dataset_config.save_dataset(run, training_results, validation_results)
