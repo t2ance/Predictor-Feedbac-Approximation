@@ -28,7 +28,8 @@ warnings.filterwarnings('ignore')
 
 
 def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
-               method: Literal['explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling'] = None,
+               method: Literal[
+                   'explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling', 'baseline'] = None,
                model=None, img_save_path: str = None, silence: bool = True):
     system: DynamicSystem = dataset_config.system
     ts = dataset_config.ts
@@ -45,6 +46,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
     switching_indicator = np.zeros(n_point)
     P_explicit = np.zeros((n_point, system.n_state))
     P_numerical = np.zeros((n_point, system.n_state))
+    P_baseline = np.zeros((n_point, system.n_state))
     P_no = np.zeros((n_point, system.n_state))
     P_no_ci = np.zeros((n_point, system.n_state, 2))
     P_no_Ri = np.zeros(n_point)
@@ -93,6 +95,9 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
             end = time.time()
             runtime += end - begin
             U[t_i] = system.kappa(P_numerical[t_i, :], t)
+        elif method == 'baseline':
+            P_baseline[t_i, :] = Z_t
+            U[t_i] = system.kappa(P_baseline[t_i, :], t)
         elif method == 'no':
             U_D = pad_zeros(segment=U[t_i_delayed:t_i], length=max_n_point_delay)
             begin = time.time()
@@ -826,20 +831,6 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         print('Begin Generating Dataset...')
 
         if dataset_config.recreate_dataset:
-            # import concurrent.futures
-            # from copy import deepcopy
-            # def execute_task(dataset_config, train_config):
-            #     return create_sequence_simulation_result(dataset_config, train_config)
-            #
-            # training_results, validation_results = [], []
-            # with concurrent.futures.ThreadPoolExecutor() as executor:
-            #     futures = [executor.submit(execute_task, deepcopy(dataset_config), deepcopy(train_config)) for _ in
-            #                range(5)]
-            #
-            #     for future in concurrent.futures.as_completed(futures):
-            #         training_results_one, validation_results_one = future.result()
-            #         training_results += training_results_one
-            #         validation_results += validation_results_one
 
             training_results_, validation_results_ = dataset_config.load_dataset(run, resize=False)
             print(f'{len(training_results_)} loaded')
