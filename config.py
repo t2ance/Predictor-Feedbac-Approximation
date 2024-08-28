@@ -215,7 +215,7 @@ class DatasetConfig:
             if self.random_test_points is None:
                 self.random_test_points = [
                     tuple((np.random.uniform(self.random_test_lower_bound, self.random_test_upper_bound,
-                                             self.system.n_state)).tolist()) for _ in range(10)
+                                             self.system.n_state)).tolist()) for _ in range(1)
                 ]
             return self.random_test_points
         else:
@@ -585,14 +585,14 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO':
             dataset_config.n_training_dataset = 200
             dataset_config.n_validation_dataset = 20
-            train_config.n_epoch = 700
+            train_config.n_epoch = 800
             train_config.learning_rate = 1e-4
             train_config.scheduler_min_lr = 1e-5
             train_config.batch_size = 512
             model_config.fno_n_layer = 6
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
-            train_config.weight_decay = 1e-2
+            train_config.weight_decay = 1e-1
         elif model_name == 'LSTM':
             dataset_config.n_training_dataset = 200
             dataset_config.n_validation_dataset = 20
@@ -614,8 +614,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_layer = 6
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
-            model_config.gru_n_layer = 4
-            model_config.gru_layer_width = 16
+            model_config.gru_n_layer = 5
+            model_config.gru_layer_width = 32
         elif model_name == 'FNO-LSTM':
             dataset_config.n_training_dataset = 200
             dataset_config.n_validation_dataset = 20

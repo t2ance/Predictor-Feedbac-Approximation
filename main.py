@@ -870,6 +870,8 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     else:
         raise NotImplementedError()
 
+    model_config.save_model(run, model)
+
     return run_tests(model, train_config, dataset_config, model_config, test_points), model
 
 
@@ -903,7 +905,6 @@ if __name__ == '__main__':
     for method_, result_ in results_.items():
         print(method_)
         print_result(result_, dataset_config_)
-        speedup = results_["numerical"].runtime / result_.runtime
-        print(f'Speedup w.r.t numerical: {speedup :.3f}; $\\times {speedup:.3f}$')
-    model_config_.save_model(run, model)
+        # speedup = results_["numerical"].runtime / result_.runtime
+        # print(f'Speedup w.r.t numerical: {speedup :.3f}; $\\times {speedup:.3f}$')
     wandb.finish()
