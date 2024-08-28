@@ -4,7 +4,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 import config
-from main import run_test
+from main import run_test, simulation
 from plot_utils import plot_comparison, plot_difference, plot_control, set_size, fig_width, plot_switch_segments, \
     plot_q, plot_quantile
 from utils import set_everything, load_model, get_time_str, check_dir, SimulationResult
@@ -19,6 +19,82 @@ def interval(min_, max_):
 
     # return max(new_min, -10), min(new_max, 10)
     return new_min, new_max
+
+
+def plot_comparisons(test_point, plot_name, dataset_config, train_config, model_config, fno, n_row):
+    Ps = []
+    Ds = []
+    Us = []
+    labels = []
+    print(f'Begin simulation {plot_name}')
+    P = []
+    D = []
+    U = []
+    label = []
+
+    result_numerical = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point,
+                                  method='numerical')
+    P.append(result_numerical.P_numerical)
+    D.append(result_numerical.D_numerical)
+    U.append(result_numerical.U)
+    label.append('Successive \n Approximation')
+
+    result_fno = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point,
+                            model=fno, method='numerical')
+
+    # print_results([result_no, result_numerical], result_numerical)
+    print(f'End simulation {plot_name}')
+
+    for i, (test_point, numerical, no) in enumerate(zip(test_points, result_numerical.results, result_no.results)):
+        ts = dataset_config.ts
+        delay = dataset_config.delay
+        n_state = dataset_config.n_state
+        n_point_delay = dataset_config.n_point_delay
+        fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(n_row, 2), height_add=0.6))
+        subfigs = fig.subfigures(nrows=1, ncols=2)
+        numerical_fig, no_fig = subfigs
+        numerical_fig.suptitle('Successive \n Approximation')
+        no_fig.suptitle(model_config.model_name)
+        numerical_axes = numerical_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
+        no_axes = no_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
+
+        min_p, max_p = interval(min(numerical.P_numerical.min(), no.P_no.min()),
+                                max(numerical.P_numerical.max(), no.P_no.max()))
+
+        plot_comparison(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, n_state,
+                        ylim=[min_p, max_p],
+                        ax=numerical_axes[0], comment=False)
+        plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=no_axes[0],
+                        comment=False)
+        min_d, max_d = interval(min(numerical.D_numerical.min(), no.D_no.min()),
+                                max(numerical.D_numerical.max(), no.D_no.max()))
+
+        plot_difference(ts, [numerical.P_numerical], numerical.Z, n_point_delay, None, n_state,
+                        ylim=[min_d, max_d],
+                        ax=numerical_axes[1], comment=False, differences=[numerical.D_numerical])
+        plot_difference(ts, [no.P_no], no.Z, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
+                        comment=False, differences=[no.D_no])
+
+        min_u, max_u = interval(min(numerical.U.min(), no.U.min()),
+                                max(numerical.U.max(), no.U.max()))
+        plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[2], comment=False, ylim=[min_u, max_u],
+                     linestyle='--')
+        plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
+
+        if n_row == 4:
+            q_des = np.array([dataset_config.system.q_des(t) for t in ts])
+            q_numerical = q_des - numerical.Z[:, :2]
+            q_no = q_des - no.Z[:, :2]
+            n_point_start = n_point_delay(0)
+            q_des = q_des[n_point_start:]
+            q_numerical = q_numerical[n_point_start:]
+            q_no = q_no[n_point_start:]
+            plot_q(ts[n_point_start:], [q_numerical], q_des, None, dataset_config.system.n_input, ax=numerical_axes[3],
+                   comment=False)
+            plot_q(ts[n_point_start:], [q_no], q_des, None, dataset_config.system.n_input, ax=no_axes[3], comment=False)
+
+        check_dir(f'./misc/plots/{plot_name}')
+        plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
 
 
 def plot_no_numerical_comparison(test_points, plot_name, dataset_config, train_config, model_config, model, n_row):

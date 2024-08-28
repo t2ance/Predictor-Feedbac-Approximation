@@ -519,7 +519,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     img_save_path = model_config.base_path
     model, model_loaded = load_model(train_config, model_config, dataset_config, fno=fno)
     if (isinstance(model, FNOProjectionGRU) or isinstance(model, FNOProjectionLSTM)) and fno is not None:
-        print(f'Freeze FNO and only train GRU in {model.__class__.__name__}')
+        print(f'Freeze FNO and only train GRU/LSTM in {model.__class__.__name__}')
         optimizer = load_optimizer(model.gru.parameters(), train_config)
     else:
         print(f'Train all parameters in {model.__class__.__name__}')
@@ -852,11 +852,12 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         for result in validation_results:
             validation_dataset.append(simulation_result_to_samples(result, dataset_config))
         if model_config.model_name == 'FNO-GRU' or model_config.model_name == 'FNO-LSTM':
+            model_name = model_config.model_name
             model_config.model_name = 'FNO'
             fno, _ = load_model(train_config, model_config, dataset_config)
             model_config.load_model(run, fno)
             # run_tests(fno, train_config, dataset_config, model_config, test_points)
-            model_config.model_name = 'FNO-GRU'
+            model_config.model_name = model_name
         else:
             fno = None
 
