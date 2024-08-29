@@ -335,6 +335,7 @@ def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, n_state: int, yl
         ax = figure.gca()
     ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
 
+    n_state = len(Z)
     n_point_start = n_point_delay(0)
     if Ps_labels is None:
         Ps_labels = ['' for _ in range(len(Ps))]

@@ -24,7 +24,7 @@ def interval(min_, max_):
 def plot_comparisons(test_point, plot_name, dataset_config, train_config, model_config, system,
                      fno=None, fno_gru=None, gru=None, fno_lstm=None, lstm=None):
     if system == 's8':
-        n_max_state = 5
+        n_max_state = 100
         n_row = 4
     elif system == 's9':
         n_max_state = 10000
@@ -41,7 +41,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, model_
     print(f'Begin simulation {plot_name}')
 
     result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point,
-                        method='numerical', silence = False)
+                        method='numerical', silence=False)
     result_baseline = result
     Ps.append(result.P_numerical)
     Zs.append(result.Z)
@@ -96,9 +96,9 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, model_
 
     print(f'End simulation {plot_name}')
     # print_results(results, result_baseline)
-    Ps = [P[:, n_max_state] for P in Ps]
-    Zs = [Z[:, n_max_state] for Z in Zs]
-    Ds = [D[:, n_max_state] for D in Ds]
+    Ps = [P[:, :n_max_state] for P in Ps]
+    Zs = [Z[:, :n_max_state] for Z in Zs]
+    Ds = [D[:, :n_max_state] for D in Ds]
 
     n_col = len(labels)
     ts = dataset_config.ts

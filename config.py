@@ -563,7 +563,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.gru_n_layer = 2
             model_config.gru_layer_width = 16
     elif system_ == 's8':
-        dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=8, dt=0.02, n_training_dataset=900,
                                        n_validation_dataset=100, n_sample_per_dataset=-1, baxter_dof=5,
                                        ic_lower_bound=0, ic_upper_bound=0.3, random_test_lower_bound=0,
@@ -574,8 +574,10 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2, scheduler_min_lr=1e-5)
         if model_name == 'FNO':
-            dataset_config.n_training_dataset = 200
-            dataset_config.n_validation_dataset = 20
+            # dataset_config.n_training_dataset = 200
+            # dataset_config.n_validation_dataset = 20
+            dataset_config.n_training_dataset = 500
+            dataset_config.n_validation_dataset = 0
             train_config.n_epoch = 1000
             train_config.learning_rate = 1e-4
             train_config.scheduler_min_lr = 1e-5
@@ -630,7 +632,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.lstm_n_layer = 4
             model_config.lstm_layer_width = 32
     elif system_ == 's9':
-        dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory',
                                        delay=TimeVaryingDelay(), duration=8, dt=0.004, n_training_dataset=900,
                                        n_validation_dataset=100, n_sample_per_dataset=-1, ic_lower_bound=-0.5,
                                        ic_upper_bound=0.5)
@@ -640,8 +642,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    scheduler_min_lr=1e-5)
 
         if model_name == 'FNO':
-            dataset_config.n_training_dataset = 300
-            dataset_config.n_validation_dataset = 10
+            dataset_config.n_training_dataset = 200
+            dataset_config.n_validation_dataset = 0
             train_config.n_epoch = 750
             train_config.batch_size = 512
             train_config.learning_rate = 5e-5
