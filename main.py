@@ -489,27 +489,30 @@ def simulation_result_to_samples(result: SimulationResult, dataset_config):
     return samples
 
 
-def create_sequence_simulation_result(dataset_config: DatasetConfig, train_config: TrainConfig):
-    n_dataset = dataset_config.n_training_dataset + dataset_config.n_validation_dataset
-    training_results = []
-    validation_results = []
-    for dataset_idx in range(n_dataset):
-        Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
-                               size=(dataset_config.n_state,))
-        result = simulation(dataset_config, train_config, Z0, 'numerical')
+def create_sequence_simulation_result(dataset_config: DatasetConfig, train_config: TrainConfig, n_dataset: int = None,
+                                      test_points=None):
+    assert not (n_dataset is None and test_points is None)
+    results = []
 
-        if dataset_idx < dataset_config.n_training_dataset:
-            training_results.append(result)
-        else:
-            validation_results.append(result)
+    if test_points is None:
+        test_points = []
+        for dataset_idx in range(n_dataset):
+            Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
+                                   size=(dataset_config.n_state,))
+            test_points.append(Z0)
+    else:
+        n_dataset = len(test_points)
+
+    for dataset_idx, Z0 in enumerate(test_points):
+        result = simulation(dataset_config, train_config, Z0, 'numerical')
+        results.append(result)
         wandb.log(
             {
                 'dataset progress': dataset_idx / n_dataset
             }
         )
-        # print(f'dataset progress: {dataset_idx / n_dataset}')
 
-    return training_results, validation_results
+    return results
 
 
 def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig,
@@ -831,10 +834,12 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         print('Begin Generating Dataset...')
 
         if dataset_config.recreate_dataset:
-
             training_results_, validation_results_ = dataset_config.load_dataset(run, resize=False)
             print(f'{len(training_results_)} loaded')
-            training_results, validation_results = create_sequence_simulation_result(dataset_config, train_config)
+            training_results = create_sequence_simulation_result(
+                dataset_config, train_config, n_dataset=dataset_config.n_training_dataset)
+            validation_results = create_sequence_simulation_result(
+                dataset_config, train_config, n_dataset=dataset_config.n_validation_dataset)
             print(f'{len(training_results)} generated')
             training_results += training_results_
             validation_results += validation_results_
@@ -844,6 +849,10 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         else:
             training_results, validation_results = dataset_config.load_dataset(run)
             print(f'Dataset loaded')
+
+        # for debug usage
+        validation_results = create_sequence_simulation_result(
+            dataset_config, train_config, test_points=test_points)
 
         training_dataset = []
         for result in training_results:
