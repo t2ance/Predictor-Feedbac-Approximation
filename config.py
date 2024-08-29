@@ -609,7 +609,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.learning_rate = 1e-4
             train_config.scheduler_min_lr = 1e-5
             train_config.batch_size = 512
-            train_config.n_epoch = 1000
+            train_config.n_epoch = 500
             train_config.weight_decay = 0
             model_config.fno_n_layer = 6
             model_config.fno_n_modes_height = 32
