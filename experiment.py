@@ -21,8 +21,8 @@ def interval(min_, max_):
     return new_min, new_max
 
 
-def plot_comparisons(test_point, plot_name, dataset_config, train_config, model_config, system, fno=None, fno_gru=None,
-                     gru=None):
+def plot_comparisons(test_point, plot_name, dataset_config, train_config, model_config, system,
+                     fno=None, fno_gru=None, gru=None, fno_lstm=None, lstm=None):
     if system == 's8':
         n_max_state = 5
         n_row = 4
@@ -37,10 +37,12 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, model_
     Ds = []
     Us = []
     labels = []
+    results = []
     print(f'Begin simulation {plot_name}')
 
     result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point,
-                        method='numerical')
+                        method='numerical', silence = False)
+    result_baseline = result
     Ps.append(result.P_numerical)
     Zs.append(result.Z)
     Ds.append(result.D_numerical)
@@ -49,7 +51,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, model_
 
     if fno is not None:
         result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=fno,
-                            method='no')
+                            method='no', silence=False)
         Ps.append(result.P_no)
         Zs.append(result.Z)
         Ds.append(result.D_no)
@@ -58,27 +60,45 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, model_
 
     if fno_gru is not None:
         result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=fno_gru,
-                            method='no')
+                            method='no', silence=False)
         Ps.append(result.P_no)
         Zs.append(result.Z)
         Ds.append(result.D_no)
         Us.append(result.U)
         labels.append('FNO-GRU')
 
+    if fno_lstm is not None:
+        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=fno_lstm,
+                            method='no', silence=False)
+        Ps.append(result.P_no)
+        Zs.append(result.Z)
+        Ds.append(result.D_no)
+        Us.append(result.U)
+        labels.append('FNO-LSTM')
+
     if gru is not None:
         result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=gru,
-                            method='no')
+                            method='no', silence=False)
         Ps.append(result.P_no)
         Zs.append(result.Z)
         Ds.append(result.D_no)
         Us.append(result.U)
         labels.append('GRU')
 
-    # print_results([result_no, result], result)
+    if lstm is not None:
+        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=lstm,
+                            method='no', silence=False)
+        Ps.append(result.P_no)
+        Zs.append(result.Z)
+        Ds.append(result.D_no)
+        Us.append(result.U)
+        labels.append('LSTM')
+
     print(f'End simulation {plot_name}')
-    Ps = [P[:n_max_state] for P in Ps]
-    Zs = [Z[:n_max_state] for Z in Zs]
-    Ds = [D[:n_max_state] for D in Ds]
+    # print_results(results, result_baseline)
+    Ps = [P[:, n_max_state] for P in Ps]
+    Zs = [Z[:, n_max_state] for Z in Zs]
+    Ds = [D[:, n_max_state] for D in Ds]
 
     n_col = len(labels)
     ts = dataset_config.ts
@@ -627,9 +647,9 @@ def plot_figure(n_test=10):
 
 
 if __name__ == '__main__':
+    set_everything(0)
     import wandb
 
-    set_everything(0)
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     run = wandb.init(
         project="no",
@@ -637,8 +657,32 @@ if __name__ == '__main__':
     )
     # plot_figure(n_test=1)
     system = 's8'
+
+    fno = None
+    fno_gru = None
+    gru = None
+    fno_lstm = None
+    lstm = None
+
     dataset_config, model_config, train_config = config.get_config(system_=system, model_name='FNO')
     fno, _ = load_model(train_config, model_config, dataset_config)
+    model_config.load_model(run, fno)
 
-    plot_comparisons(dataset_config.test_points, 'test_plot', dataset_config, train_config, model_config, system=system,
-                     fno=fno, fno_gru=None, gru=None)
+    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='FNO-GRU')
+    # fno_gru, _ = load_model(train_config, model_config, dataset_config)
+    # model_config.load_model(run, fno_gru)
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='FNO-LSTM')
+    # fno_lstm, _ = load_model(train_config, model_config, dataset_config)
+    # model_config.load_model(run, fno_lstm)
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='GRU')
+    # gru, _ = load_model(train_config, model_config, dataset_config)
+    # model_config.load_model(run, gru)
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='LSTM')
+    # lstm, _ = load_model(train_config, model_config, dataset_config)
+    # model_config.load_model(run, lstm)
+
+    plot_comparisons(dataset_config.test_points, system, dataset_config, train_config, model_config, system=system,
+                     fno=fno, fno_gru=fno_gru, gru=gru, fno_lstm=fno_lstm, lstm=lstm)

@@ -91,8 +91,6 @@ class Baxter(DynamicSystem):
         self.dof = dof
         self.alpha = np.eye(dof) if alpha is None else alpha
         self.beta = np.eye(dof) if beta is None else beta
-        # self.alpha = 0 * np.eye(dof) if alpha is None else alpha
-        # self.beta = 0 * np.eye(dof) if beta is None else beta
         self.baxter_parameters = BaxterParameters(dof=dof)
 
     @lru_cache(maxsize=None)
@@ -124,8 +122,7 @@ class Baxter(DynamicSystem):
     def qdd_des(self, t):
         return 0.2 * np.array(
             [-0.01 * np.sin(0.1 * t), -0.01 * np.cos(0.1 * t), -0.01 * np.sin(0.1 * t), -0.01 * np.cos(0.1 * t),
-             -0.01 * np.sin(0.1 * t), 0,
-             0])[:self.dof]
+             -0.01 * np.sin(0.1 * t), 0, 0])[:self.dof]
 
     def h(self, e1, e2, t):
         return self.qdd_des(t) - self.alpha @ (self.alpha @ e1) + np.linalg.inv(self.M(t)) @ (
