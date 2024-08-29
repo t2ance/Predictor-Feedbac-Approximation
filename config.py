@@ -575,7 +575,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         if model_name == 'FNO':
             # dataset_config.n_training_dataset = 200
             # dataset_config.n_validation_dataset = 20
-            dataset_config.n_training_dataset = 500
+            dataset_config.n_training_dataset = 300
             dataset_config.n_validation_dataset = 0
             train_config.n_epoch = 1000
             train_config.learning_rate = 1e-4
