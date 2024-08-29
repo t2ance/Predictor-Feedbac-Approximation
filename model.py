@@ -152,7 +152,7 @@ class FNOProjectionGRU(torch.nn.Module):
         else:
             print('Pretrained FNO model loaded to FNO-GRU')
         self.fno = fno
-        self.gru = GRUNet(input_size=n_state, layer_width=gru_layer_width, num_layers=gru_n_layers,
+        self.rnn = GRUNet(input_size=n_state, layer_width=gru_layer_width, num_layers=gru_n_layers,
                           output_size=n_state)
 
         self.mse_loss = torch.nn.MSELoss()
@@ -161,13 +161,13 @@ class FNOProjectionGRU(torch.nn.Module):
         with torch.no_grad():
             x = self.fno(x)
             x = x.detach()
-        x = self.gru(x)
+        x = self.rnn(x)
         if label is None:
             return x
         return x, self.mse_loss(x, label)
 
     def reset_state(self):
-        self.gru.reset_state()
+        self.rnn.reset_state()
 
 
 class FNOProjectionLSTM(torch.nn.Module):
@@ -180,8 +180,8 @@ class FNOProjectionLSTM(torch.nn.Module):
         else:
             print('Pretrained FNO model loaded to FNO-LSTM')
         self.fno = fno
-        self.lstm = LSTMNet(input_size=n_state, layer_width=lstm_layer_width, num_layers=lstm_n_layers,
-                            output_size=n_state)
+        self.rnn = LSTMNet(input_size=n_state, layer_width=lstm_layer_width, num_layers=lstm_n_layers,
+                           output_size=n_state)
 
         self.mse_loss = torch.nn.MSELoss()
 
@@ -189,13 +189,13 @@ class FNOProjectionLSTM(torch.nn.Module):
         with torch.no_grad():
             x = self.fno(x)
             x = x.detach()
-        x = self.lstm(x)
+        x = self.rnn(x)
         if label is None:
             return x
         return x, self.mse_loss(x, label)
 
     def reset_state(self):
-        self.lstm.reset_state()
+        self.rnn.reset_state()
 
 
 class FNOProjection(torch.nn.Module):

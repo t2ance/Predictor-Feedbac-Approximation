@@ -520,7 +520,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     model, model_loaded = load_model(train_config, model_config, dataset_config, fno=fno)
     if (isinstance(model, FNOProjectionGRU) or isinstance(model, FNOProjectionLSTM)) and fno is not None:
         print(f'Freeze FNO and only train GRU/LSTM in {model.__class__.__name__}')
-        optimizer = load_optimizer(model.gru.parameters(), train_config)
+        optimizer = load_optimizer(model.rnn.parameters(), train_config)
     else:
         print(f'Train all parameters in {model.__class__.__name__}')
         optimizer = load_optimizer(model.parameters(), train_config)
