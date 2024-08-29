@@ -858,6 +858,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
             model_config.load_model(run, fno)
             # run_tests(fno, train_config, dataset_config, model_config, test_points)
             model_config.model_name = model_name
+            run_tests(fno, train_config, dataset_config, model_config, test_points)
         else:
             fno = None
 
