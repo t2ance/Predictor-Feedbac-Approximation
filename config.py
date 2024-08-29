@@ -623,12 +623,12 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 5e-6
             train_config.batch_size = 512
             train_config.n_epoch = 500
-            train_config.weight_decay = 1e-2
+            train_config.weight_decay = 2e-1
             model_config.fno_n_layer = 6
             model_config.fno_n_modes_height = 32
             model_config.fno_hidden_channels = 32
             model_config.lstm_n_layer = 4
-            model_config.lstm_layer_width = 16
+            model_config.lstm_layer_width = 32
     elif system_ == 's9':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=TimeVaryingDelay(), duration=8, dt=0.004, n_training_dataset=900,
