@@ -852,7 +852,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 
         # for debug usage
         validation_results = create_sequence_simulation_result(
-            dataset_config, train_config, test_points=test_points)
+            dataset_config, train_config, test_points=dataset_config.test_points)
 
         training_dataset = []
         for result in training_results:
