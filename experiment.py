@@ -139,12 +139,12 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, model_
 
     for i, (axes, P, Z) in enumerate(zip(method_axes, Ps, Zs)):
         comment = i == n_col - 1
-        plot_comparison(ts, [P], Z, delay, n_point_delay, None, n_state, ylim=[min(min_p, min_z), max(max_p, max_z)],
+        plot_comparison(ts, [P], Z, delay, n_point_delay, None, ylim=[min(min_p, min_z), max(max_p, max_z)],
                         ax=axes[0], comment=comment)
 
     for i, (axes, P, Z, D) in enumerate(zip(method_axes, Ps, Zs, Ds)):
         comment = i == n_col - 1
-        plot_difference(ts, [P], Z, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=axes[1], comment=comment,
+        plot_difference(ts, [P], Z, n_point_delay, None, ylim=[min_d, max_d], ax=axes[1], comment=comment,
                         differences=[D])
 
     for i, (axes, P, Z, D, U) in enumerate(zip(method_axes, Ps, Zs, Ds, Us)):
@@ -157,7 +157,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, model_
         for i, (axes, P, Z, D, U) in enumerate(zip(method_axes, Ps, Zs, Ds, Us)):
             q = q_des - Z[:, :2]
             q = q[n_point_start:]
-            plot_q(ts[n_point_start:], [q], q_des, None, dataset_config.system.n_input, ax=axes[3], comment=False)
+            plot_q(ts[n_point_start:], [q], q_des, None, ax=axes[3], comment=False)
 
     plt.savefig(f"./misc/plots/{plot_name}.pdf")
 
@@ -187,18 +187,16 @@ def plot_no_numerical_comparison(test_points, plot_name, dataset_config, train_c
         min_p, max_p = interval(min(numerical.P_numerical.min(), no.P_no.min()),
                                 max(numerical.P_numerical.max(), no.P_no.max()))
 
-        plot_comparison(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, n_state,
-                        ylim=[min_p, max_p],
+        plot_comparison(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, ylim=[min_p, max_p],
                         ax=numerical_axes[0], comment=False)
-        plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=no_axes[0],
+        plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, ylim=[min_p, max_p], ax=no_axes[0],
                         comment=False)
         min_d, max_d = interval(min(numerical.D_numerical.min(), no.D_no.min()),
                                 max(numerical.D_numerical.max(), no.D_no.max()))
 
-        plot_difference(ts, [numerical.P_numerical], numerical.Z, n_point_delay, None, n_state,
-                        ylim=[min_d, max_d],
+        plot_difference(ts, [numerical.P_numerical], numerical.Z, n_point_delay, None, ylim=[min_d, max_d],
                         ax=numerical_axes[1], comment=False, differences=[numerical.D_numerical])
-        plot_difference(ts, [no.P_no], no.Z, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
+        plot_difference(ts, [no.P_no], no.Z, n_point_delay, None, ylim=[min_d, max_d], ax=no_axes[1],
                         comment=False, differences=[no.D_no])
 
         min_u, max_u = interval(min(numerical.U.min(), no.U.min()),
@@ -215,9 +213,9 @@ def plot_no_numerical_comparison(test_points, plot_name, dataset_config, train_c
             q_des = q_des[n_point_start:]
             q_numerical = q_numerical[n_point_start:]
             q_no = q_no[n_point_start:]
-            plot_q(ts[n_point_start:], [q_numerical], q_des, None, dataset_config.system.n_input, ax=numerical_axes[3],
+            plot_q(ts[n_point_start:], [q_numerical], q_des, None, ax=numerical_axes[3],
                    comment=False)
-            plot_q(ts[n_point_start:], [q_no], q_des, None, dataset_config.system.n_input, ax=no_axes[3], comment=False)
+            plot_q(ts[n_point_start:], [q_no], q_des, None, ax=no_axes[3], comment=False)
 
         check_dir(f'./misc/plots/{plot_name}')
         plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
@@ -249,19 +247,17 @@ def plot_sw_numerical_comparison(test_points, plot_name, dataset_config, train_c
         min_p, max_p = interval(min(numerical.P_numerical.min(), cp.P_switching.min()),
                                 max(numerical.P_numerical.max(), cp.P_switching.max()))
 
-        plot_comparison(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, n_state,
-                        ylim=[min_p, max_p],
+        plot_comparison(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, ylim=[min_p, max_p],
                         ax=numerical_axes[0], comment=False)
-        plot_comparison(ts, [cp.P_switching], cp.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
+        plot_comparison(ts, [cp.P_switching], cp.Z, delay, n_point_delay, None, ylim=[min_p, max_p],
                         ax=cp_axes[0], comment=True)
         min_d, max_d = interval(min(numerical.D_numerical.min(), cp.D_switching.min()),
                                 max(numerical.D_numerical.max(), cp.D_switching.max()))
 
-        plot_difference(ts, [numerical.P_numerical], numerical.Z, n_point_delay, None, n_state,
-                        ylim=[min_d, max_d],
+        plot_difference(ts, [numerical.P_numerical], numerical.Z, n_point_delay, None, ylim=[min_d, max_d],
                         ax=numerical_axes[1],
                         comment=False, differences=[numerical.D_numerical])
-        plot_difference(ts, [cp.P_switching], cp.Z, n_point_delay, None, n_state, ylim=[min_d, max_d],
+        plot_difference(ts, [cp.P_switching], cp.Z, n_point_delay, None, ylim=[min_d, max_d],
                         ax=cp_axes[1], comment=True, differences=[cp.D_switching])
 
         min_u, max_u = interval(min(numerical.U.min(), cp.U.min()), max(numerical.U.max(), cp.U.max()))
@@ -276,9 +272,9 @@ def plot_sw_numerical_comparison(test_points, plot_name, dataset_config, train_c
             q_des = q_des[n_point_start:]
             q_numerical = q_numerical[n_point_start:]
             q_switching = q_switching[n_point_start:]
-            plot_q(ts[n_point_start:], [q_numerical], q_des, None, dataset_config.system.n_input, ax=numerical_axes[3],
+            plot_q(ts[n_point_start:], [q_numerical], q_des, None, ax=numerical_axes[3],
                    comment=False)
-            plot_q(ts[n_point_start:], [q_switching], q_des, None, dataset_config.system.n_input, ax=cp_axes[3],
+            plot_q(ts[n_point_start:], [q_switching], q_des, None, ax=cp_axes[3],
                    comment=True)
 
         check_dir(f'./misc/plots/{plot_name}')
@@ -319,20 +315,20 @@ def plot_uq_ablation(test_points, plot_name, dataset_config, train_config, model
         min_p, max_p = interval(min(no.P_no.min(), cp.P_switching.min(), gp.P_switching.min()),
                                 max(no.P_no.max(), cp.P_switching.max(), gp.P_switching.max()))
 
-        plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=no_axes[0],
+        plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, ylim=[min_p, max_p], ax=no_axes[0],
                         comment=False)
-        plot_comparison(ts, [cp.P_switching], cp.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
+        plot_comparison(ts, [cp.P_switching], cp.Z, delay, n_point_delay, None, ylim=[min_p, max_p],
                         ax=gp_axes[0], comment=False)
-        plot_comparison(ts, [gp.P_switching], gp.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
+        plot_comparison(ts, [gp.P_switching], gp.Z, delay, n_point_delay, None, ylim=[min_p, max_p],
                         ax=cp_axes[0], comment=True)
         min_d, max_d = interval(min(no.D_no.min(), cp.D_switching.min(), gp.D_switching.min()),
                                 max(no.D_no.max(), cp.D_switching.max(), gp.D_switching.max()))
 
-        plot_difference(ts, [no.P_no], no.Z, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
+        plot_difference(ts, [no.P_no], no.Z, n_point_delay, None, ylim=[min_d, max_d], ax=no_axes[1],
                         comment=False, differences=[no.D_no])
-        plot_difference(ts, [cp.P_switching], cp.Z, n_point_delay, None, n_state, ylim=[min_d, max_d],
+        plot_difference(ts, [cp.P_switching], cp.Z, n_point_delay, None, ylim=[min_d, max_d],
                         ax=gp_axes[1], comment=False, differences=[cp.D_switching])
-        plot_difference(ts, [gp.P_switching], gp.Z, n_point_delay, None, n_state, ylim=[min_d, max_d],
+        plot_difference(ts, [gp.P_switching], gp.Z, n_point_delay, None, ylim=[min_d, max_d],
                         ax=cp_axes[1], comment=True, differences=[gp.D_switching])
         min_u, max_u = interval(min(no.U.min(), cp.U.min(), gp.U.min()),
                                 max(no.U.max(), cp.U.max(), gp.U.max()))
@@ -350,9 +346,9 @@ def plot_uq_ablation(test_points, plot_name, dataset_config, train_config, model
             q_no = q_no[n_point_start:]
             q_cp = q_cp[n_point_start:]
             q_gp = q_gp[n_point_start:]
-            plot_q(ts[n_point_start:], [q_no], q_des, None, dataset_config.system.n_input, ax=no_axes[3], comment=False)
-            plot_q(ts[n_point_start:], [q_cp], q_des, None, dataset_config.system.n_input, ax=cp_axes[3], comment=True)
-            plot_q(ts[n_point_start:], [q_gp], q_des, None, dataset_config.system.n_input, ax=gp_axes[3], comment=True)
+            plot_q(ts[n_point_start:], [q_no], q_des, None, ax=no_axes[3], comment=False)
+            plot_q(ts[n_point_start:], [q_cp], q_des, None, ax=cp_axes[3], comment=True)
+            plot_q(ts[n_point_start:], [q_gp], q_des, None, ax=gp_axes[3], comment=True)
 
         check_dir(f'./misc/plots/{plot_name}')
         plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
@@ -485,16 +481,16 @@ def plot_rnn_ablation(test_points, plot_name):
 
         min_p, max_p = interval(min(no.P_no.min(), gru.P_no.min()), max(no.P_no.max(), gru.P_no.max()))
 
-        plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=no_axes[0],
+        plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, ylim=[min_p, max_p], ax=no_axes[0],
                         comment=False)
-        plot_comparison(ts, [gru.P_no], gru.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=gru_axes[0],
+        plot_comparison(ts, [gru.P_no], gru.Z, delay, n_point_delay, None, ylim=[min_p, max_p], ax=gru_axes[0],
                         comment=True)
         min_d, max_d = interval(min(no.D_no.min(), gru.D_no.min()),
                                 max(no.D_no.max(), gru.D_no.max()))
 
-        plot_difference(ts, [no.P_no], no.Z, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
+        plot_difference(ts, [no.P_no], no.Z, n_point_delay, None, ylim=[min_d, max_d], ax=no_axes[1],
                         comment=False, differences=[no.D_no])
-        plot_difference(ts, [gru.P_no], gru.Z, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=gru_axes[1],
+        plot_difference(ts, [gru.P_no], gru.Z, n_point_delay, None, ylim=[min_d, max_d], ax=gru_axes[1],
                         comment=False, differences=[gru.D_no])
 
         min_u, max_u = interval(min(no.U.min(), gru.U.min()), max(no.U.max(), gru.U.max()))
@@ -508,8 +504,8 @@ def plot_rnn_ablation(test_points, plot_name):
         q_des = q_des[n_point_start:]
         q_no = q_no[n_point_start:]
         q_gru = q_gru[n_point_start:]
-        plot_q(ts[n_point_start:], [q_no], q_des, None, dataset_config.system.n_input, ax=no_axes[3], comment=False)
-        plot_q(ts[n_point_start:], [q_gru], q_des, None, dataset_config.system.n_input, ax=gru_axes[3], comment=False)
+        plot_q(ts[n_point_start:], [q_no], q_des, None, ax=no_axes[3], comment=False)
+        plot_q(ts[n_point_start:], [q_gru], q_des, None, ax=gru_axes[3], comment=False)
 
         check_dir(f'./misc/plots/{plot_name}')
         plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
@@ -547,7 +543,7 @@ def plot_alpha(test_points, plot_name, dataset_config, train_config, model, alph
             max([switching_result.P_switching.max() for switching_result in test_result])
         )
         for switching_result, switching_alpha_ax in zip(test_result, switching_alpha_axes):
-            plot_comparison(ts, [switching_result.P_switching], switching_result.Z, delay, n_point_delay, None, n_state,
+            plot_comparison(ts, [switching_result.P_switching], switching_result.Z, delay, n_point_delay, None,
                             ylim=[min_p, max_p], ax=switching_alpha_ax[0], comment=False)
 
         min_d, max_d = interval(
@@ -555,7 +551,7 @@ def plot_alpha(test_points, plot_name, dataset_config, train_config, model, alph
             max([switching_result.D_switching.max() for switching_result in test_result])
         )
         for switching_result, switching_alpha_ax in zip(test_result, switching_alpha_axes):
-            plot_difference(ts, [switching_result.D_switching], switching_result.Z, n_point_delay, None, n_state,
+            plot_difference(ts, [switching_result.D_switching], switching_result.Z, n_point_delay, None,
                             ylim=[min_d, max_d],
                             ax=switching_alpha_ax[1], comment=False, differences=[switching_result.D_numerical])
 

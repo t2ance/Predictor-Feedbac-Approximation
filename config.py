@@ -642,7 +642,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    scheduler_min_lr=1e-5)
 
         if model_name == 'FNO':
-            dataset_config.n_training_dataset = 200
+            dataset_config.n_training_dataset = 500
             dataset_config.n_validation_dataset = 0
             train_config.n_epoch = 750
             train_config.batch_size = 512
