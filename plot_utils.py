@@ -1,14 +1,12 @@
 from typing import Literal
 
 import numpy as np
-import torch
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.ticker import MaxNLocator
 
-from config import DatasetConfig
 from dynamic_systems import ConstantDelay
-from utils import check_dir, SimulationResult
+from utils import SimulationResult
 
 colors = ['red', 'green', 'blue', 'orange', 'black', 'cyan', 'magenta', 'white', 'pink', 'yellow', 'gray', 'lightblue',
           'lightgreen', 'purple', 'brown', 'teal', 'olive', 'navy', 'lime', 'coral', 'salmon', 'aqua', 'wheat']
@@ -191,13 +189,13 @@ def plot_q(ts, qs, q_des, save_path, ylim=None, ax=None, comment=True, figure=No
         figure = plt.figure(figsize=set_size(width=fig_width))
         ax = figure.gca()
     ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
-    n_state = len(q_des.shape[-1])
+    n_state = q_des.shape[-1]
 
     for i in range(n_state):
         for j, q in enumerate(qs):
             ax.plot(ts[:], q[:, i], linestyle=styles[j], color=colors[i],
                     label=f'$q_{i + 1}(t)$')
-        ax.plot(ts[:], q_des[:, i], label=f'$q_{{des,{i + 1}}}(t)$', linestyle='-.',
+        ax.plot(ts, q_des[:, i], label=f'$q_{{des,{i + 1}}}(t)$', linestyle='-.',
                 color=colors[i])
     if ylim is not None:
         try:
@@ -225,7 +223,7 @@ def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, ylim=None, Ps_la
         ax = figure.gca()
     ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
 
-    n_state = len(Z.shape[-1])
+    n_state = Z.shape[-1]
     n_point_start = n_point_delay(0)
     if Ps_labels is None:
         Ps_labels = ['' for _ in range(len(Ps))]
@@ -277,7 +275,7 @@ def plot_difference(ts, Ps, Z, n_point_delay, save_path, ylim=None, Ps_labels=No
         figure = plt.figure(figsize=set_size(width=fig_width))
         ax = figure.gca()
     ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
-    n_state = len(Z.shape[-1])
+    n_state = Z.shape[-1]
 
     if Ps_labels is None:
         Ps_labels = ['' for _ in range(len(Ps))]

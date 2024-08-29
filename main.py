@@ -520,7 +520,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     device = train_config.device
     batch_size = train_config.batch_size
     img_save_path = model_config.base_path
-    model, model_loaded = load_model(train_config, model_config, dataset_config, fno=fno)
+    model, model_loaded = load_model(train_config, model_config, dataset_config, ffn=fno)
     if (isinstance(model, FNOProjectionGRU) or isinstance(model, FNOProjectionLSTM)) and fno is not None:
         print(f'Freeze FNO and only train GRU/LSTM in {model.__class__.__name__}')
         optimizer = load_optimizer(model.rnn.parameters(), train_config)
@@ -892,7 +892,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', type=str, default='s9')
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='sequence')
-    parser.add_argument('-model_name', type=str, default='FNO')
+    parser.add_argument('-model_name', type=str, default='DeepONet')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)

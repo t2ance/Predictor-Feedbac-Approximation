@@ -21,10 +21,10 @@ def interval(min_, max_):
     return new_min, new_max
 
 
-def plot_comparisons(test_point, plot_name, dataset_config, train_config, model_config, system,
-                     fno=None, fno_gru=None, gru=None, fno_lstm=None, lstm=None):
+def plot_comparisons(test_point, plot_name, dataset_config, train_config, system, fno=None, fno_gru=None, gru=None,
+                     fno_lstm=None, lstm=None):
     if system == 's8':
-        n_max_state = 100
+        n_max_state = 5
         n_row = 4
     elif system == 's9':
         n_max_state = 10000
@@ -40,8 +40,8 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, model_
     results = []
     print(f'Begin simulation {plot_name}')
 
-    result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point,
-                        method='numerical', silence=False)
+    result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, method='numerical',
+                        silence=False)
     result_baseline = result
     Ps.append(result.P_numerical)
     Zs.append(result.Z)
@@ -95,7 +95,8 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, model_
         labels.append('LSTM')
 
     print(f'End simulation {plot_name}')
-    # print_results(results, result_baseline)
+    print(labels)
+    print_results(results, result_baseline)
     Ps = [P[:, :n_max_state] for P in Ps]
     Zs = [Z[:, :n_max_state] for Z in Zs]
     Ds = [D[:, :n_max_state] for D in Ds]
@@ -155,9 +156,9 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, model_
         q_des = np.array([dataset_config.system.q_des(t) for t in ts])
         n_point_start = n_point_delay(0)
         for i, (axes, P, Z, D, U) in enumerate(zip(method_axes, Ps, Zs, Ds, Us)):
-            q = q_des - Z[:, :2]
+            q = q_des[:, :n_max_state] - Z[:, :dataset_config.n_state // 2][:, :n_max_state]
             q = q[n_point_start:]
-            plot_q(ts[n_point_start:], [q], q_des, None, ax=axes[3], comment=False)
+            plot_q(ts[n_point_start:], [q], q_des[n_point_start:], None, ax=axes[3], comment=False)
 
     plt.savefig(f"./misc/plots/{plot_name}.pdf")
 
@@ -635,8 +636,7 @@ def plot_figure(n_test=10):
     train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', None)
     test_points = [
         (np.random.uniform(1, 1.2), np.random.uniform(1, 1.2), np.random.uniform(1, 1.2), np.random.uniform(1, 1.2)) for
-        _
-        in range(n_test)
+        _ in range(n_test)
     ]
 
     plot_alpha(test_points, 'alpha-ablation', dataset_config, train_config, model, [0.01, 0.1, 0.5])
@@ -680,5 +680,5 @@ if __name__ == '__main__':
     # lstm, _ = load_model(train_config, model_config, dataset_config)
     # model_config.load_model(run, lstm)
 
-    plot_comparisons(dataset_config.test_points, system, dataset_config, train_config, model_config, system=system,
+    plot_comparisons(dataset_config.test_points, system, dataset_config, train_config, system=system,
                      fno=fno, fno_gru=fno_gru, gru=gru, fno_lstm=fno_lstm, lstm=lstm)

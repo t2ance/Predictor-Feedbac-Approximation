@@ -14,7 +14,8 @@ from tqdm import tqdm
 
 from config import DatasetConfig, TrainConfig, ModelConfig
 from dataset import PredictionDataset
-from model import FNOProjection, FFN, GRUNet, LSTMNet, FNOProjectionGRU, FNOProjectionLSTM
+from model import FNOProjection, FFN, GRUNet, LSTMNet, FNOProjectionGRU, FNOProjectionLSTM, DeepONet, DeepONetGRU, \
+    DeepONetLSTM
 
 from torch import nn
 from torch.nn import init
@@ -166,29 +167,16 @@ def load_cp_hyperparameters(case: str):
         raise NotImplementedError()
 
 
-def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_config: DatasetConfig,
-               fno: FNOProjection = None):
+def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_config: DatasetConfig, ffn=None):
     model_name = model_config.model_name
     device = train_config.device
     n_state = dataset_config.system.n_state
     n_input = dataset_config.system.n_input
     n_point_start = dataset_config.n_point_start()
     if model_name == 'DeepONet':
-        n_hidden = model_config.deeponet_n_hidden
-        deeponet_merge_size = model_config.deeponet_merge_size
-        deeponet_hidden_size = model_config.deeponet_hidden_size
-        layer_size_branch = [n_point_start * n_input + n_state] + [deeponet_hidden_size] * n_hidden + [
-            deeponet_merge_size]
-        layer_size_trunk = [1] + [deeponet_hidden_size] * n_hidden + [deeponet_merge_size]
-        import deepxde as dde
-        model = dde.nn.DeepONet(
-            layer_size_branch,
-            layer_size_trunk,
-            activation="tanh",
-            kernel_initializer="Glorot uniform",
-            multi_output_strategy='independent',
-            num_outputs=n_state
-        )
+        model = DeepONet(n_input_branch=n_point_start * n_input, n_input_trunk=n_state,
+                         layer_width=model_config.deeponet_hidden_size, n_layer=model_config.deeponet_n_layer,
+                         n_output=n_state)
     elif model_name == 'FNO':
         n_modes_height = model_config.fno_n_modes_height
         hidden_channels = model_config.fno_hidden_channels
@@ -207,12 +195,22 @@ def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_con
         model = FNOProjectionGRU(
             n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
             n_state=n_state, fno_n_layers=model_config.fno_n_layer, gru_n_layers=model_config.gru_n_layer,
-            gru_layer_width=model_config.gru_layer_width, fno=fno)
+            gru_layer_width=model_config.gru_layer_width, ffn=ffn)
     elif model_name == 'FNO-LSTM':
         model = FNOProjectionLSTM(
             n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
             n_state=n_state, fno_n_layers=model_config.fno_n_layer, lstm_n_layers=model_config.lstm_n_layer,
-            lstm_layer_width=model_config.lstm_layer_width, fno=fno)
+            lstm_layer_width=model_config.lstm_layer_width, ffn=ffn)
+    elif model_name == 'DeepONet-GRU':
+        model = DeepONetGRU(n_state=n_state, gru_n_layers=model_config.gru_n_layer, n_point_start=n_point_start,
+                            n_input=n_input, gru_layer_width=model_config.gru_layer_width, ffn=ffn,
+                            deeponet_hidden_size=model_config.deeponet_hidden_size,
+                            deeponet_n_layer=model_config.deeponet_n_layer)
+    elif model_name == 'DeepONet-LSTM':
+        model = DeepONetLSTM(n_state=n_state, lstm_n_layers=model_config.lstm_n_layer, n_point_start=n_point_start,
+                            n_input=n_input, lstm_layer_width=model_config.lstm_layer_width, ffn=ffn,
+                            deeponet_hidden_size=model_config.deeponet_hidden_size,
+                            deeponet_n_layer=model_config.deeponet_n_layer)
     else:
         raise NotImplementedError()
     n_params = count_params(model)
