@@ -457,9 +457,9 @@ def plot_alpha(test_points, plot_name, dataset_config, train_config, model, alph
         plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
 
 
-def print_results(results, result_baseline=None):
-    raw_prediction_times = [result.runtime for result in results]
-    print('raw prediction time', '&'.join([f'${t * 1000:.2f}$' for t in raw_prediction_times]))
+def print_results(results: List[SimulationResult], result_baseline=None):
+    raw_prediction_times = [result.avg_prediction_time for result in results]
+    print('raw prediction time', '&'.join([f'${t * 1000:.3f}$' for t in raw_prediction_times]))
     if result_baseline is not None:
         speedups = [result_baseline.runtime / result.runtime for result in results]
         print('speedup', '&'.join([f'$\\times {t:.3f}$' for t in speedups]))
@@ -525,6 +525,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', type=str, default='s9')
+    parser.add_argument('-n', type=int, default=1)
     args = parser.parse_args()
 
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
@@ -575,7 +576,7 @@ if __name__ == '__main__':
     # model_config.load_model(run, deeponet_lstm)
 
     results = None
-    for i, test_point in enumerate(dataset_config.get_test_points(n_point=2)):
+    for i, test_point in enumerate(dataset_config.get_test_points(n_point=args.n)):
         result_dict = plot_comparisons(
             test_point, f'{args.s}-{i}', dataset_config, train_config, system=args.s, fno=fno, deeponet=deeponet,
             gru=gru, lstm=lstm, fno_gru=fno_gru, fno_lstm=fno_lstm, deeponet_gru=deeponet_gru,
