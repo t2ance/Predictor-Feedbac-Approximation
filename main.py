@@ -18,7 +18,7 @@ import config
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
 from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral, solve_integral_successive_batched
-from model import GRUNet, LSTMNet, FNOProjectionGRU, FNOProjectionLSTM
+from model import GRUNet, LSTMNet, TimeAwareFFN
 from plot_utils import plot_result, set_size, difference
 from utils import pad_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, \
     set_everything, print_result, postprocess, load_model, load_optimizer, prediction_comparison, print_args, \
@@ -60,8 +60,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
     # Z[n_point_start, :] = Z0
     Z[:n_point_start + 1, :] = Z0
     runtime = 0.
-    if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU) or isinstance(
-            model, FNOProjectionLSTM):
+    if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, TimeAwareFFN):
         model.reset_state()
     # if silence:
     #     bar = range(n_point_start, dataset_config.n_point)
@@ -516,13 +515,13 @@ def create_sequence_simulation_result(dataset_config: DatasetConfig, train_confi
 
 
 def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig,
-                          training_dataset, validation_dataset, fno=None):
+                          training_dataset, validation_dataset, ffn=None):
     device = train_config.device
     batch_size = train_config.batch_size
     img_save_path = model_config.base_path
-    model, model_loaded = load_model(train_config, model_config, dataset_config, ffn=fno)
-    if (isinstance(model, FNOProjectionGRU) or isinstance(model, FNOProjectionLSTM)) and fno is not None:
-        print(f'Freeze FNO and only train GRU/LSTM in {model.__class__.__name__}')
+    model, model_loaded = load_model(train_config, model_config, dataset_config, ffn=ffn)
+    if (isinstance(model, TimeAwareFFN)) and ffn is not None:
+        print(f'Freeze FNO/DeepONet and only train GRU/LSTM in {model.__class__.__name__}')
         optimizer = load_optimizer(model.rnn.parameters(), train_config)
     else:
         print(f'Train all parameters in {model.__class__.__name__}')
@@ -541,8 +540,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
         for dataset_idx in range(0, len(training_dataset), batch_size):
             sequences = training_dataset[dataset_idx:dataset_idx + batch_size]
             batch_len = len(sequences)
-            if (isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, FNOProjectionGRU)
-                    or isinstance(model, FNOProjectionLSTM)):
+            if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, TimeAwareFFN):
                 model.reset_state()
             losses = []
             for batch in zip(*sequences):
@@ -564,8 +562,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
             for dataset_idx in range(0, len(validation_dataset), batch_size):
                 sequences = validation_dataset[dataset_idx:dataset_idx + batch_size]
                 batch_len = len(sequences)
-                if (isinstance(model, GRUNet) or isinstance(model, LSTMNet)
-                        or isinstance(model, FNOProjectionGRU) or isinstance(model, FNOProjectionLSTM)):
+                if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, TimeAwareFFN):
                     model.reset_state()
                 losses = []
                 for batch in zip(*sequences):
@@ -863,17 +860,23 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         if model_config.model_name == 'FNO-GRU' or model_config.model_name == 'FNO-LSTM':
             model_name = model_config.model_name
             model_config.model_name = 'FNO'
-            fno, _ = load_model(train_config, model_config, dataset_config)
-            model_config.load_model(run, fno)
-            # run_tests(fno, train_config, dataset_config, model_config, test_points)
+            ffn, _ = load_model(train_config, model_config, dataset_config)
+            model_config.load_model(run, ffn)
             model_config.model_name = model_name
-            run_tests(fno, train_config, dataset_config, model_config, test_points)
+            run_tests(ffn, train_config, dataset_config, model_config, test_points)
+        elif model_config.model_name == 'DeepONet-GRU' or model_config.model_name == 'DeepONet-LSTM':
+            model_name = model_config.model_name
+            model_config.model_name = 'DeepONet'
+            ffn, _ = load_model(train_config, model_config, dataset_config)
+            model_config.load_model(run, ffn)
+            model_config.model_name = model_name
+            run_tests(ffn, train_config, dataset_config, model_config, test_points)
         else:
-            fno = None
+            ffn = None
 
         model = run_sequence_training(
             dataset_config=dataset_config, model_config=model_config, train_config=train_config,
-            training_dataset=training_dataset, validation_dataset=validation_dataset, fno=fno
+            training_dataset=training_dataset, validation_dataset=validation_dataset, ffn=ffn
         )
     elif train_config.training_type == 'scheduled sampling':
         model = run_scheduled_sampling_training(dataset_config=dataset_config, model_config=model_config,
