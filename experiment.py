@@ -195,8 +195,8 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
             q = q_des[:, :n_max_state] - Z[:, :dataset_config.n_state // 2][:, :n_max_state]
             q = q[n_point_start:]
             plot_q(ts[n_point_start:], [q], q_des[n_point_start:], None, ax=axes[3], comment=False)
-
-    plt.savefig(f"./misc/plots/{plot_name}.png")
+    check_dir(f'./misc/plots')
+    plt.savefig(f'./misc/plots/{plot_name}.png')
     wandb.log({f'comparison {plot_name}': wandb.Image(f"./misc/plots/{plot_name}.png")})
     results_dict = {k: v for k, v in zip(labels, results)}
     return results_dict
