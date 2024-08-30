@@ -131,8 +131,15 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         Us.append(result.U)
         labels.append('DeepONet-LSTM')
         results.append(result)
-    captions = [f'{label} \n $L_2$: {"Failed" if np.isnan(result.l2) else result.l2:.3f}' for label, result in
-                zip(labels, results)]
+    captions = []
+    for label, result in zip(labels, results):
+        if np.isnan(result.l2):
+            caption = f'{label} \n Failed'
+        elif result.l2 == 0:
+            caption = label
+        else:
+            caption = f'{label} \n $L_2$: {result.l2:.3f}'
+        captions.append(caption)
     print(f'End simulation {plot_name}')
     print(labels)
     Ps = [P[:, :n_max_state] for P in Ps]
@@ -143,14 +150,12 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     ts = dataset_config.ts
     delay = dataset_config.delay
     n_point_delay = dataset_config.n_point_delay
-    fig = plt.figure(figsize=set_size(width=fig_width, subplots=(n_row, n_col)))
+    fig = plt.figure(figsize=set_size(width=fig_width, subplots=(n_row, n_col), fraction=1.4))
     subfigs = fig.subfigures(nrows=1, ncols=n_col)
     method_axes = []
 
     for subfig, caption in zip(subfigs, captions):
-        method_axes.append(subfig.subplots(nrows=n_row, ncols=1,
-                                           # gridspec_kw={'hspace': 0.5}
-                                           ))
+        method_axes.append(subfig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5}))
         subfig.suptitle(caption)
 
     P_mins, P_maxs = [], []
@@ -546,10 +551,10 @@ if __name__ == '__main__':
     deeponet_gru = None
     deeponet_lstm = None
     model_parameters = []
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO')
-    fno, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
-    model_config.load_model(run, fno)
-    model_parameters.append(n_params)
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO')
+    # fno, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
+    # model_config.load_model(run, fno)
+    # model_parameters.append(n_params)
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet')
     deeponet, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
@@ -571,10 +576,10 @@ if __name__ == '__main__':
     # model_config.load_model(run, fno_gru)
     # model_parameters.append(n_params)
 
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-LSTM')
-    fno_lstm, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
-    model_config.load_model(run, fno_lstm)
-    model_parameters.append(n_params)
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-LSTM')
+    # fno_lstm, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
+    # model_config.load_model(run, fno_lstm)
+    # model_parameters.append(n_params)
 
     # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-GRU')
     # deeponet_gru, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
@@ -607,4 +612,4 @@ if __name__ == '__main__':
         n_success = sum([1 if r.success else 0 for r in result_list])
         method_result = SimulationResult(avg_prediction_time=avg_prediction_time, l2=l2, n_success=n_success)
         print(f'{method} & {result_list[0].n_parameter} & {avg_prediction_time * 1000:.3f} '
-              f'& {avg_prediction_time_num / avg_prediction_time:.3f} & {l2:.3f}')
+              f'& {avg_prediction_time_num / avg_prediction_time:.3f} & {l2:.3f} \\\\')

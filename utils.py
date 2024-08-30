@@ -375,17 +375,30 @@ def set_everything(seed: int):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
+    # tex_fonts = {
+    #     # Use LaTeX to write all text
+    #     # "text.usetex": True,
+    #     # "font.family": "times",
+    #     # Use 10pt font in plots, to match 10pt font in document
+    #     "axes.labelsize": 12,
+    #     "font.size": 12,
+    #     # Make the legend/label fonts a little smaller
+    #     "legend.fontsize": 8,
+    #     "xtick.labelsize": 10,
+    #     "ytick.labelsize": 10
+    # }
+
     tex_fonts = {
         # Use LaTeX to write all text
         # "text.usetex": True,
         # "font.family": "times",
         # Use 10pt font in plots, to match 10pt font in document
-        "axes.labelsize": 12,
-        "font.size": 12,
+        "axes.labelsize": 8,
+        "font.size": 8,
         # Make the legend/label fonts a little smaller
-        "legend.fontsize": 8,
-        "xtick.labelsize": 10,
-        "ytick.labelsize": 10
+        "legend.fontsize": 6,
+        "xtick.labelsize": 6,
+        "ytick.labelsize": 6
     }
 
     plt.rcParams.update(tex_fonts)
