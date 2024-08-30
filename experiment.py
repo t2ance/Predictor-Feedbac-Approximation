@@ -39,6 +39,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     Us = []
     labels = []
     results = []
+
     print(f'Begin simulation {plot_name}')
 
     result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, method='numerical',
@@ -49,6 +50,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     Us.append(result.U)
     labels.append('Successive \n Approximation')
     results.append(result)
+    print('Numerical approximation iteration', result.P_numerical_n_iters.mean())
 
     if fno is not None:
         result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=fno,
@@ -129,7 +131,8 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         Us.append(result.U)
         labels.append('DeepONet-LSTM')
         results.append(result)
-    captions = [f'{label} \n $L_2$: {result.l2:.3f}' for label, result in zip(labels, results)]
+    captions = [f'{label} \n $L_2$: {"Failed" if np.isnan(result.l2) else result.l2:.3f}' for label, result in
+                zip(labels, results)]
     print(f'End simulation {plot_name}')
     print(labels)
     Ps = [P[:, :n_max_state] for P in Ps]
@@ -461,7 +464,7 @@ def print_results(results: List[SimulationResult], result_baseline=None):
     raw_prediction_times = [result.avg_prediction_time for result in results]
     print('raw prediction time', '&'.join([f'${t * 1000:.3f}$' for t in raw_prediction_times]))
     if result_baseline is not None:
-        speedups = [result_baseline.runtime / result.runtime for result in results]
+        speedups = [result_baseline.avg_prediction_time / result.avg_prediction_time for result in results]
         print('speedup', '&'.join([f'$\\times {t:.3f}$' for t in speedups]))
     l2s = [result.l2 for result in results]
     print('l2 error', '&'.join([f'${t:.3f}$' for t in l2s]))
@@ -542,38 +545,46 @@ if __name__ == '__main__':
     fno_lstm = None
     deeponet_gru = None
     deeponet_lstm = None
-
+    model_parameters = []
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO')
-    fno, _ = load_model(train_config, model_config, dataset_config)
+    fno, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
     model_config.load_model(run, fno)
+    model_parameters.append(n_params)
 
-    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='DeepONet')
-    # deeponet, _ = load_model(train_config, model_config, dataset_config)
-    # model_config.load_model(run, deeponet)
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='GRU')
-    # gru, _ = load_model(train_config, model_config, dataset_config)
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet')
+    deeponet, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
+    model_config.load_model(run, deeponet)
+    model_parameters.append(n_params)
+
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='GRU')
+    # gru, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
     # model_config.load_model(run, gru)
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='LSTM')
-    # lstm, _ = load_model(train_config, model_config, dataset_config)
-    # model_config.load_model(run, lstm)
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='FNO-GRU')
-    # fno_gru, _ = load_model(train_config, model_config, dataset_config)
+    # model_parameters.append(n_params)
+
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='LSTM')
+    lstm, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
+    model_config.load_model(run, lstm)
+    model_parameters.append(n_params)
+
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-GRU')
+    # fno_gru, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
     # model_config.load_model(run, fno_gru)
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='FNO-LSTM')
-    # fno_lstm, _ = load_model(train_config, model_config, dataset_config)
-    # model_config.load_model(run, fno_lstm)
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='DeepONet-GRU')
-    # deeponet_gru, _ = load_model(train_config, model_config, dataset_config)
+    # model_parameters.append(n_params)
+
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-LSTM')
+    fno_lstm, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
+    model_config.load_model(run, fno_lstm)
+    model_parameters.append(n_params)
+
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-GRU')
+    # deeponet_gru, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
     # model_config.load_model(run, deeponet_gru)
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='DeepONet-LSTM')
-    # deeponet_lstm, _ = load_model(train_config, model_config, dataset_config)
-    # model_config.load_model(run, deeponet_lstm)
+    # model_parameters.append(n_params)
+
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-LSTM')
+    deeponet_lstm, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
+    model_config.load_model(run, deeponet_lstm)
+    model_parameters.append(n_params)
 
     results = None
     for i, test_point in enumerate(dataset_config.get_test_points(n_point=args.n)):
@@ -587,14 +598,13 @@ if __name__ == '__main__':
         for k, v in result_dict.items():
             results[k].append(v)
 
-    baseline_result = None
-    final_result = {}
+    result_list_num = results['Successive \n Approximation']
+    avg_prediction_time_num = sum([r.avg_prediction_time for r in result_list_num]) / len(result_list_num)
+
     for method, result_list in results.items():
-        runtime = sum([r.runtime for r in result_list]) / len(result_list)
+        avg_prediction_time = sum([r.avg_prediction_time for r in result_list]) / len(result_list)
         l2 = sum([r.l2 for r in result_list]) / len(result_list)
         n_success = sum([1 if r.success else 0 for r in result_list])
-        method_result = SimulationResult(runtime=runtime, l2=l2, n_success=n_success)
-        final_result[method] = method_result
-
-    print(final_result.keys())
-    print_results(final_result.values(), final_result['Successive \n Approximation'])
+        method_result = SimulationResult(avg_prediction_time=avg_prediction_time, l2=l2, n_success=n_success)
+        print(f'{method} & {result_list[0].n_parameter} & {avg_prediction_time * 1000:.3f} '
+              f'& {avg_prediction_time_num / avg_prediction_time:.3f} & {l2:.3f}')

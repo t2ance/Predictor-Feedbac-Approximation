@@ -642,7 +642,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 1e-6
             train_config.batch_size = 512
             train_config.n_epoch = 300
-            train_config.weight_decay = 0
+            train_config.weight_decay = 1e-1
 
             model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 3

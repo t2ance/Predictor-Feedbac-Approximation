@@ -22,7 +22,7 @@ from model import GRUNet, LSTMNet, TimeAwareFFN
 from plot_utils import plot_result, set_size, difference
 from utils import pad_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, \
     set_everything, print_result, postprocess, load_model, load_optimizer, prediction_comparison, print_args, \
-    get_time_str, SimulationResult, TestResult
+    get_time_str, SimulationResult, TestResult, count_params
 
 warnings.filterwarnings('ignore')
 
@@ -236,7 +236,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
         P_switching=P_switching, runtime=runtime, P_numerical_n_iters=P_numerical_n_iters,
         p_numerical_count=p_numerical_count, p_no_count=p_no_count, P_no_Ri=P_no_Ri, alpha_ts=alpha_ts, q_ts=q_ts,
         e_ts=e_ts, switching_indicator=switching_indicator, avg_prediction_time=runtime / n_point, l2=l2,
-        success=not (np.isinf(l2) or np.isnan(l2)))
+        success=not (np.isinf(l2) or np.isnan(l2)), n_parameter=count_params(model) if model is not None else 'N/A')
 
 
 def model_train(dataset_config: DatasetConfig, train_config: TrainConfig, model, optimizer, scheduler, device,

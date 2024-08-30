@@ -47,6 +47,7 @@ class SimulationResult:
     l2: float = None
     success: bool = None
     n_success: int = None
+    n_parameter: int = None
 
 
 @dataclass
@@ -170,7 +171,8 @@ def load_cp_hyperparameters(case: str):
         raise NotImplementedError()
 
 
-def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_config: DatasetConfig, ffn=None):
+def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_config: DatasetConfig, ffn=None,
+               n_param_out: bool = False):
     model_name = model_config.model_name
     device = train_config.device
     n_state = dataset_config.system.n_state
@@ -232,7 +234,10 @@ def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_con
             print(f"Model save path {pth} doesn't exist")
         loaded = False
     initialize_weights(model)
-    return model.to(device), loaded
+    if n_param_out:
+        return model.to(device), loaded, n_params
+    else:
+        return model.to(device), loaded
 
 
 def load_optimizer(parameters, train_config):
