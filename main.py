@@ -210,15 +210,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
             U[t_i] = 0
 
         if n_point_start <= t_i < len(Z) - 1:
-            # Z[t_i, :] = odeint(system.dynamic, Z[t_i - 1, :], [ts[t_i - 1], ts[t_i]], args=(U[t_i_delayed - 1],))[1]
             f_t = system.dynamic(Z[t_i], ts[t_i], U[t_i_delayed])
-            # if t_i - 3 >= 0 and t_i_delayed - 3 >= 0:
-            #     f_t_1 = system.dynamic(Z[t_i - 1], ts[t_i - 1], U[t_i_delayed - 1])
-            #     f_t_2 = system.dynamic(Z[t_i - 2], ts[t_i - 2], U[t_i_delayed - 2])
-            #     f_t_3 = system.dynamic(Z[t_i - 3], ts[t_i - 3], U[t_i_delayed - 3])
-            #     increment = (55 * f_t - 59 * f_t_1 + 37 * f_t_2 - 9 * f_t_3) / 24
-            #     Z[t_i + 1] = Z[t_i] + dt * increment
-            # else:
             Z[t_i + 1] = Z[t_i] + dt * f_t
 
     plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_switching, Z, U, method)
@@ -227,12 +219,24 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
     D_no = difference(Z, P_no, n_point_start, dataset_config.n_point_delay, ts)
     D_numerical = difference(Z, P_numerical, n_point_start, dataset_config.n_point_delay, ts)
     D_switching = difference(Z, P_switching, n_point_start, dataset_config.n_point_delay, ts)
+    if method == 'no':
+        P = P_no
+    elif method == 'numerical':
+        P = P_numerical
+    elif method == 'numerical_no':
+        P = P_no
+    elif method == 'switching':
+        P = P_switching
+    else:
+        raise NotImplementedError()
+    l2 = metric(P, P_numerical, dataset_config.n_point_start())
     return SimulationResult(
         U=U, Z=Z, D_explicit=D_explicit, D_no=D_no, D_numerical=D_numerical, D_switching=D_switching,
         P_explicit=P_explicit, P_no=P_no, P_no_ci=P_no_ci, P_numerical=P_numerical,
         P_switching=P_switching, runtime=runtime, P_numerical_n_iters=P_numerical_n_iters,
         p_numerical_count=p_numerical_count, p_no_count=p_no_count, P_no_Ri=P_no_Ri, alpha_ts=alpha_ts, q_ts=q_ts,
-        e_ts=e_ts, switching_indicator=switching_indicator, avg_prediction_time=runtime / n_point)
+        e_ts=e_ts, switching_indicator=switching_indicator, avg_prediction_time=runtime / n_point, l2=l2,
+        success=not (np.isinf(l2) or np.isnan(l2)))
 
 
 def model_train(dataset_config: DatasetConfig, train_config: TrainConfig, model, optimizer, scheduler, device,
@@ -633,31 +637,17 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
             wandb.log({f'{method}-difference': wandb.Image(f"{img_save_path}/{method}_diff_fit.png")})
             wandb.log({f'{method}-u': wandb.Image(f"{img_save_path}/{method}_u.png")})
         plt.close()
-        if method == 'no':
-            P = result.P_no
-        elif method == 'numerical':
-            P = result.P_numerical
-        elif method == 'numerical_no':
-            P = result.P_no
-        elif method == 'switching':
-            P = result.P_switching
-        else:
-            raise NotImplementedError()
 
-        l2 = metric(P, result.P_numerical, dataset_config.n_point_start())
-        if np.isinf(l2) or np.isnan(l2):
+        if not result.success:
             if not silence:
                 print(f'[WARNING] Running with initial condition Z = {test_point} with method [{method}] failed.')
             continue
 
         if method == 'switching':
-            print()
             # plot_switch_system(train_config, dataset_config, result, n_point_start, img_save_path)
             no_pred_ratio.append(result.p_no_count / (result.p_no_count + result.p_numerical_count))
 
-        # np.savetxt(f'{img_save_path}/metric.txt', np.array([l2, result.runtime]))
-        # np.savetxt(f'{img_save_path}/test_point.txt', test_point)
-        l2_list.append(l2)
+        l2_list.append(result.l2)
         prediction_time.append(result.avg_prediction_time)
         n_iter_list.append(result.P_numerical_n_iters)
     l2 = np.nanmean(l2_list).item()
@@ -910,7 +900,12 @@ if __name__ == '__main__':
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     run = wandb.init(
         project="no",
-        name=f'{train_config_.system} {train_config_.training_type} {model_config_.model_name} {dataset_config_.delay.__class__.__name__} {get_time_str()}'
+        name=f'{train_config_.system} {model_config_.model_name}'
+             f' {dataset_config_.delay.__class__.__name__} {get_time_str()}',
+        config={
+            'system': train_config_.system,
+            'model': model_config_.model_name
+        }
     )
     print_args(dataset_config_)
     print_args(model_config_)

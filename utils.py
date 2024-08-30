@@ -44,6 +44,9 @@ class SimulationResult:
     q_ts: np.ndarray = None
     e_ts: np.ndarray = None
     switching_indicator: np.ndarray = None
+    l2: float = None
+    success: bool = None
+    n_success: int = None
 
 
 @dataclass
@@ -208,15 +211,14 @@ def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_con
                             deeponet_n_layer=model_config.deeponet_n_layer)
     elif model_name == 'DeepONet-LSTM':
         model = DeepONetLSTM(n_state=n_state, lstm_n_layers=model_config.lstm_n_layer, n_point_start=n_point_start,
-                            n_input=n_input, lstm_layer_width=model_config.lstm_layer_width, ffn=ffn,
-                            deeponet_hidden_size=model_config.deeponet_hidden_size,
-                            deeponet_n_layer=model_config.deeponet_n_layer)
+                             n_input=n_input, lstm_layer_width=model_config.lstm_layer_width, ffn=ffn,
+                             deeponet_hidden_size=model_config.deeponet_hidden_size,
+                             deeponet_n_layer=model_config.deeponet_n_layer)
     else:
         raise NotImplementedError()
     n_params = count_params(model)
     print(f'Loading {model_name} model from sketch, with {n_params} parameters')
     check_dir(train_config.model_save_path)
-    np.savetxt(f'{train_config.model_save_path}/{model_config.model_name}.txt', np.array([n_params]))
     print(os.getcwd())
     pth = f'{train_config.model_save_path}/{model_config.model_name}.pth'
     if train_config.load_model and os.path.exists(pth):

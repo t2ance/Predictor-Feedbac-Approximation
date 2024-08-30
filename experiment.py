@@ -21,8 +21,9 @@ def interval(min_, max_):
     return new_min, new_max
 
 
-def plot_comparisons(test_point, plot_name, dataset_config, train_config, system, fno=None, fno_gru=None, gru=None,
-                     fno_lstm=None, lstm=None):
+def plot_comparisons(test_point, plot_name, dataset_config, train_config, system,
+                     fno=None, deeponet=None, gru=None, lstm=None, fno_gru=None, fno_lstm=None, deeponet_gru=None,
+                     deeponet_lstm=None):
     if system == 's8':
         n_max_state = 5
         n_row = 4
@@ -42,12 +43,12 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
 
     result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, method='numerical',
                         silence=False)
-    result_baseline = result
     Ps.append(result.P_numerical)
     Zs.append(result.Z)
     Ds.append(result.D_numerical)
     Us.append(result.U)
     labels.append('Successive \n Approximation')
+    results.append(result)
 
     if fno is not None:
         result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=fno,
@@ -57,24 +58,17 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         Ds.append(result.D_no)
         Us.append(result.U)
         labels.append('FNO')
+        results.append(result)
 
-    if fno_gru is not None:
-        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=fno_gru,
+    if deeponet is not None:
+        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=deeponet,
                             method='no', silence=False)
         Ps.append(result.P_no)
         Zs.append(result.Z)
         Ds.append(result.D_no)
         Us.append(result.U)
-        labels.append('FNO-GRU')
-
-    if fno_lstm is not None:
-        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=fno_lstm,
-                            method='no', silence=False)
-        Ps.append(result.P_no)
-        Zs.append(result.Z)
-        Ds.append(result.D_no)
-        Us.append(result.U)
-        labels.append('FNO-LSTM')
+        labels.append('DeepONet')
+        results.append(result)
 
     if gru is not None:
         result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=gru,
@@ -84,6 +78,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         Ds.append(result.D_no)
         Us.append(result.U)
         labels.append('GRU')
+        results.append(result)
 
     if lstm is not None:
         result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=lstm,
@@ -93,10 +88,50 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         Ds.append(result.D_no)
         Us.append(result.U)
         labels.append('LSTM')
+        results.append(result)
 
+    if fno_gru is not None:
+        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=fno_gru,
+                            method='no', silence=False)
+        Ps.append(result.P_no)
+        Zs.append(result.Z)
+        Ds.append(result.D_no)
+        Us.append(result.U)
+        labels.append('FNO-GRU')
+        results.append(result)
+
+    if fno_lstm is not None:
+        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=fno_lstm,
+                            method='no', silence=False)
+        Ps.append(result.P_no)
+        Zs.append(result.Z)
+        Ds.append(result.D_no)
+        Us.append(result.U)
+        labels.append('FNO-LSTM')
+        results.append(result)
+
+    if deeponet_gru is not None:
+        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=deeponet_gru,
+                            method='no', silence=False)
+        Ps.append(result.P_no)
+        Zs.append(result.Z)
+        Ds.append(result.D_no)
+        Us.append(result.U)
+        labels.append('DeepONet-GRU')
+        results.append(result)
+
+    if deeponet_lstm is not None:
+        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point,
+                            model=deeponet_lstm, method='no', silence=False)
+        Ps.append(result.P_no)
+        Zs.append(result.Z)
+        Ds.append(result.D_no)
+        Us.append(result.U)
+        labels.append('DeepONet-LSTM')
+        results.append(result)
+    captions = [f'{label} \n $L_2$: {result.l2:.3f}' for label, result in zip(labels, results)]
     print(f'End simulation {plot_name}')
     print(labels)
-    print_results(results, result_baseline)
     Ps = [P[:, :n_max_state] for P in Ps]
     Zs = [Z[:, :n_max_state] for Z in Zs]
     Ds = [D[:, :n_max_state] for D in Ds]
@@ -104,15 +139,16 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     n_col = len(labels)
     ts = dataset_config.ts
     delay = dataset_config.delay
-    n_state = dataset_config.n_state
     n_point_delay = dataset_config.n_point_delay
     fig = plt.figure(figsize=set_size(width=fig_width, subplots=(n_row, n_col)))
     subfigs = fig.subfigures(nrows=1, ncols=n_col)
     method_axes = []
 
-    for subfig, label in zip(subfigs, labels):
-        method_axes.append(subfig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5}))
-        subfig.suptitle(label)
+    for subfig, caption in zip(subfigs, captions):
+        method_axes.append(subfig.subplots(nrows=n_row, ncols=1,
+                                           # gridspec_kw={'hspace': 0.5}
+                                           ))
+        subfig.suptitle(caption)
 
     P_mins, P_maxs = [], []
     for P in Ps:
@@ -160,7 +196,10 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
             q = q[n_point_start:]
             plot_q(ts[n_point_start:], [q], q_des[n_point_start:], None, ax=axes[3], comment=False)
 
-    plt.savefig(f"./misc/plots/{plot_name}.pdf")
+    plt.savefig(f"./misc/plots/{plot_name}.png")
+    wandb.log({f'comparison {plot_name}': wandb.Image(f"./misc/plots/{plot_name}.png")})
+    results_dict = {k: v for k, v in zip(labels, results)}
+    return results_dict
 
 
 def plot_no_numerical_comparison(test_points, plot_name, dataset_config, train_config, model_config, model, n_row):
@@ -355,163 +394,6 @@ def plot_uq_ablation(test_points, plot_name, dataset_config, train_config, model
         plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
 
 
-# def plot_rnn_ablation(test_points, plot_name):
-#     print(f'Begin simulation {plot_name}')
-#
-#     dataset_config, model_config, train_config = config.get_config(system_='s5', model_name='FNO')
-#     model, model_loaded = load_model(train_config, model_config, dataset_config)
-#     model_config.load_model(run, model)
-#
-#     result_no = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
-#                          test_points=test_points, method='no')
-#
-#     dataset_config, model_config, train_config = config.get_config(system_='s5', model_name='FNO-GRU')
-#     model, model_loaded = load_model(train_config, model_config, dataset_config)
-#     model_config.load_model(run, model)
-#     result_gru = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
-#                           test_points=test_points, method='no')
-#
-#     # dataset_config, model_config, train_config = config.get_config(system_='s5', model_name='FNO-LSTM')
-#     # model, model_loaded = load_model(train_config, model_config, dataset_config)
-#     # model_config.load_model(run, model)
-#     # result_lstm = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
-#     #                        test_points=test_points, method='no')
-#
-#     result_numerical = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
-#                                 test_points=test_points, method='numerical')
-#     # print_results([result_no, result_gru, result_lstm], result_numerical)
-#     print_results([result_no, result_gru], result_numerical)
-#
-#     print(f'End simulation {plot_name}')
-#
-#     # for i, (test_point, no, gru, lstm) in enumerate(
-#     #         zip(test_points, result_no.results, result_gru.results, result_lstm.results)):
-#     for i, (test_point, no, gru) in enumerate(
-#             zip(test_points, result_no.results, result_gru.results)):
-#         ts = dataset_config.ts
-#         delay = dataset_config.delay
-#         n_state = dataset_config.n_state
-#         n_point_delay = dataset_config.n_point_delay
-#         fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(4, 3), height_add=0.6))
-#         subfigs = fig.subfigures(nrows=1, ncols=3)
-#         no_fig, gru_fig, lstm_fig = subfigs
-#         no_fig.suptitle('FNO')
-#         gru_fig.suptitle('FNO-GRU')
-#         lstm_fig.suptitle('FNO-LSTM')
-#         no_axes = no_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
-#         gru_axes = gru_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
-#         lstm_axes = lstm_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
-#
-#         min_p, max_p = interval(min(no.P_no.min(), gru.P_no.min(), lstm.P_no.min()),
-#                                 max(no.P_no.max(), gru.P_no.max(), lstm.P_no.max()))
-#
-#         plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=no_axes[0],
-#                         comment=False)
-#         plot_comparison(ts, [gru.P_no], gru.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p], ax=gru_axes[0],
-#                         comment=False)
-#         plot_comparison(ts, [lstm.P_no], lstm.Z, delay, n_point_delay, None, n_state, ylim=[min_p, max_p],
-#                         ax=lstm_axes[0],
-#                         comment=True)
-#         min_d, max_d = interval(min(no.D_no.min(), gru.D_no.min(), lstm.D_no.min()),
-#                                 max(no.D_no.max(), gru.D_no.max(), lstm.D_no.max()))
-#
-#         plot_difference(ts, [no.P_no], no.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=no_axes[1],
-#                         comment=False, differences=[no.D_no])
-#         plot_difference(ts, [gru.P_no], gru.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d], ax=gru_axes[1],
-#                         comment=False, differences=[gru.D_no])
-#         plot_difference(ts, [lstm.P_no], lstm.Z, delay, n_point_delay, None, n_state, ylim=[min_d, max_d],
-#                         ax=lstm_axes[1], comment=True, differences=[lstm.D_no])
-#
-#         min_u, max_u = interval(min(no.U.min(), gru.U.min(), lstm.U.min()), max(no.U.max(), gru.U.max(), lstm.U.max()))
-#         plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
-#         plot_control(ts, gru.U, None, n_point_delay, ax=gru_axes[2], comment=False, ylim=[min_u, max_u])
-#         plot_control(ts, lstm.U, None, n_point_delay, ax=lstm_axes[2], comment=False, ylim=[min_u, max_u])
-#
-#         q_des = np.array([dataset_config.system.q_des(t) for t in ts])
-#         q_no = q_des - no.Z[:, :2]
-#         q_gru = q_des - gru.Z[:, :2]
-#         q_lstm = q_des - lstm.Z[:, :2]
-#         n_point_start = n_point_delay(0)
-#         q_des = q_des[n_point_start:]
-#         q_no = q_no[n_point_start:]
-#         q_gru = q_gru[n_point_start:]
-#         q_lstm = q_lstm[n_point_start:]
-#         plot_q(ts[n_point_start:], [q_no], q_des, None, dataset_config.system.n_input, ax=no_axes[3], comment=False)
-#         plot_q(ts[n_point_start:], [q_gru], q_des, None, dataset_config.system.n_input, ax=gru_axes[3], comment=False)
-#         plot_q(ts[n_point_start:], [q_lstm], q_des, None, dataset_config.system.n_input, ax=lstm_axes[3], comment=True)
-#
-#         check_dir(f'./misc/plots/{plot_name}')
-#         plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
-
-
-def plot_rnn_ablation(test_points, plot_name):
-    print(f'Begin simulation {plot_name}')
-
-    dataset_config, model_config, train_config = config.get_config(system_='s5', model_name='FNO')
-    model, model_loaded = load_model(train_config, model_config, dataset_config)
-    model_config.load_model(run, model)
-
-    result_no = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
-                         test_points=test_points, method='no')
-
-    dataset_config, model_config, train_config = config.get_config(system_='s5', model_name='FNO-GRU')
-    model, model_loaded = load_model(train_config, model_config, dataset_config)
-    model_config.load_model(run, model)
-    result_gru = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
-                          test_points=test_points, method='no')
-
-    result_numerical = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
-                                test_points=test_points, method='numerical')
-    print_results([result_no, result_gru], result_numerical)
-
-    print(f'End simulation {plot_name}')
-
-    for i, (test_point, no, gru) in enumerate(
-            zip(test_points, result_no.results, result_gru.results)):
-        ts = dataset_config.ts
-        delay = dataset_config.delay
-        n_state = dataset_config.n_state
-        n_point_delay = dataset_config.n_point_delay
-        fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(4, 2), height_add=0.6))
-        subfigs = fig.subfigures(nrows=1, ncols=2)
-        no_fig, gru_fig = subfigs
-        no_fig.suptitle('FNO')
-        gru_fig.suptitle('FNO-GRU')
-        no_axes = no_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
-        gru_axes = gru_fig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5})
-
-        min_p, max_p = interval(min(no.P_no.min(), gru.P_no.min()), max(no.P_no.max(), gru.P_no.max()))
-
-        plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, ylim=[min_p, max_p], ax=no_axes[0],
-                        comment=False)
-        plot_comparison(ts, [gru.P_no], gru.Z, delay, n_point_delay, None, ylim=[min_p, max_p], ax=gru_axes[0],
-                        comment=True)
-        min_d, max_d = interval(min(no.D_no.min(), gru.D_no.min()),
-                                max(no.D_no.max(), gru.D_no.max()))
-
-        plot_difference(ts, [no.P_no], no.Z, n_point_delay, None, ylim=[min_d, max_d], ax=no_axes[1],
-                        comment=False, differences=[no.D_no])
-        plot_difference(ts, [gru.P_no], gru.Z, n_point_delay, None, ylim=[min_d, max_d], ax=gru_axes[1],
-                        comment=False, differences=[gru.D_no])
-
-        min_u, max_u = interval(min(no.U.min(), gru.U.min()), max(no.U.max(), gru.U.max()))
-        plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
-        plot_control(ts, gru.U, None, n_point_delay, ax=gru_axes[2], comment=False, ylim=[min_u, max_u])
-
-        q_des = np.array([dataset_config.system.q_des(t) for t in ts])
-        q_no = q_des - no.Z[:, :2]
-        q_gru = q_des - gru.Z[:, :2]
-        n_point_start = n_point_delay(0)
-        q_des = q_des[n_point_start:]
-        q_no = q_no[n_point_start:]
-        q_gru = q_gru[n_point_start:]
-        plot_q(ts[n_point_start:], [q_no], q_des, None, ax=no_axes[3], comment=False)
-        plot_q(ts[n_point_start:], [q_gru], q_des, None, ax=gru_axes[3], comment=False)
-
-        check_dir(f'./misc/plots/{plot_name}')
-        plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
-
-
 def plot_alpha(test_points, plot_name, dataset_config, train_config, model, alphas):
     n_col = len(alphas)
     test_results = []
@@ -583,8 +465,8 @@ def print_results(results, result_baseline=None):
         print('speedup', '&'.join([f'$\\times {t:.3f}$' for t in speedups]))
     l2s = [result.l2 for result in results]
     print('l2 error', '&'.join([f'${t:.3f}$' for t in l2s]))
-    success_cases = [result.success_cases for result in results]
-    print('success case', success_cases)
+    n_success = [result.n_success for result in results]
+    print('n success', n_success)
 
 
 def load_config(system, model_name, cp_alpha, version='latest'):
@@ -627,12 +509,6 @@ def plot_figure(n_test=10):
     ]
     plot_uq_ablation(test_points, 'baxter-ood-fno-gru-uq', dataset_config, train_config, model_config, model, n_row=4)
 
-    test_points = [
-        (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
-        in range(n_test)
-    ]
-    plot_rnn_ablation(test_points, 'rnn-ablation')
-
     train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', None)
     test_points = [
         (np.random.uniform(1, 1.2), np.random.uniform(1, 1.2), np.random.uniform(1, 1.2), np.random.uniform(1, 1.2)) for
@@ -645,32 +521,34 @@ def plot_figure(n_test=10):
 if __name__ == '__main__':
     set_everything(0)
     import wandb
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-s', type=str, default='s9')
+    args = parser.parse_args()
 
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     run = wandb.init(
         project="no",
         name=f'result-plotting {get_time_str()}'
     )
-    # plot_figure(n_test=1)
-    system = 's8'
 
     fno = None
-    fno_gru = None
+    deeponet = None
     gru = None
-    fno_lstm = None
     lstm = None
+    fno_gru = None
+    fno_lstm = None
+    deeponet_gru = None
+    deeponet_lstm = None
 
-    dataset_config, model_config, train_config = config.get_config(system_=system, model_name='FNO')
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO')
     fno, _ = load_model(train_config, model_config, dataset_config)
     model_config.load_model(run, fno)
 
-    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='FNO-GRU')
-    # fno_gru, _ = load_model(train_config, model_config, dataset_config)
-    # model_config.load_model(run, fno_gru)
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='FNO-LSTM')
-    # fno_lstm, _ = load_model(train_config, model_config, dataset_config)
-    # model_config.load_model(run, fno_lstm)
+    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='DeepONet')
+    # deeponet, _ = load_model(train_config, model_config, dataset_config)
+    # model_config.load_model(run, deeponet)
     #
     # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='GRU')
     # gru, _ = load_model(train_config, model_config, dataset_config)
@@ -679,6 +557,43 @@ if __name__ == '__main__':
     # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='LSTM')
     # lstm, _ = load_model(train_config, model_config, dataset_config)
     # model_config.load_model(run, lstm)
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='FNO-GRU')
+    # fno_gru, _ = load_model(train_config, model_config, dataset_config)
+    # model_config.load_model(run, fno_gru)
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='FNO-LSTM')
+    # fno_lstm, _ = load_model(train_config, model_config, dataset_config)
+    # model_config.load_model(run, fno_lstm)
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='DeepONet-GRU')
+    # deeponet_gru, _ = load_model(train_config, model_config, dataset_config)
+    # model_config.load_model(run, deeponet_gru)
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=system, model_name='DeepONet-LSTM')
+    # deeponet_lstm, _ = load_model(train_config, model_config, dataset_config)
+    # model_config.load_model(run, deeponet_lstm)
 
-    plot_comparisons(dataset_config.test_points, system, dataset_config, train_config, system=system,
-                     fno=fno, fno_gru=fno_gru, gru=gru, fno_lstm=fno_lstm, lstm=lstm)
+    results = None
+    for i, test_point in enumerate(dataset_config.get_test_points(n_point=2)):
+        result_dict = plot_comparisons(
+            test_point, f'{args.s}-{i}', dataset_config, train_config, system=args.s, fno=fno, deeponet=deeponet,
+            gru=gru, lstm=lstm, fno_gru=fno_gru, fno_lstm=fno_lstm, deeponet_gru=deeponet_gru,
+            deeponet_lstm=deeponet_lstm)
+        if results is None:
+            results = {k: [] for k in result_dict.keys()}
+
+        for k, v in result_dict.items():
+            results[k].append(v)
+
+    baseline_result = None
+    final_result = {}
+    for method, result_list in results.items():
+        runtime = sum([r.runtime for r in result_list]) / len(result_list)
+        l2 = sum([r.l2 for r in result_list]) / len(result_list)
+        n_success = sum([1 if r.success else 0 for r in result_list])
+        method_result = SimulationResult(runtime=runtime, l2=l2, n_success=n_success)
+        final_result[method] = method_result
+
+    print(final_result.keys())
+    print_results(final_result.values(), final_result['Successive \n Approximation'])
