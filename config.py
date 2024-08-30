@@ -749,8 +749,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 3
         elif model_name == 'DeepONet-GRU':
-            dataset_config.n_training_dataset = 200
-            dataset_config.n_validation_dataset = 20
+            dataset_config.n_training_dataset = 500
+            dataset_config.n_validation_dataset = 10
             train_config.learning_rate = 5e-6
             train_config.scheduler_min_lr = 1e-6
             train_config.batch_size = 512
@@ -763,8 +763,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 3
         elif model_name == 'DeepONet-LSTM':
-            dataset_config.n_training_dataset = 200
-            dataset_config.n_validation_dataset = 20
+            dataset_config.n_training_dataset = 500
+            dataset_config.n_validation_dataset = 10
             train_config.learning_rate = 5e-6
             train_config.scheduler_min_lr = 1e-6
             train_config.batch_size = 512
