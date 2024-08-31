@@ -770,7 +770,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'DeepONet-LSTM':
             dataset_config.n_training_dataset = 500
             dataset_config.n_validation_dataset = 10
-            train_config.learning_rate = 5e-6
+            train_config.learning_rate = 1e-6
             train_config.scheduler_min_lr = 1e-6
             train_config.batch_size = 512
             train_config.n_epoch = 300

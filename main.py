@@ -524,12 +524,12 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     batch_size = train_config.batch_size
     img_save_path = model_config.base_path
     model, model_loaded = load_model(train_config, model_config, dataset_config, ffn=ffn)
-    if (isinstance(model, TimeAwareFFN)) and ffn is not None:
-        print(f'Freeze FNO/DeepONet and only train GRU/LSTM in {model.__class__.__name__}')
-        optimizer = load_optimizer(model.rnn.parameters(), train_config)
-    else:
-        print(f'Train all parameters in {model.__class__.__name__}')
-        optimizer = load_optimizer(model.parameters(), train_config)
+    # if (isinstance(model, TimeAwareFFN)) and ffn is not None:
+    #     print(f'Freeze FNO/DeepONet and only train GRU/LSTM in {model.__class__.__name__}')
+    #     optimizer = load_optimizer(model.rnn.parameters(), train_config)
+    # else:
+    print(f'Train all parameters in {model.__class__.__name__}')
+    optimizer = load_optimizer(model.parameters(), train_config)
     scheduler = load_lr_scheduler(optimizer, train_config)
     training_loss_arr = []
     check_dir(img_save_path)
