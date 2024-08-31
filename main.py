@@ -821,13 +821,13 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         print('Begin Generating Dataset...')
 
         if dataset_config.recreate_dataset:
-            training_results_, validation_results_ = dataset_config.load_dataset(run, resize=False)
-            print(f'{len(training_results_)} loaded')
             training_results = create_sequence_simulation_result(
                 dataset_config, train_config, n_dataset=dataset_config.n_training_dataset)
             validation_results = create_sequence_simulation_result(
                 dataset_config, train_config, n_dataset=dataset_config.n_validation_dataset)
             print(f'{len(training_results)} generated')
+            training_results_, validation_results_ = dataset_config.load_dataset(run, resize=False)
+            print(f'{len(training_results_)} loaded')
             training_results += training_results_
             validation_results += validation_results_
             print(f'{len(training_results)} saved')
