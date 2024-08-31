@@ -751,7 +751,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.n_epoch = 300
             train_config.weight_decay = 0
 
-            model_config.deeponet_hidden_size = 64
+            model_config.deeponet_hidden_size = 32
             model_config.deeponet_n_layer = 2
         elif model_name == 'DeepONet-GRU':
             dataset_config.n_training_dataset = 500
