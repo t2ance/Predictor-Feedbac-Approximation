@@ -570,7 +570,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
     elif system_ == 's8':
         dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=8, dt=0.02, n_training_dataset=100,
-                                       n_validation_dataset=100, n_sample_per_dataset=-1, baxter_dof=5,
+                                       n_validation_dataset=1, n_sample_per_dataset=-1, baxter_dof=5,
                                        ic_lower_bound=0, ic_upper_bound=0.3, random_test_lower_bound=0,
                                        random_test_upper_bound=1)
         model_config = ModelConfig(model_name='FNO')
