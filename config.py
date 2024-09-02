@@ -669,7 +669,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    scheduler_min_lr=1e-5)
 
         if model_name == 'FNO':
-            dataset_config.n_training_dataset = 500
+            dataset_config.n_training_dataset = 1000
             dataset_config.n_validation_dataset = 10
             train_config.n_epoch = 750
             train_config.batch_size = 512
@@ -680,7 +680,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_hidden_channels = 16
             train_config.weight_decay = 1e-1
         elif model_name == 'GRU':
-            dataset_config.n_training_dataset = 500
+            dataset_config.n_training_dataset = 1000
             dataset_config.n_validation_dataset = 10
             train_config.n_epoch = 400
             model_config.gru_n_layer = 3
@@ -700,7 +700,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 2e-6
             train_config.weight_decay = 1e-1
         elif model_name == 'FNO-GRU':
-            dataset_config.n_training_dataset = 500
+            dataset_config.n_training_dataset = 1000
             dataset_config.n_validation_dataset = 10
             train_config.learning_rate = 5e-6
             train_config.scheduler_min_lr = 1e-6
