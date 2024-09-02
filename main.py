@@ -585,9 +585,9 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
             param_group['lr'] = max(param_group['lr'], train_config.scheduler_min_lr)
 
         wandb.log({
-            f'{model_config.model_name} training loss': training_loss,
-            f'{model_config.model_name} validating loss': validating_loss,
-            f'{model_config.model_name} learning rate': optimizer.param_groups[0]['lr'],
+            f'training loss': training_loss,
+            f'validating loss': validating_loss,
+            f'learning rate': optimizer.param_groups[0]['lr'],
         })
         training_loss_arr.append(training_loss)
 
