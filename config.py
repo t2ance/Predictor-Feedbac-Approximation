@@ -580,12 +580,12 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    scheduled_sampling_k=1e-2, scheduler_min_lr=1e-5)
         if model_name == 'FNO':
             train_config.n_epoch = 100
-            train_config.learning_rate = 1e-4
-            train_config.scheduler_min_lr = 1e-5
+            train_config.learning_rate = 1e-5
+            train_config.scheduler_min_lr = 1e-6
             train_config.batch_size = 512
             model_config.fno_n_layer = 5
-            model_config.fno_n_modes_height = 32
-            model_config.fno_hidden_channels = 32
+            model_config.fno_n_modes_height = 64
+            model_config.fno_hidden_channels = 64
         elif model_name == 'DeepONet':
             train_config.n_epoch = 100
             train_config.learning_rate = 1e-5
@@ -593,7 +593,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.batch_size = 512
 
             model_config.deeponet_hidden_size = 128
-            model_config.deeponet_n_layer = 4
+            model_config.deeponet_n_layer = 5
         elif model_name == 'GRU':
             train_config.n_epoch = 100
             model_config.gru_n_layer = 3
