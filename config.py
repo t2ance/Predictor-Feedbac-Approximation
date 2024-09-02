@@ -752,13 +752,13 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 3
         elif model_name == 'DeepONet-LSTM':
-            dataset_config.n_training_dataset = 500
+            dataset_config.n_training_dataset = 2500
             dataset_config.n_validation_dataset = 10
             train_config.learning_rate = 1e-6
             train_config.scheduler_min_lr = 1e-6
             train_config.batch_size = 512
-            train_config.n_epoch = 600
-            train_config.weight_decay = 1
+            train_config.n_epoch = 500
+            train_config.weight_decay = 1e-1
 
             model_config.lstm_n_layer = 3
             model_config.lstm_layer_width = 16
