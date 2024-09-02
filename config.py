@@ -708,8 +708,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO-GRU':
             dataset_config.n_training_dataset = 1000
             dataset_config.n_validation_dataset = 10
-            train_config.learning_rate = 1e-6
-            train_config.scheduler_min_lr = 1e-6
+            train_config.learning_rate = 1e-7
+            train_config.scheduler_min_lr = 1e-7
             train_config.batch_size = 512
             train_config.n_epoch = 100
             # train_config.weight_decay = 1e-3
@@ -717,13 +717,13 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_modes_height = 16
             model_config.fno_hidden_channels = 16
 
-            model_config.gru_n_layer = 5
-            model_config.gru_layer_width = 32
+            model_config.gru_n_layer = 3
+            model_config.gru_layer_width = 16
         elif model_name == 'FNO-LSTM':
             dataset_config.n_training_dataset = 500
             dataset_config.n_validation_dataset = 10
-            train_config.learning_rate = 1e-6
-            train_config.scheduler_min_lr = 1e-6
+            train_config.learning_rate = 1e-7
+            train_config.scheduler_min_lr = 1e-7
             train_config.batch_size = 512
             train_config.n_epoch = 100
             # train_config.weight_decay = 1e-3
@@ -731,18 +731,18 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_modes_height = 16
             model_config.fno_hidden_channels = 16
 
-            model_config.lstm_n_layer = 5
-            model_config.lstm_layer_width = 32
+            model_config.lstm_n_layer = 3
+            model_config.lstm_layer_width = 16
         elif model_name == 'DeepONet-GRU':
             dataset_config.n_training_dataset = 500
             dataset_config.n_validation_dataset = 10
-            train_config.learning_rate = 1e-6
-            train_config.scheduler_min_lr = 1e-6
+            train_config.learning_rate = 1e-7
+            train_config.scheduler_min_lr = 1e-7
             train_config.batch_size = 512
             train_config.n_epoch = 100
             # train_config.weight_decay = 1e-3
 
-            model_config.gru_n_layer = 5
+            model_config.gru_n_layer = 3
             model_config.gru_layer_width = 16
 
             model_config.deeponet_hidden_size = 16
@@ -750,8 +750,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'DeepONet-LSTM':
             dataset_config.n_training_dataset = 1000
             dataset_config.n_validation_dataset = 10
-            train_config.learning_rate = 1e-6
-            train_config.scheduler_min_lr = 1e-6
+            train_config.learning_rate = 1e-7
+            train_config.scheduler_min_lr = 1e-7
             train_config.batch_size = 512
             train_config.n_epoch = 100
             # train_config.weight_decay = 1e-3
