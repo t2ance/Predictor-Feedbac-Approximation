@@ -569,7 +569,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.gru_layer_width = 16
     elif system_ == 's8':
         dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory',
-                                       delay=ConstantDelay(.5), duration=8, dt=0.02, n_training_dataset=100,
+                                       delay=ConstantDelay(.5), duration=8, dt=0.02, n_training_dataset=2000,
                                        n_validation_dataset=1, n_sample_per_dataset=-1, baxter_dof=5,
                                        ic_lower_bound=0, ic_upper_bound=0.3, random_test_lower_bound=0,
                                        random_test_upper_bound=1)
@@ -600,7 +600,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-5
             model_config.lstm_n_layer = 3
-            model_config.lstm_layer_width = 8
+            model_config.lstm_layer_width = 4
             model_config.batch_size = 512
         elif model_name == 'FNO-GRU':
             train_config.learning_rate = 1e-4
@@ -632,8 +632,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.n_epoch = 300
             train_config.weight_decay = 1
 
-            model_config.deeponet_hidden_size = 64
-            model_config.deeponet_n_layer = 5
+            model_config.deeponet_hidden_size = 128
+            model_config.deeponet_n_layer = 3
         elif model_name == 'DeepONet-GRU':
             train_config.learning_rate = 5e-6
             train_config.scheduler_min_lr = 1e-6

@@ -496,12 +496,12 @@ def create_sequence_simulation_result(dataset_config: DatasetConfig, train_confi
                                       test_points=None):
     assert not (n_dataset is None and test_points is None)
     results = []
-
+    state = np.random.RandomState()
     if test_points is None:
         test_points = []
         for dataset_idx in range(n_dataset):
-            Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
-                                   size=(dataset_config.n_state,))
+            Z0 = state.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
+                               size=(dataset_config.n_state,))
             test_points.append(Z0)
     else:
         n_dataset = len(test_points)
