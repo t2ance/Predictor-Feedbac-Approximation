@@ -655,17 +655,16 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 3
     elif system_ == 's9':
-        dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory',
-                                       delay=TimeVaryingDelay(), duration=8, dt=0.004, n_training_dataset=200,
+        dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
+                                       delay=TimeVaryingDelay(), duration=8, dt=0.004, n_training_dataset=1400,
                                        n_validation_dataset=1, n_sample_per_dataset=-1, ic_lower_bound=-0.5,
                                        ic_upper_bound=0.5)
         model_config = ModelConfig(model_name='FFN')
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_min_lr=1e-5)
-
         if model_name == 'FNO':
-            train_config.n_epoch = 100
+            train_config.n_epoch = 50
             train_config.batch_size = 512
             train_config.learning_rate = 5e-5
             train_config.scheduler_min_lr = 6e-6
@@ -676,7 +675,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'DeepONet':
             train_config.learning_rate = 5e-6
             train_config.scheduler_min_lr = 1e-6
-            train_config.n_epoch = 100
+            train_config.n_epoch = 50
             train_config.batch_size = 512
             train_config.weight_decay = 0
             model_config.deeponet_hidden_size = 16
@@ -698,8 +697,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 2e-6
             train_config.weight_decay = 1e-1
         elif model_name == 'FNO-GRU':
-            train_config.learning_rate = 1e-7
-            train_config.scheduler_min_lr = 1e-7
+            train_config.learning_rate = 5e-6
+            train_config.scheduler_min_lr = 5e-6
             train_config.batch_size = 512
             train_config.n_epoch = 100
             # train_config.weight_decay = 1e-3
@@ -710,8 +709,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.gru_n_layer = 3
             model_config.gru_layer_width = 16
         elif model_name == 'FNO-LSTM':
-            train_config.learning_rate = 1e-7
-            train_config.scheduler_min_lr = 1e-7
+            train_config.learning_rate = 5e-6
+            train_config.scheduler_min_lr = 5e-6
             train_config.batch_size = 512
             train_config.n_epoch = 100
             # train_config.weight_decay = 1e-3
@@ -722,8 +721,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.lstm_n_layer = 3
             model_config.lstm_layer_width = 16
         elif model_name == 'DeepONet-GRU':
-            train_config.learning_rate = 1e-7
-            train_config.scheduler_min_lr = 1e-7
+            train_config.learning_rate = 5e-6
+            train_config.scheduler_min_lr = 5e-6
             train_config.batch_size = 512
             train_config.n_epoch = 100
             # train_config.weight_decay = 1e-3
@@ -734,8 +733,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.deeponet_hidden_size = 16
             model_config.deeponet_n_layer = 3
         elif model_name == 'DeepONet-LSTM':
-            train_config.learning_rate = 1e-7
-            train_config.scheduler_min_lr = 1e-7
+            train_config.learning_rate = 5e-6
+            train_config.scheduler_min_lr = 5e-6
             train_config.batch_size = 512
             train_config.n_epoch = 100
             # train_config.weight_decay = 1e-3
