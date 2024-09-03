@@ -524,10 +524,6 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     batch_size = train_config.batch_size
     img_save_path = model_config.base_path
     model, model_loaded = load_model(train_config, model_config, dataset_config, ffn=ffn)
-    # if (isinstance(model, TimeAwareFFN)) and ffn is not None:
-    #     print(f'Freeze FNO/DeepONet and only train GRU/LSTM in {model.__class__.__name__}')
-    #     optimizer = load_optimizer(model.rnn.parameters(), train_config)
-    # else:
     print(f'Train all parameters in {model.__class__.__name__}')
     optimizer = load_optimizer(model.parameters(), train_config)
     scheduler = load_lr_scheduler(optimizer, train_config)
@@ -848,6 +844,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         validation_dataset = []
         for result in validation_results:
             validation_dataset.append(simulation_result_to_samples(result, dataset_config))
+        # if model_config.two_stage
         if model_config.model_name == 'FNO-GRU' or model_config.model_name == 'FNO-LSTM':
             model_name = model_config.model_name
             model_config.model_name = 'FNO'
