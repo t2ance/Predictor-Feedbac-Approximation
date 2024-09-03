@@ -79,7 +79,7 @@ class TrainConfig:
     scheduler_min_lr2_: Optional[float] = field(default=-1)
     scheduler_ratio_warmup: Optional[float] = field(default=0.02)
     scheduled_sampling_frequency: Optional[int] = field(default=10)
-    lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential', 'none']] = field(
+    lr_scheduler_type: Optional[Literal['linear_with_warmup', 'cosine_annealing_with_warmup', 'exponential', 'none']] = field(
         default='linear_with_warmup')
 
     # conformal prediction
@@ -697,8 +697,9 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 2e-6
             train_config.weight_decay = 1e-1
         elif model_name == 'FNO-GRU':
-            train_config.learning_rate = 5e-5
-            train_config.scheduler_min_lr = 5e-5
+            train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
+            train_config.learning_rate = 1e-3
+            train_config.scheduler_min_lr = 1e-6
             train_config.batch_size = 512
             train_config.n_epoch = 100
             # train_config.weight_decay = 1e-3
@@ -709,8 +710,9 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.gru_n_layer = 3
             model_config.gru_layer_width = 16
         elif model_name == 'FNO-LSTM':
-            train_config.learning_rate = 5e-5
-            train_config.scheduler_min_lr = 5e-5
+            train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
+            train_config.learning_rate = 1e-3
+            train_config.scheduler_min_lr = 1e-6
             train_config.batch_size = 512
             train_config.n_epoch = 100
             # train_config.weight_decay = 1e-3
@@ -721,8 +723,9 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.lstm_n_layer = 3
             model_config.lstm_layer_width = 16
         elif model_name == 'DeepONet-GRU':
-            train_config.learning_rate = 5e-5
-            train_config.scheduler_min_lr = 5e-5
+            train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
+            train_config.learning_rate = 1e-3
+            train_config.scheduler_min_lr = 1e-6
             train_config.batch_size = 512
             train_config.n_epoch = 100
             # train_config.weight_decay = 1e-3
@@ -733,8 +736,9 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.deeponet_hidden_size = 16
             model_config.deeponet_n_layer = 3
         elif model_name == 'DeepONet-LSTM':
-            train_config.learning_rate = 5e-5
-            train_config.scheduler_min_lr = 5e-5
+            train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
+            train_config.learning_rate = 1e-3
+            train_config.scheduler_min_lr = 1e-6
             train_config.batch_size = 512
             train_config.n_epoch = 100
             # train_config.weight_decay = 1e-3

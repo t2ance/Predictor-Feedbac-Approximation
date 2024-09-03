@@ -249,19 +249,28 @@ def load_lr_scheduler(optimizer: torch.optim.Optimizer, config):
     """ Create a schedule with a learning rate that decreases linearly after
     linearly increasing during a warmup period.
     """
+    num_warmup_steps = int(config.n_epoch * config.scheduler_ratio_warmup)
+    total_steps = config.n_epoch
     if config.lr_scheduler_type == 'linear_with_warmup':
-        num_warmup_steps = int(config.n_epoch * config.scheduler_ratio_warmup)
 
         def lr_lambda(current_step):
             if current_step < num_warmup_steps:
                 return float(current_step) / float(max(1, num_warmup_steps))
-            return max(0.0, float(config.n_epoch - current_step) / float(
-                max(1, config.n_epoch - num_warmup_steps)))
+            return max(0.0, float(total_steps - current_step) / float(
+                max(1, total_steps - num_warmup_steps)))
 
         return LambdaLR(optimizer, lr_lambda)
     elif config.lr_scheduler_type == 'exponential':
         return torch.optim.lr_scheduler.StepLR(optimizer, step_size=config.scheduler_step_size,
                                                gamma=config.scheduler_gamma)
+    elif config.lr_scheduler_type == 'cosine_annealing_with_warmup':
+        def lr_lambda(current_step):
+            if current_step < num_warmup_steps:
+                return float(current_step) / float(max(1, num_warmup_steps))
+            return 0.5 * (1 + torch.cos(
+                torch.tensor((current_step - num_warmup_steps) / (total_steps - num_warmup_steps) * torch.pi)))
+
+        return LambdaLR(optimizer, lr_lambda)
     elif config.lr_scheduler_type == 'none':
         def lr_lambda(current_step):
             return 1.0
