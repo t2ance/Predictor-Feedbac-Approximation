@@ -844,8 +844,9 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         validation_dataset = []
         for result in validation_results:
             validation_dataset.append(simulation_result_to_samples(result, dataset_config))
-        # if model_config.two_stage
-        if model_config.model_name == 'FNO-GRU' or model_config.model_name == 'FNO-LSTM':
+        if not train_config.two_stage:
+            ffn = None
+        elif model_config.model_name == 'FNO-GRU' or model_config.model_name == 'FNO-LSTM':
             model_name = model_config.model_name
             model_config.model_name = 'FNO'
             ffn, _ = load_model(train_config, model_config, dataset_config)
