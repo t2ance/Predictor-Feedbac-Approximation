@@ -94,5 +94,15 @@ def baxter_test_unicycle():
 
 
 if __name__ == '__main__':
-    result = baxter_test2dof()
+    # result = baxter_test2dof()
     # result = baxter_test_unicycle()
+    import wandb
+    from config import get_config
+
+    wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
+    run = wandb.init(
+        project="no",
+        name=f'test'
+    )
+    dataset_config_, model_config_, train_config_ = get_config(system_='s9', model_name='FNO')
+    training_dataset, validation_dataset = dataset_config_.load_dataset(run, resize=False)
