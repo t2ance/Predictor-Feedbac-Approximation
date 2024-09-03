@@ -1,7 +1,5 @@
-import numpy as np
 import torch
 from neuralop.models import FNO1d
-# from neuralop.models import UNO
 from torch import nn
 
 
@@ -146,16 +144,20 @@ def resize_rfft(ar, s):
 class TimeAwareFFN(torch.nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.ffn = None
-        self.rnn = None
-
         self.mse_loss = torch.nn.MSELoss()
+        for module in self.ffn.modules():
+            if isinstance(module, nn.Linear):
+                nn.init.constant_(module.weight, 0)
+                if module.bias is not None:
+                    nn.init.constant_(module.bias, 0)
 
     def forward(self, x: torch.Tensor, label: torch.Tensor = None):
         with torch.no_grad():
             x = self.ffn(x)
             x = x.detach()
-        x = self.rnn(x)
+        # x = self.rnn(x)
+        # residual
+        x = self.rnn(x) + x
         if label is None:
             return x
         return x, self.mse_loss(x, label)
@@ -167,7 +169,6 @@ class TimeAwareFFN(torch.nn.Module):
 class FNOProjectionGRU(TimeAwareFFN):
     def __init__(self, n_modes_height: int, hidden_channels: int, fno_n_layers: int, gru_n_layers: int,
                  gru_layer_width: int, n_state: int, ffn=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
         if ffn is None:
             ffn = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
                                 n_layers=fno_n_layers)
@@ -176,12 +177,12 @@ class FNOProjectionGRU(TimeAwareFFN):
         self.ffn = ffn
         self.rnn = GRUNet(input_size=n_state, layer_width=gru_layer_width, num_layers=gru_n_layers,
                           output_size=n_state)
+        super().__init__(*args, **kwargs)
 
 
 class FNOProjectionLSTM(TimeAwareFFN):
     def __init__(self, n_modes_height: int, hidden_channels: int, fno_n_layers: int, lstm_n_layers: int,
                  lstm_layer_width: int, n_state: int, ffn=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
         if ffn is None:
             ffn = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
                                 n_layers=fno_n_layers)
@@ -190,6 +191,37 @@ class FNOProjectionLSTM(TimeAwareFFN):
         self.ffn = ffn
         self.rnn = LSTMNet(input_size=n_state, layer_width=lstm_layer_width, num_layers=lstm_n_layers,
                            output_size=n_state)
+        super().__init__(*args, **kwargs)
+
+
+class DeepONetGRU(TimeAwareFFN):
+    def __init__(self, n_point_start: int, n_input: int, deeponet_n_layer: int, deeponet_hidden_size: int,
+                 gru_n_layers: int, gru_layer_width: int, n_state: int, ffn=None, *args, **kwargs):
+        if ffn is None:
+            ffn = DeepONet(n_input_branch=n_point_start * n_input, n_input_trunk=n_state,
+                           layer_width=deeponet_hidden_size, n_layer=deeponet_n_layer,
+                           n_output=n_state)
+        else:
+            print('Pretrained DeepONet model loaded to DeepONet-GRU')
+        self.ffn = ffn
+        self.rnn = GRUNet(input_size=n_state, layer_width=gru_layer_width, num_layers=gru_n_layers,
+                          output_size=n_state)
+        super().__init__(*args, **kwargs)
+
+
+class DeepONetLSTM(TimeAwareFFN):
+    def __init__(self, n_point_start: int, n_input: int, deeponet_n_layer: int, deeponet_hidden_size: int,
+                 lstm_n_layers: int, lstm_layer_width: int, n_state: int, ffn=None, *args, **kwargs):
+        if ffn is None:
+            ffn = DeepONet(n_input_branch=n_point_start * n_input, n_input_trunk=n_state,
+                           layer_width=deeponet_hidden_size, n_layer=deeponet_n_layer,
+                           n_output=n_state)
+        else:
+            print('Pretrained DeepONet model loaded to DeepONet-GRU')
+        self.ffn = ffn
+        self.rnn = LSTMNet(input_size=n_state, layer_width=lstm_layer_width, num_layers=lstm_n_layers,
+                           output_size=n_state)
+        super().__init__(*args, **kwargs)
 
 
 class FNOProjection(torch.nn.Module):
@@ -392,36 +424,6 @@ class MLP(nn.Module):
             return x
         else:
             return torch.relu(x)
-
-
-class DeepONetGRU(TimeAwareFFN):
-    def __init__(self, n_point_start: int, n_input: int, deeponet_n_layer: int, deeponet_hidden_size: int,
-                 gru_n_layers: int, gru_layer_width: int, n_state: int, ffn=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if ffn is None:
-            ffn = DeepONet(n_input_branch=n_point_start * n_input, n_input_trunk=n_state,
-                           layer_width=deeponet_hidden_size, n_layer=deeponet_n_layer,
-                           n_output=n_state)
-        else:
-            print('Pretrained DeepONet model loaded to DeepONet-GRU')
-        self.ffn = ffn
-        self.rnn = GRUNet(input_size=n_state, layer_width=gru_layer_width, num_layers=gru_n_layers,
-                          output_size=n_state)
-
-
-class DeepONetLSTM(TimeAwareFFN):
-    def __init__(self, n_point_start: int, n_input: int, deeponet_n_layer: int, deeponet_hidden_size: int,
-                 lstm_n_layers: int, lstm_layer_width: int, n_state: int, ffn=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if ffn is None:
-            ffn = DeepONet(n_input_branch=n_point_start * n_input, n_input_trunk=n_state,
-                           layer_width=deeponet_hidden_size, n_layer=deeponet_n_layer,
-                           n_output=n_state)
-        else:
-            print('Pretrained DeepONet model loaded to DeepONet-GRU')
-        self.ffn = ffn
-        self.rnn = LSTMNet(input_size=n_state, layer_width=lstm_layer_width, num_layers=lstm_n_layers,
-                           output_size=n_state)
 
 
 if __name__ == '__main__':

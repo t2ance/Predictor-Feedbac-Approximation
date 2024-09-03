@@ -536,7 +536,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
     model.train()
     print('Begin Training...')
     print(f'Training size: {len(training_dataset)}, Validating size: {len(validation_dataset)}')
-    for _ in tqdm(range(train_config.n_epoch)):
+    for epoch in tqdm(range(train_config.n_epoch)):
         np.random.shuffle(training_dataset)
         # seq index; time index; input-output pair; data
         n_epoch = 0
@@ -588,6 +588,7 @@ def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConf
             f'training loss': training_loss,
             f'validating loss': validating_loss,
             f'learning rate': optimizer.param_groups[0]['lr'],
+            f'epoch': epoch
         })
         training_loss_arr.append(training_loss)
 
