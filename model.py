@@ -156,15 +156,15 @@ class TimeAwareFFN(torch.nn.Module):
         self.initialized = True
 
     def forward(self, x: torch.Tensor, label: torch.Tensor = None):
-        if not self.initialized:
-            self.initialize()
+        # if not self.initialized:
+        #     self.initialize()
 
         with torch.no_grad():
             x = self.ffn(x)
             x = x.detach()
-        # x = self.rnn(x)
+        x = self.rnn(x)
         # residual
-        x = self.rnn(x) + x
+        # x = self.rnn(x) + x
         if label is None:
             return x
         return x, self.mse_loss(x, label)
