@@ -219,21 +219,9 @@ def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_con
     else:
         raise NotImplementedError()
     n_params = count_params(model)
-    print(f'Loading {model_name} model from sketch, with {n_params} parameters')
-    check_dir(train_config.model_save_path)
-    print(os.getcwd())
-    pth = f'{train_config.model_save_path}/{model_config.model_name}.pth'
-    if train_config.load_model and os.path.exists(pth):
-        model.load_state_dict(torch.load(pth))
-        print(f'Model loaded from {pth}')
-        loaded = True
-    else:
-        if not train_config.load_model:
-            print("Model doesn't need loading")
-        elif not os.path.exists(pth):
-            print(f"Model save path {pth} doesn't exist")
-        loaded = False
+    print(f'Using {model_name} with {n_params} parameters. Xavier initializing.')
     initialize_weights(model)
+    loaded = False
     if n_param_out:
         return model.to(device), loaded, n_params
     else:

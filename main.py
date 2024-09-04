@@ -1,6 +1,4 @@
 import argparse
-import os
-import random
 import time
 import uuid
 import warnings
@@ -11,18 +9,16 @@ import numpy as np
 import torch
 import wandb
 from scipy.stats import norm
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import config
 from config import DatasetConfig, ModelConfig, TrainConfig
-from dataset import ZUZDataset, ZUPDataset, PredictionDataset, sample_to_tensor
-from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral, solve_integral_successive_batched
+from dataset import sample_to_tensor
+from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral
 from model import GRUNet, LSTMNet, TimeAwareFFN
 from plot_utils import plot_result, set_size, difference
-from utils import pad_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, prepare_datasets, \
-    set_everything, print_result, postprocess, load_model, load_optimizer, prediction_comparison, print_args, \
-    get_time_str, SimulationResult, TestResult, count_params
+from utils import pad_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, set_everything, print_result, \
+    load_model, load_optimizer, print_args, get_time_str, SimulationResult, TestResult, count_params
 
 warnings.filterwarnings('ignore')
 
@@ -239,243 +235,6 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
         success=not (np.isinf(l2) or np.isnan(l2)), n_parameter=count_params(model) if model is not None else 'N/A')
 
 
-def model_train(dataset_config: DatasetConfig, train_config: TrainConfig, model, optimizer, scheduler, device,
-                training_dataloader, predict_and_loss, adversarial_epsilon: float = 0., n_state: int = None):
-    model.train()
-    training_loss = 0.0
-    adversarial_loss = 0.0
-    for inputs, labels in training_dataloader:
-        # normal training
-        inputs, labels = inputs.to(device), labels.to(device)
-        outputs, loss = predict_and_loss(inputs, labels, model)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        training_loss += loss.item()
-
-        # adversarial training
-        if adversarial_epsilon > 0:
-            inputs.requires_grad = True
-            outputs, loss = predict_and_loss(inputs, labels, model)
-            model.zero_grad()
-            loss.backward()
-
-            inputs_grad = inputs.grad.data
-            # only adversarial the state part
-            mask = torch.zeros_like(inputs_grad, dtype=torch.bool)
-            mask[:, 1:1 + n_state] = 1
-            inputs_grad[~mask] = 0
-
-            adversarial_inputs = inputs + torch.rand((1,), device=device) * adversarial_epsilon * inputs_grad.sign()
-            adversarial_labels = solve_integral_successive_batched(
-                Z_t=np.array(adversarial_inputs[:, 1:1 + n_state].detach().cpu().numpy()),
-                U_D=np.array(adversarial_inputs[:, 1 + n_state:].detach().cpu().numpy()),
-                dt=dataset_config.dt, n_points=dataset_config.n_point_delay,
-                f=dataset_config.system.dynamic, n_iterations=dataset_config.successive_approximation_n_iteration,
-                adaptive=False)
-            adversarial_labels = torch.from_numpy(adversarial_labels)
-            outputs, loss = predict_and_loss(adversarial_inputs.to(device, dtype=torch.float32),
-                                             adversarial_labels.to(device, dtype=torch.float32), model)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            adversarial_loss += loss.item()
-    model.eval()
-    lr = scheduler.get_last_lr()[-1]
-    scheduler.step()
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = max(param_group['lr'], train_config.scheduler_min_lr)
-    avg_training_loss = training_loss / len(training_dataloader)
-    avg_adversarial_loss = adversarial_loss / len(training_dataloader)
-    return avg_training_loss, avg_adversarial_loss, lr
-
-
-def model_validate(model, device, dataloader):
-    with torch.no_grad():
-        validating_loss = 0.0
-        for inputs, labels in dataloader:
-            inputs, labels = inputs.to(device), labels.to(device)
-            outputs, loss = predict_and_loss(inputs, labels, model)
-            validating_loss += loss.item()
-        return validating_loss / len(dataloader)
-
-
-def run_offline_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
-    device = train_config.device
-    adversarial_epsilon = train_config.adversarial_epsilon
-    n_epoch = train_config.n_epoch
-    img_save_path = model_config.base_path
-
-    model, model_loaded = load_model(train_config, model_config, dataset_config)
-    optimizer = load_optimizer(model.parameters(), train_config)
-    scheduler = load_lr_scheduler(optimizer, train_config)
-
-    if not train_config.do_training:
-        return model
-    else:
-        training_dataloader, validating_dataloader = load_training_and_validation_datasets(dataset_config, train_config)
-    testing_dataloader = load_test_datasets(dataset_config, train_config)
-    check_dir(model_config.base_path)
-    check_dir(train_config.model_save_path)
-
-    if model_loaded:
-        print(f'Model loaded, skip training!')
-    else:
-        training_loss_arr = []
-        validating_loss_arr = []
-        testing_loss_arr = []
-        adversarial_loss_arr = []
-        rl2_list = []
-        l2_list = []
-        bar = tqdm(list(range(n_epoch)))
-        do_validation = validating_dataloader is not None
-        do_testing = testing_dataloader is not None
-        do_adversarial = train_config.adversarial_epsilon > 0
-
-        def draw():
-            fig = plt.figure(figsize=set_size())
-            x_metric = list(range(0, train_config.log_step * len(rl2_list), train_config.log_step))
-            plt.plot(x_metric, rl2_list, label="Relative Difference")
-            plt.plot(x_metric, l2_list, label="Difference")
-            plt.xlabel('epoch')
-            plt.legend()
-            if img_save_path is not None:
-                plt.savefig(f'{img_save_path}/metric.png')
-                fig.clear()
-                plt.close(fig)
-            else:
-                plt.show()
-
-            fig = plt.figure(figsize=set_size())
-            plt.plot(training_loss_arr, label="Training loss")
-            if do_validation:
-                plt.plot(validating_loss_arr, label="Validation loss")
-            if do_testing:
-                plt.plot(testing_loss_arr, label="Test loss")
-            plt.yscale("log")
-            plt.xlabel('epoch')
-            plt.legend()
-            if img_save_path is not None:
-                p = f'{img_save_path}/loss.png'
-                plt.savefig(p)
-                print(f'save loss curve to {p}')
-                fig.clear()
-                plt.close(fig)
-            else:
-                plt.show()
-
-        for epoch in bar:
-            training_loss_t, adversarial_loss_t, lr = model_train(
-                dataset_config, train_config, model, optimizer, scheduler, device, training_dataloader,
-                predict_and_loss, adversarial_epsilon, dataset_config.n_state)
-            training_loss_arr.append(training_loss_t)
-            desc = f'Epoch [{epoch + 1}/{n_epoch}] || Lr: {lr:6f} || Training loss: {training_loss_t:.6f}'
-            if do_validation:
-                validating_loss_t = model_validate(model, device, validating_dataloader)
-                validating_loss_arr.append(validating_loss_t)
-                desc += f' || Validation loss: {validating_loss_t:.6f}'
-            else:
-                validating_loss_t = 0
-            if do_testing:
-                testing_loss_t = model_validate(model, device, testing_dataloader)
-                testing_loss_arr.append(testing_loss_t)
-                desc += f' || Test loss: {testing_loss_t:.6f}'
-            else:
-                testing_loss_t = 0
-            if do_adversarial:
-                adversarial_loss_arr.append(adversarial_loss_t)
-                desc += f' || Adversarial loss: {adversarial_loss_t:.6f}'
-            bar.set_description(desc)
-            wandb.log({
-                'training loss': training_loss_t,
-                'validation loss': validating_loss_t,
-                'test loss': testing_loss_t,
-                'learning rate': optimizer.param_groups[0]['lr']
-            }, step=epoch)
-            if (train_config.log_step > 0 and epoch % train_config.log_step == 0) or epoch == n_epoch - 1:
-                ...
-        draw()
-    print('Finished Training')
-    return model
-
-
-def run_scheduled_sampling_training(dataset_config: DatasetConfig, model_config: ModelConfig,
-                                    train_config: TrainConfig):
-    warnings.filterwarnings('error')
-    device = train_config.device
-    n_epoch = train_config.n_epoch
-    img_save_path = model_config.base_path
-    model, model_loaded = load_model(train_config, model_config, dataset_config)
-    optimizer = load_optimizer(model.parameters(), train_config)
-    scheduler = load_lr_scheduler(optimizer, train_config)
-    training_loss_arr = []
-    scheduled_sampling_p_arr = []
-    check_dir(img_save_path)
-    print('Begin Training...')
-    dataloader = None
-    for epoch in range(train_config.n_epoch):
-        if epoch % train_config.scheduled_sampling_frequency == 0 or dataloader is None:
-            train_config.set_scheduled_sampling_p(epoch)
-            scheduled_sampling_p_arr.append(train_config.scheduled_sampling_p)
-
-            Z0 = np.random.uniform(low=dataset_config.ic_lower_bound, high=dataset_config.ic_upper_bound,
-                                   size=(dataset_config.n_state,))
-            try:
-                result = simulation(dataset_config, train_config, Z0, 'scheduled_sampling', model,
-                                    img_save_path=img_save_path)
-            except Warning as e:
-                print("Warning caught:", e)
-                print(f'Abnormal value encountered at epoch {epoch}, skip this epoch!')
-                continue
-            predictions = prediction_comparison(result.P_numerical, dataset_config.n_point_delay, dataset_config.ts)
-            true_values = result.Z[dataset_config.n_point_delay(0):]
-
-            Ps = np.array(predictions)
-            Zs = np.array(true_values)
-            horizon = np.array(dataset_config.ts[dataset_config.n_point_delay(0):])
-            Us = np.array([result.U[t_i: t_i + dataset_config.n_point_delay(0)] for t_i in range(len(horizon))])
-            if np.isnan(Ps).any() or np.isnan(Zs).any() or np.isnan(
-                    horizon).any() or np.isnan(Us).any() or np.isinf(Ps).any() or np.isinf(
-                Zs).any() or np.isinf(horizon).any() or np.isinf(Us).any():
-                training_loss_arr.append(0)
-                continue
-            samples = []
-            for t_i, (p, z, t) in enumerate(zip(Ps, Zs, horizon)):
-                u = Us[t_i]
-                samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(p)))
-            dataloader = DataLoader(PredictionDataset(samples), batch_size=train_config.batch_size, shuffle=False)
-
-        training_loss_t, _, _ = model_train(dataset_config, train_config, model, optimizer, scheduler, device,
-                                            dataloader, predict_and_loss)
-        print(f'Epoch [{epoch + 1}/{n_epoch}]'
-              f'|| Scheduled Sampling Rate {train_config.scheduled_sampling_p}'
-              f'|| Training loss: {training_loss_t:.6f}')
-        wandb.log({
-            'sampling rate': train_config.scheduled_sampling_p,
-            'training loss': training_loss_t,
-            'learning rate': optimizer.param_groups[0]['lr'],
-        }, step=epoch)
-        training_loss_arr.append(training_loss_t)
-
-    fig = plt.figure(figsize=set_size())
-    plt.plot(training_loss_arr, label="Training loss")
-    plt.yscale("log")
-    plt.xlabel('epoch')
-    plt.legend()
-    plt.savefig(f'{img_save_path}/loss.png')
-    fig.clear()
-    plt.close(fig)
-
-    fig = plt.figure(figsize=set_size())
-    plt.plot(scheduled_sampling_p_arr, label="Scheduled Sampling P")
-    plt.xlabel('epoch')
-    plt.legend()
-    plt.savefig(f'{img_save_path}/p.png')
-    fig.clear()
-    plt.close(fig)
-    return model
-
-
 def simulation_result_to_samples(result: SimulationResult, dataset_config):
     max_n_point_delay = dataset_config.max_n_point_delay()
     n_point_start = dataset_config.n_point_start()
@@ -678,115 +437,6 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
     return TestResult(runtime=runtime, l2=l2, success_cases=len(l2_list), results=results, no_pred_ratio=no_pred_ratio)
 
 
-def load_training_and_validation_datasets(dataset_config: DatasetConfig, train_config: TrainConfig):
-    create_dataset = not os.path.exists(
-        dataset_config.training_dataset_file) or dataset_config.recreate_dataset
-
-    def load():
-        print('Loading training dataset')
-        training_samples_loaded = torch.load(dataset_config.training_dataset_file)
-        print(f'Loaded {len(training_samples_loaded)} samples')
-        return training_samples_loaded
-
-    if create_dataset:
-        print('Creating training dataset')
-        check_dir(dataset_config.dataset_base_path)
-        train_points = list(
-            np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
-                              (int(dataset_config.n_training_dataset * train_config.training_ratio),
-                               dataset_config.n_state)))
-        validation_points = list(
-            np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
-                              (dataset_config.n_training_dataset - int(
-                                  dataset_config.n_training_dataset * train_config.training_ratio),
-                               dataset_config.n_state)))
-        if dataset_config.data_generation_strategy == 'trajectory':
-            training_samples = create_trajectory_dataset(dataset_config, train_config, train_points)
-            validation_samples = create_trajectory_dataset(dataset_config, train_config, validation_points)
-        else:
-            raise NotImplementedError()
-
-        print(f'Created {len(training_samples)} samples')
-        if dataset_config.postprocess:
-            training_samples = postprocess(training_samples, dataset_config)
-        if dataset_config.append_training_dataset:
-            training_samples_loaded = load()
-            if len(training_samples_loaded) > 0:
-                tsf, tsl = training_samples[0]
-                tslf, tsdl = training_samples_loaded[0]
-                assert len(tsf) == len(tslf), f'The shapes of sample should be consistent, but {len(tsf)} ≠ {len(tslf)}'
-            training_samples += training_samples_loaded
-            print(f'Samples merged! {len(training_samples)} in total')
-    else:
-        training_samples = load()
-
-    training_dataloader, validating_dataloader = prepare_datasets(
-        training_samples, train_config.batch_size, training_ratio=train_config.training_ratio,
-        validation_samples=validation_samples)
-
-    print(f'#Training sample: {int(len(training_samples) * train_config.training_ratio)}')
-    print(f'#Validating sample: {len(training_samples) - int(len(training_samples) * train_config.training_ratio)}')
-    path = dataset_config.training_dataset_file
-    if dataset_config.recreate_dataset:
-        torch.save(training_samples, path)
-        np.savetxt(f'{dataset_config.dataset_base_path}/n_sample.txt',
-                   np.array([len(training_samples), train_config.training_ratio]))
-        print(f'{len(training_samples)} samples saved')
-    return training_dataloader, validating_dataloader
-
-
-def load_test_datasets(dataset_config, train_config):
-    if not train_config.do_testing:
-        return None
-    if not os.path.exists(dataset_config.testing_dataset_file) or dataset_config.recreate_dataset:
-        print('Creating testing dataset')
-        testing_samples = create_trajectory_dataset(dataset_config, train_config, dataset_config.test_points)
-    else:
-        print('Loading testing dataset')
-        testing_samples = torch.load(dataset_config.testing_dataset_file)
-    testing_dataloader = DataLoader(PredictionDataset(testing_samples), batch_size=train_config.batch_size,
-                                    shuffle=False)
-    print(f'#Testing sample: {len(testing_samples)}')
-    return testing_dataloader
-
-
-def create_trajectory_dataset(dataset_config: DatasetConfig, train_config: TrainConfig,
-                              initial_conditions: List = None):
-    all_samples = []
-    if dataset_config.z_u_p_pair:
-        print('creating datasets of Z(t), U(t-D~t), P(t) pairs')
-    else:
-        print('creating datasets of Z(t), U(t-D~t), Z(t+D) pairs')
-    if initial_conditions is None:
-        bar = tqdm(list(np.random.uniform(dataset_config.ic_lower_bound, dataset_config.ic_upper_bound,
-                                          (dataset_config.n_training_dataset, dataset_config.n_state))))
-    else:
-        bar = tqdm(initial_conditions)
-    for i, Z0 in enumerate(bar):
-        if dataset_config.z_u_p_pair:
-            result = simulation(method='numerical', Z0=Z0, dataset_config=dataset_config, train_config=train_config)
-            dataset = ZUPDataset(
-                torch.tensor(result.Z, dtype=torch.float32), torch.tensor(result.U, dtype=torch.float32),
-                torch.tensor(result.P_numerical, dtype=torch.float32), dataset_config.n_point_delay,
-                dataset_config.dt, dataset_config.ts)
-        else:
-            result = simulation(method='explicit', Z0=Z0, dataset_config=dataset_config, train_config=train_config)
-            dataset = ZUZDataset(
-                torch.tensor(result.Z, dtype=torch.float32), torch.tensor(result.U, dtype=torch.float32),
-                dataset_config.n_point_delay, dataset_config.dt)
-        dataset = list(dataset)
-        random.shuffle(dataset)
-        if dataset_config.n_sample_per_dataset >= 0:
-            all_samples += dataset[:dataset_config.n_sample_per_dataset]
-        else:
-            all_samples += dataset
-        wandb.log({
-            "number dataset": i + 1
-        })
-    random.shuffle(all_samples)
-    return all_samples
-
-
 def run_tests(model, train_config, dataset_config, model_config, test_points):
     if train_config.training_type == 'switching':
         return {
@@ -815,67 +465,59 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     print('All test points:')
     print(test_points)
 
-    if train_config.training_type == 'offline' or train_config.training_type == 'switching':
-        model = run_offline_training(dataset_config=dataset_config, model_config=model_config,
-                                     train_config=train_config)
-    elif train_config.training_type == 'sequence':
-        print('Begin Generating Dataset...')
+    assert train_config.training_type == 'sequence'
 
-        if dataset_config.recreate_dataset:
-            training_results = create_sequence_simulation_result(
-                dataset_config, train_config, n_dataset=dataset_config.n_training_dataset)
-            validation_results = create_sequence_simulation_result(
-                dataset_config, train_config, n_dataset=dataset_config.n_validation_dataset)
-            print(f'{len(training_results)} generated')
-            training_results_, validation_results_ = dataset_config.load_dataset(run, resize=False)
-            print(f'{len(training_results_)} loaded')
-            training_results += training_results_
-            validation_results += validation_results_
-            print(f'{len(training_results)} saved')
-            dataset_config.save_dataset(run, training_results, validation_results)
-            print(f'Dataset created and saved')
-        else:
-            training_results, validation_results = dataset_config.load_dataset(run)
-            print(f'Dataset loaded')
-
-        # for debug usage
+    if dataset_config.recreate_dataset:
+        print('Begin generating dataset...')
+        training_results = create_sequence_simulation_result(
+            dataset_config, train_config, n_dataset=dataset_config.n_training_dataset)
         validation_results = create_sequence_simulation_result(
-            dataset_config, train_config, test_points=dataset_config.test_points)
-
-        training_dataset = []
-        for result in training_results:
-            training_dataset.append(simulation_result_to_samples(result, dataset_config))
-        validation_dataset = []
-        for result in validation_results:
-            validation_dataset.append(simulation_result_to_samples(result, dataset_config))
-        if not train_config.two_stage:
-            ffn = None
-        elif model_config.model_name == 'FNO-GRU' or model_config.model_name == 'FNO-LSTM':
-            model_name = model_config.model_name
-            model_config.model_name = 'FNO'
-            ffn, _ = load_model(train_config, model_config, dataset_config)
-            model_config.load_model(run, ffn)
-            model_config.model_name = model_name
-            run_tests(ffn, train_config, dataset_config, model_config, test_points)
-        elif model_config.model_name == 'DeepONet-GRU' or model_config.model_name == 'DeepONet-LSTM':
-            model_name = model_config.model_name
-            model_config.model_name = 'DeepONet'
-            ffn, _ = load_model(train_config, model_config, dataset_config)
-            model_config.load_model(run, ffn)
-            model_config.model_name = model_name
-            run_tests(ffn, train_config, dataset_config, model_config, test_points)
-        else:
-            ffn = None
-
-        model = run_sequence_training(
-            dataset_config=dataset_config, model_config=model_config, train_config=train_config,
-            training_dataset=training_dataset, validation_dataset=validation_dataset, ffn=ffn
-        )
-    elif train_config.training_type == 'scheduled sampling':
-        model = run_scheduled_sampling_training(dataset_config=dataset_config, model_config=model_config,
-                                                train_config=train_config)
+            dataset_config, train_config, n_dataset=dataset_config.n_validation_dataset)
+        print(f'{len(training_results)} generated')
+        training_results_, validation_results_ = dataset_config.load_dataset(run, resize=False)
+        print(f'{len(training_results_)} loaded')
+        training_results += training_results_
+        validation_results += validation_results_
+        print(f'{len(training_results)} saved')
+        dataset_config.save_dataset(run, training_results, validation_results)
+        print(f'Dataset created and saved')
     else:
-        raise NotImplementedError()
+        training_results, validation_results = dataset_config.load_dataset(run)
+        print(f'Dataset loaded')
+
+    # for debug usage
+    validation_results = create_sequence_simulation_result(
+        dataset_config, train_config, test_points=dataset_config.test_points)
+
+    training_dataset = []
+    for result in training_results:
+        training_dataset.append(simulation_result_to_samples(result, dataset_config))
+    validation_dataset = []
+    for result in validation_results:
+        validation_dataset.append(simulation_result_to_samples(result, dataset_config))
+    if not train_config.two_stage:
+        ffn = None
+    elif model_config.model_name == 'FNO-GRU' or model_config.model_name == 'FNO-LSTM':
+        model_name = model_config.model_name
+        model_config.model_name = 'FNO'
+        ffn, _ = load_model(train_config, model_config, dataset_config)
+        model_config.load_model(run, ffn)
+        model_config.model_name = model_name
+        run_tests(ffn, train_config, dataset_config, model_config, test_points)
+    elif model_config.model_name == 'DeepONet-GRU' or model_config.model_name == 'DeepONet-LSTM':
+        model_name = model_config.model_name
+        model_config.model_name = 'DeepONet'
+        ffn, _ = load_model(train_config, model_config, dataset_config)
+        model_config.load_model(run, ffn)
+        model_config.model_name = model_name
+        run_tests(ffn, train_config, dataset_config, model_config, test_points)
+    else:
+        ffn = None
+
+    model = run_sequence_training(
+        dataset_config=dataset_config, model_config=model_config, train_config=train_config,
+        training_dataset=training_dataset, validation_dataset=validation_dataset, ffn=ffn
+    )
 
     model_config.save_model(run, model)
 
