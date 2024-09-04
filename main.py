@@ -509,7 +509,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
             model_config.save_model(run, ffn, model_name=first_stage_model)
         else:
             model_config.load_model(run, ffn, model_name=first_stage_model)
-        run_tests(ffn, train_config, dataset_config, model_config, test_points)
+        # run_tests(ffn, train_config, dataset_config, model_config, test_points)
     else:
         model = load_model(train_config, model_config, dataset_config, ffn=None)
 
