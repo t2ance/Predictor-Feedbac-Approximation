@@ -100,7 +100,12 @@ class TrainConfig:
     scheduled_sampling_warm_start: Optional[int] = field(default=0)
     system: Optional[str] = field(default='s1')
 
+    # train FNO-GRU jointly or not
     two_stage: Optional[bool] = field(default=True)
+    # freeze FNO in FNO-GRU or not
+    freeze_ffn: Optional[bool] = field(default=False)
+    # let GRU in FNO-GRU to only model the residual (i.e. x = gru(fno(x))+x) or not
+    residual: Optional[bool] = field(default=False)
     training_type: Optional[Literal['offline', 'switching', 'scheduled sampling']] = field(default='scheduled sampling')
 
     @property
