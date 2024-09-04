@@ -159,9 +159,9 @@ class TimeAwareFFN(torch.nn.Module):
         # if not self.initialized:
         #     self.initialize()
 
-        with torch.no_grad():
-            x = self.ffn(x)
-            x = x.detach()
+        # with torch.no_grad():
+        x = self.ffn(x)
+            # x = x.detach()
         x = self.rnn(x)
         # residual
         # x = self.rnn(x) + x
