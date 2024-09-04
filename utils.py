@@ -222,11 +222,10 @@ def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_con
     n_params = count_params(model)
     print(f'Using {model_name} with {n_params} parameters. Xavier initializing.')
     initialize_weights(model)
-    loaded = False
     if n_param_out:
-        return model.to(device), loaded, n_params
+        return model.to(device), n_params
     else:
-        return model.to(device), loaded
+        return model.to(device)
 
 
 def load_optimizer(parameters, train_config):

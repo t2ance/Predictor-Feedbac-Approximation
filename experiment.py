@@ -481,7 +481,7 @@ def load_config(system, model_name, cp_alpha, version='latest'):
     dataset_config, model_config, train_config = config.get_config(system_=system, model_name=model_name)
     model_config.model_name = model_name
     train_config.uq_alpha = cp_alpha
-    model, model_loaded = load_model(train_config, model_config, dataset_config)
+    model = load_model(train_config, model_config, dataset_config)
     model_config.load_model(run, model, version=version)
     return train_config, dataset_config, model_config, model
 
@@ -552,42 +552,42 @@ if __name__ == '__main__':
     deeponet_lstm = None
     model_parameters = []
     # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO')
-    # fno, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
+    # fno, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
     # model_config.load_model(run, fno)
     # model_parameters.append(n_params)
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet')
-    deeponet, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
+    deeponet, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
     model_config.load_model(run, deeponet)
     model_parameters.append(n_params)
 
     # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='GRU')
-    # gru, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
+    # gru, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
     # model_config.load_model(run, gru)
     # model_parameters.append(n_params)
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='LSTM')
-    lstm, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
+    lstm, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
     model_config.load_model(run, lstm)
     model_parameters.append(n_params)
 
     # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-GRU')
-    # fno_gru, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
+    # fno_gru, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
     # model_config.load_model(run, fno_gru)
     # model_parameters.append(n_params)
 
     # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-LSTM')
-    # fno_lstm, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
+    # fno_lstm, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
     # model_config.load_model(run, fno_lstm)
     # model_parameters.append(n_params)
 
     # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-GRU')
-    # deeponet_gru, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
+    # deeponet_gru, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
     # model_config.load_model(run, deeponet_gru)
     # model_parameters.append(n_params)
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-LSTM')
-    deeponet_lstm, _, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
+    deeponet_lstm, n_params = load_model(train_config, model_config, dataset_config, n_param_out=True)
     model_config.load_model(run, deeponet_lstm)
     model_parameters.append(n_params)
 

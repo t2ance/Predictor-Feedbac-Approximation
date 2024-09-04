@@ -12,7 +12,7 @@ if __name__ == '__main__':
     # dataset_config.dt = 0.1
     dataset_config.dt /= 2
     # train_config.uq_type = 'gaussian process'
-    model, loaded = load_model(train_config, model_config, dataset_config)
+    model = load_model(train_config, model_config, dataset_config)
     run = wandb.init(
         project="no",
         name=f'super-resolution {dataset_config.system_} {model_config.model_name} {get_time_str()}'
