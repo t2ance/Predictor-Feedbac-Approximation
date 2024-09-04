@@ -627,7 +627,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 1e-6
 
             train_config.batch_size = 512
-            train_config.n_epoch = 10
+            train_config.n_epoch = 100
             train_config.weight_decay = 1e-3
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 64
@@ -642,7 +642,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 1e-6
 
             train_config.batch_size = 512
-            train_config.n_epoch = 10
+            train_config.n_epoch = 100
             train_config.weight_decay = 1e-3
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 64
@@ -657,7 +657,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 1e-6
 
             train_config.batch_size = 512
-            train_config.n_epoch = 10
+            train_config.n_epoch = 100
             train_config.weight_decay = 1e-3
             model_config.gru_n_layer = 3
             model_config.gru_layer_width = 8
@@ -672,7 +672,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 1e-6
 
             train_config.batch_size = 512
-            train_config.n_epoch = 10
+            train_config.n_epoch = 100
             train_config.weight_decay = 1e-3
             model_config.lstm_n_layer = 3
             model_config.lstm_layer_width = 8
