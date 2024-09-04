@@ -278,11 +278,13 @@ def create_sequence_simulation_result(dataset_config: DatasetConfig, train_confi
 
 
 def run_sequence_training(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig,
-                          training_dataset, validation_dataset, ffn=None):
+                          training_dataset, validation_dataset, ffn=None, model=None):
     device = train_config.device
     batch_size = train_config.batch_size
     img_save_path = model_config.base_path
-    model, model_loaded = load_model(train_config, model_config, dataset_config, ffn=ffn)
+    if model is None:
+        print('Model not found')
+        model, model_loaded = load_model(train_config, model_config, dataset_config, ffn=ffn)
     if isinstance(model, TimeAwareFFN) and train_config.freeze_ffn:
         print(f'Freeze FFN and only train RNN in {model.__class__.__name__}')
         optimizer = load_optimizer(model.rnn.parameters(), train_config)
@@ -485,7 +487,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         training_results, validation_results = dataset_config.load_dataset(run)
         print(f'Dataset loaded')
 
-    # for debug usage
+    # the sample to visualize
     validation_results = create_sequence_simulation_result(
         dataset_config, train_config, test_points=dataset_config.test_points)
 
@@ -495,21 +497,23 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     validation_dataset = []
     for result in validation_results:
         validation_dataset.append(simulation_result_to_samples(result, dataset_config))
+
     if not train_config.two_stage:
         ffn = None
-    elif model_config.model_name == 'FNO-GRU' or model_config.model_name == 'FNO-LSTM':
-        model_name = model_config.model_name
-        model_config.model_name = 'FNO'
-        ffn, _ = load_model(train_config, model_config, dataset_config)
-        model_config.load_model(run, ffn)
-        model_config.model_name = model_name
-        run_tests(ffn, train_config, dataset_config, model_config, test_points)
-    elif model_config.model_name == 'DeepONet-GRU' or model_config.model_name == 'DeepONet-LSTM':
-        model_name = model_config.model_name
-        model_config.model_name = 'DeepONet'
-        ffn, _ = load_model(train_config, model_config, dataset_config)
-        model_config.load_model(run, ffn)
-        model_config.model_name = model_name
+    elif (model_config.model_name == 'FNO-GRU' or model_config.model_name == 'FNO-LSTM'
+          or model_config.model_name == 'DeepONet-GRU' or model_config.model_name == 'DeepONet-LSTM'):
+
+        ffn, _ = load_model(train_config, model_config, dataset_config,
+                            model_name=model_config.model_name.split('-')[0])
+        first_stage_model = ffn.__class__.__name__ + ' for RNN'
+        if train_config.train_first_stage:
+            run_sequence_training(
+                dataset_config=dataset_config, model_config=model_config, train_config=train_config,
+                training_dataset=training_dataset, validation_dataset=validation_dataset, model=ffn
+            )
+            model_config.save_model(run, ffn, model_name=first_stage_model)
+        else:
+            model_config.load_model(run, ffn, model_name=first_stage_model)
         run_tests(ffn, train_config, dataset_config, model_config, test_points)
     else:
         ffn = None
@@ -518,9 +522,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         dataset_config=dataset_config, model_config=model_config, train_config=train_config,
         training_dataset=training_dataset, validation_dataset=validation_dataset, ffn=ffn
     )
-
     model_config.save_model(run, model)
-
     return run_tests(model, train_config, dataset_config, model_config, test_points), model
 
 

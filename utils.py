@@ -172,8 +172,9 @@ def load_cp_hyperparameters(case: str):
 
 
 def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_config: DatasetConfig, ffn=None,
-               n_param_out: bool = False):
-    model_name = model_config.model_name
+               n_param_out: bool = False, model_name: str = None):
+    if model_name is None:
+        model_name = model_config.model_name
     device = train_config.device
     n_state = dataset_config.system.n_state
     n_input = dataset_config.system.n_input

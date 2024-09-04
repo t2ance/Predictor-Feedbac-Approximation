@@ -33,11 +33,12 @@ class ModelConfig:
     def base_path(self):
         return f'./{self.system}/result/{self.model_name}'
 
-    def save_model(self, run, model):
-        model_class = model.__class__.__name__
+    def save_model(self, run, model, model_name: str = None):
+        if model_name is None:
+            model_name = model.__class__.__name__
         model_artifact = wandb.Artifact(
-            f'{model_class}-{self.system}', type="model",
-            description=f"{model_class} model for system {self.system}", metadata=self.__dict__
+            f'{model_name}-{self.system}', type="model",
+            description=f"{model_name} model for system {self.system}", metadata=self.__dict__
         )
 
         torch.save(model.state_dict(), "model.pth")
@@ -45,8 +46,10 @@ class ModelConfig:
         wandb.save("model.pth")
         run.log_artifact(model_artifact)
 
-    def load_model(self, run, model, version='latest'):
-        model_artifact = run.use_artifact(f"{model.__class__.__name__}-{self.system}:{version}")
+    def load_model(self, run, model, version='latest', model_name: str = None):
+        if model_name is None:
+            model_name = model.__class__.__name__
+        model_artifact = run.use_artifact(f"{model_name}-{self.system}:{version}")
         model_dir = model_artifact.download()
         model_path = os.path.join(model_dir, "model.pth")
 
@@ -102,6 +105,7 @@ class TrainConfig:
 
     # train FNO-GRU jointly or not
     two_stage: Optional[bool] = field(default=True)
+    train_first_stage: Optional[bool] = field(default=False)
     # freeze FNO in FNO-GRU or not
     freeze_ffn: Optional[bool] = field(default=False)
     # let GRU in FNO-GRU to only model the residual (i.e. x = gru(fno(x))+x) or not
@@ -713,6 +717,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.weight_decay = 1e-1
         elif model_name == 'FNO-GRU':
             train_config.two_stage = True
+            train_config.train_first_stage = True
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-6
@@ -724,7 +729,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_hidden_channels = 16
 
             model_config.gru_n_layer = 5
-            model_config.gru_layer_width = 64
+            model_config.gru_layer_width = 16
         elif model_name == 'FNO-LSTM':
             train_config.two_stage = True
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
@@ -738,7 +743,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_hidden_channels = 16
 
             model_config.lstm_n_layer = 5
-            model_config.lstm_layer_width = 64
+            model_config.lstm_layer_width = 16
         elif model_name == 'DeepONet-GRU':
             train_config.two_stage = True
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
@@ -746,13 +751,13 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 1e-6
             train_config.batch_size = 512
             train_config.n_epoch = 100
-            # train_config.weight_decay = 1e-3
-
-            model_config.gru_n_layer = 5
-            model_config.gru_layer_width = 64
 
             model_config.deeponet_hidden_size = 16
             model_config.deeponet_n_layer = 3
+            # train_config.weight_decay = 1e-3
+
+            model_config.gru_n_layer = 5
+            model_config.gru_layer_width = 16
         elif model_name == 'DeepONet-LSTM':
             train_config.two_stage = True
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
@@ -760,13 +765,13 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.scheduler_min_lr = 1e-6
             train_config.batch_size = 512
             train_config.n_epoch = 100
-            # train_config.weight_decay = 1e-3
-
-            model_config.lstm_n_layer = 5
-            model_config.lstm_layer_width = 64
 
             model_config.deeponet_hidden_size = 16
             model_config.deeponet_n_layer = 3
+            # train_config.weight_decay = 1e-3
+
+            model_config.lstm_n_layer = 5
+            model_config.lstm_layer_width = 16
     else:
         raise NotImplementedError()
     if n_iteration is not None:
