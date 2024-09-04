@@ -142,10 +142,11 @@ def resize_rfft(ar, s):
 
 
 class TimeAwareFFN(torch.nn.Module):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, residual, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.mse_loss = torch.nn.MSELoss()
         self.initialized = False
+        self.residual = residual
 
     def initialize(self):
         for module in self.ffn.modules():
@@ -159,12 +160,11 @@ class TimeAwareFFN(torch.nn.Module):
         # if not self.initialized:
         #     self.initialize()
 
-        # with torch.no_grad():
         x = self.ffn(x)
-            # x = x.detach()
-        x = self.rnn(x)
-        # residual
-        # x = self.rnn(x) + x
+        if self.residual:
+            x = self.rnn(x) + x
+        else:
+            x = self.rnn(x)
         if label is None:
             return x
         return x, self.mse_loss(x, label)
