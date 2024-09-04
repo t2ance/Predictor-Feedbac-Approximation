@@ -721,7 +721,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.weight_decay = 1e-1
         elif model_name == 'FNO-GRU':
             train_config.two_stage = True
-            train_config.train_first_stage = True
+            train_config.train_first_stage = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-6
@@ -736,7 +736,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.gru_layer_width = 16
         elif model_name == 'FNO-LSTM':
             train_config.two_stage = True
-            train_config.train_first_stage = True
+            train_config.train_first_stage = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 3e-6
             train_config.scheduler_min_lr = 1e-6
@@ -751,7 +751,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.lstm_layer_width = 16
         elif model_name == 'DeepONet-GRU':
             train_config.two_stage = True
-            train_config.train_first_stage = True
+            train_config.train_first_stage = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-6
@@ -766,7 +766,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.gru_layer_width = 16
         elif model_name == 'DeepONet-LSTM':
             train_config.two_stage = True
-            train_config.train_first_stage = True
+            train_config.train_first_stage = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 3e-6
             train_config.scheduler_min_lr = 1e-6
