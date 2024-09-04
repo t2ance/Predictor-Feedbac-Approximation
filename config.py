@@ -747,8 +747,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_modes_height = 16
             model_config.fno_hidden_channels = 16
 
-            model_config.lstm_n_layer = 5
-            model_config.lstm_layer_width = 16
+            model_config.lstm_n_layer = 3
+            model_config.lstm_layer_width = 32
         elif model_name == 'DeepONet-GRU':
             train_config.two_stage = True
             train_config.train_first_stage = False
@@ -777,8 +777,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.deeponet_n_layer = 3
             train_config.weight_decay = 1e-2
 
-            model_config.lstm_n_layer = 5
-            model_config.lstm_layer_width = 16
+            model_config.lstm_n_layer = 3
+            model_config.lstm_layer_width = 32
     else:
         raise NotImplementedError()
     if n_iteration is not None:
