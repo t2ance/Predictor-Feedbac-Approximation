@@ -595,10 +595,10 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_hidden_channels = 64
         elif model_name == 'DeepONet':
             train_config.n_epoch = 100
-            train_config.learning_rate = 1e-5
+            train_config.learning_rate = 1e-6
             train_config.scheduler_min_lr = 1e-6
             train_config.batch_size = 512
-            model_config.deeponet_hidden_size = 256
+            model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 5
         elif model_name == 'GRU':
             train_config.n_epoch = 50
@@ -615,50 +615,58 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.lstm_layer_width = 2
             model_config.batch_size = 512
         elif model_name == 'FNO-GRU':
-            train_config.learning_rate = 1e-6
+            train_config.two_stage = True
+            train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
+            train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-6
+
             train_config.batch_size = 512
             train_config.n_epoch = 100
-            train_config.weight_decay = 0
+            train_config.weight_decay = 1e-3
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 64
             model_config.fno_hidden_channels = 64
             model_config.gru_n_layer = 3
             model_config.gru_layer_width = 8
         elif model_name == 'FNO-LSTM':
-            train_config.learning_rate = 1e-6
+            train_config.two_stage = True
+            train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
+            train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-6
+
             train_config.batch_size = 512
             train_config.n_epoch = 100
-            train_config.weight_decay = 0
-
+            train_config.weight_decay = 1e-3
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 64
             model_config.fno_hidden_channels = 64
             model_config.lstm_n_layer = 3
             model_config.lstm_layer_width = 8
         elif model_name == 'DeepONet-GRU':
-            train_config.learning_rate = 1e-6
+            train_config.two_stage = True
+            train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
+            train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-6
+
             train_config.batch_size = 512
             train_config.n_epoch = 100
-            train_config.weight_decay = 0
-
+            train_config.weight_decay = 1e-3
             model_config.gru_n_layer = 3
             model_config.gru_layer_width = 8
 
             model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 3
         elif model_name == 'DeepONet-LSTM':
-            train_config.learning_rate = 1e-6
+            train_config.two_stage = True
+            train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
+            train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-6
+
             train_config.batch_size = 512
             train_config.n_epoch = 100
-            train_config.weight_decay = 0
-
+            train_config.weight_decay = 1e-3
             model_config.lstm_n_layer = 3
             model_config.lstm_layer_width = 8
-
             model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 3
     elif system_ == 's9':
