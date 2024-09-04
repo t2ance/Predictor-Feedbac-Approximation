@@ -36,6 +36,7 @@ class ModelConfig:
     def save_model(self, run, model, model_name: str = None):
         if model_name is None:
             model_name = model.__class__.__name__
+        print('save model as', model_name)
         model_artifact = wandb.Artifact(
             f'{model_name}-{self.system}', type="model",
             description=f"{model_name} model for system {self.system}", metadata=self.__dict__
