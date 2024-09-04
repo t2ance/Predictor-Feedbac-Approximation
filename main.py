@@ -500,7 +500,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         ffn = load_model(train_config, model_config, dataset_config, model_name=model_config.model_name.split('-')[0])
         model = load_model(train_config, model_config, dataset_config, ffn=ffn)
 
-        first_stage_model = ffn.__class__.__name__ + ' for RNN'
+        first_stage_model = ffn.__class__.__name__ + '.RNN'
         if train_config.train_first_stage:
             run_sequence_training(
                 model_config=model_config, train_config=train_config, training_dataset=training_dataset,
