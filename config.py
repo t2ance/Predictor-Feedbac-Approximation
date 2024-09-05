@@ -483,7 +483,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.residual = True
             train_config.zero_init = True
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
-            train_config.learning_rate = 6e-4
+            train_config.learning_rate = 1e-4
             train_config.scheduler_min_lr = 0
 
             train_config.batch_size = 512
@@ -491,7 +491,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.weight_decay = 0
 
             model_config.gru_n_layer = 3
-            model_config.gru_layer_width = 4
+            model_config.gru_layer_width = 2
 
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 64
@@ -502,7 +502,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.residual = True
             train_config.zero_init = True
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
-            train_config.learning_rate = 6e-4
+            train_config.learning_rate = 1e-4
             train_config.scheduler_min_lr = 0
 
             train_config.batch_size = 512
@@ -510,7 +510,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.weight_decay = 0
 
             model_config.lstm_n_layer = 3
-            model_config.lstm_layer_width = 4
+            model_config.lstm_layer_width = 2
 
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 64
@@ -521,7 +521,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.residual = True
             train_config.zero_init = True
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
-            train_config.learning_rate = 6e-4
+            train_config.learning_rate = 1e-4
             train_config.scheduler_min_lr = 0
 
             train_config.batch_size = 512
@@ -529,7 +529,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.weight_decay = 0
 
             model_config.gru_n_layer = 3
-            model_config.gru_layer_width = 4
+            model_config.gru_layer_width = 2
 
             model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 3
@@ -539,7 +539,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.residual = True
             train_config.zero_init = True
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
-            train_config.learning_rate = 6e-4
+            train_config.learning_rate = 1e-4
             train_config.scheduler_min_lr = 0
 
             train_config.batch_size = 512
@@ -547,7 +547,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.weight_decay = 0
 
             model_config.lstm_n_layer = 3
-            model_config.lstm_layer_width = 4
+            model_config.lstm_layer_width = 2
 
             model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 3
