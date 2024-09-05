@@ -374,41 +374,6 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    do_training=True, do_testing=False, load_model=False,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_gamma=0.97, scheduler_step_size=1, scheduler_min_lr=1e-5)
-        if model_name == 'GRU':
-            dataset_config.n_training_dataset = 100
-            dataset_config.n_validation_dataset = 10
-            train_config.scheduler_min_lr = 3e-4
-            train_config.n_epoch = 500
-            model_config.gru_n_layer = 5
-            model_config.gru_layer_width = 16
-            train_config.weight_decay = 0
-        elif model_name == 'FNO':
-            dataset_config.n_training_dataset = 1000
-            dataset_config.n_validation_dataset = 10
-            train_config.learning_rate = 1e-4
-            train_config.scheduler_min_lr = 5e-6
-            train_config.n_epoch = 500
-            train_config.batch_size = 1024
-            model_config.fno_n_layer = 5
-            model_config.fno_n_modes_height = 64
-            model_config.fno_hidden_channels = 64
-        elif model_name == 'FNO-GRU':
-            train_config.scheduler_min_lr = 5e-6
-            train_config.scheduler_min_lr2_ = 1e-3
-            train_config.batch_size = 1024
-            train_config.batch_size2_ = 128
-            train_config.n_epoch = 500
-            train_config.n_epoch2_ = 500
-
-            train_config.learning_rate = 1e-4
-            dataset_config.n_training_dataset = 1000
-            dataset_config.n_validation_dataset = 10
-            train_config.weight_decay = 0
-            model_config.fno_n_layer = 5
-            model_config.fno_n_modes_height = 64
-            model_config.fno_hidden_channels = 64
-            model_config.gru_n_layer = 3
-            model_config.gru_layer_width = 16
     elif system_ == 's2':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(1), duration=8, dt=0.05, n_training_dataset=900,
@@ -452,77 +417,6 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', uq_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2, scheduler_min_lr=1e-5)
-        if model_name == 'GRU':
-            dataset_config.n_training_dataset = 100
-            dataset_config.n_validation_dataset = 10
-            train_config.n_epoch = 1000
-            model_config.gru_n_layer = 5
-            # model_config.gru_layer_width = 64
-            model_config.gru_layer_width = 16
-            model_config.batch_size = 32
-            train_config.scheduler_min_lr = 5e-5
-        elif model_name == 'FNO':
-            dataset_config.n_training_dataset = 500
-            dataset_config.n_validation_dataset = 10
-            train_config.n_epoch = 500
-            train_config.learning_rate = 1e-4
-            train_config.scheduler_min_lr = 1e-5
-            train_config.batch_size = 512
-            model_config.fno_n_layer = 6
-            model_config.fno_n_modes_height = 32
-            model_config.fno_hidden_channels = 32
-        elif model_name == 'FNO-GRU':
-            train_config.learning_rate = 1e-4
-            train_config.scheduler_min_lr = 3e-5
-            # train_config.scheduler_min_lr2_ = 5e-7
-            train_config.batch_size = 64
-            train_config.n_epoch = 200
-            # train_config.n_epoch2_ = 1000
-            train_config.weight_decay = 0
-            dataset_config.n_training_dataset = 400
-            dataset_config.n_validation_dataset = 10
-
-            model_config.fno_n_layer = 6
-            model_config.fno_n_modes_height = 32
-            model_config.fno_hidden_channels = 32
-            model_config.gru_n_layer = 4
-            model_config.gru_layer_width = 16
-            # model_config.fno_n_layer = 9
-            # model_config.fno_n_modes_height = 16
-            # model_config.fno_hidden_channels = 16
-            # model_config.gru_n_layer = 1
-            # model_config.gru_layer_width = 16
-        elif model_name == 'LSTM':
-            train_config.weight_decay = 1e-1
-            dataset_config.n_training_dataset = 400
-            dataset_config.n_validation_dataset = 10
-            train_config.n_epoch = 1000
-            train_config.learning_rate = 1e-5
-            train_config.scheduler_min_lr = 3e-6
-            model_config.lstm_n_layer = 5
-            model_config.lstm_layer_width = 32
-            model_config.batch_size = 512
-        elif model_name == 'FNO-LSTM':
-            train_config.learning_rate = 1e-4
-            train_config.scheduler_min_lr = 3e-5
-            # train_config.scheduler_min_lr2_ = 3e-7
-            train_config.batch_size = 64
-            train_config.n_epoch = 200
-            # train_config.n_epoch2_ = 1000
-            train_config.weight_decay = 0
-            dataset_config.n_training_dataset = 400
-            dataset_config.n_validation_dataset = 10
-
-            # model_config.fno_n_layer = 6
-            # model_config.fno_n_modes_height = 32
-            # model_config.fno_hidden_channels = 32
-            # model_config.lstm_n_layer = 5
-            # model_config.lstm_layer_width = 64
-            model_config.fno_n_layer = 9
-            model_config.fno_n_modes_height = 16
-            model_config.fno_hidden_channels = 16
-            model_config.lstm_n_layer = 1
-            model_config.lstm_layer_width = 16
     elif system_ == 's6':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=32, dt=0.01, n_training_dataset=900,
@@ -543,44 +437,6 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_min_lr=1e-5)
-        if model_name == 'GRU':
-            dataset_config.n_training_dataset = 100
-            dataset_config.n_validation_dataset = 10
-            train_config.n_epoch = 1000
-            model_config.gru_n_layer = 3
-            # model_config.gru_layer_width = 32
-            model_config.gru_layer_width = 8
-            train_config.batch_size = 32
-            train_config.learning_rate = 5e-5
-            train_config.scheduler_min_lr = 5e-6
-        elif model_name == 'FNO':
-            dataset_config.n_training_dataset = 500
-            dataset_config.n_validation_dataset = 10
-            train_config.n_epoch = 500
-            train_config.batch_size = 512
-            train_config.scheduler_min_lr = 1e-5
-            model_config.fno_n_layer = 5
-            model_config.fno_n_modes_height = 32
-            model_config.fno_hidden_channels = 32
-            train_config.weight_decay = 0
-        elif model_name == 'FNO-GRU':
-            dataset_config.n_training_dataset = 500
-            dataset_config.n_validation_dataset = 10
-
-            train_config.learning_rate = 1e-4
-            train_config.scheduler_min_lr = 3e-5
-            train_config.scheduler_min_lr2_ = 1e-4
-            train_config.batch_size = 512
-            train_config.batch_size2_ = 512
-            train_config.n_epoch = 200
-            train_config.n_epoch2_ = 300
-            train_config.weight_decay = 0
-
-            model_config.fno_n_layer = 5
-            model_config.fno_n_modes_height = 32
-            model_config.fno_hidden_channels = 32
-            model_config.gru_n_layer = 2
-            model_config.gru_layer_width = 16
     elif system_ == 's8':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=8, dt=0.02, n_training_dataset=1600,
@@ -624,10 +480,10 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO-GRU':
             train_config.two_stage = True
             train_config.train_first_stage = False
-            train_config.residual = True
-            train_config.zero_init = True
+            train_config.residual = False
+            train_config.zero_init = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
-            train_config.learning_rate = 1e-2
+            train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-6
 
             train_config.batch_size = 512
@@ -635,7 +491,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.weight_decay = 0
 
             model_config.gru_n_layer = 6
-            model_config.gru_layer_width = 32
+            model_config.gru_layer_width = 128
 
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 64
@@ -643,10 +499,10 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO-LSTM':
             train_config.two_stage = True
             train_config.train_first_stage = False
-            train_config.residual = True
-            train_config.zero_init = True
+            train_config.residual = False
+            train_config.zero_init = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
-            train_config.learning_rate = 1e-2
+            train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-6
 
             train_config.batch_size = 512
@@ -654,7 +510,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.weight_decay = 0
 
             model_config.lstm_n_layer = 6
-            model_config.lstm_layer_width = 32
+            model_config.lstm_layer_width = 128
 
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 64
@@ -662,10 +518,10 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'DeepONet-GRU':
             train_config.two_stage = True
             train_config.train_first_stage = False
-            train_config.residual = True
-            train_config.zero_init = True
+            train_config.residual = False
+            train_config.zero_init = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
-            train_config.learning_rate = 1e-2
+            train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-6
 
             train_config.batch_size = 512
@@ -673,17 +529,17 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.weight_decay = 0
 
             model_config.gru_n_layer = 6
-            model_config.gru_layer_width = 32
+            model_config.gru_layer_width = 128
 
             model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 3
         elif model_name == 'DeepONet-LSTM':
             train_config.two_stage = True
             train_config.train_first_stage = False
-            train_config.residual = True
-            train_config.zero_init = True
+            train_config.residual = False
+            train_config.zero_init = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
-            train_config.learning_rate = 1e-2
+            train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-6
 
             train_config.batch_size = 512
@@ -691,7 +547,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.weight_decay = 0
 
             model_config.lstm_n_layer = 6
-            model_config.lstm_layer_width = 32
+            model_config.lstm_layer_width = 128
 
             model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 3
