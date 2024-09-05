@@ -288,7 +288,7 @@ def plot_difference(ts, Ps, Z, n_point_delay, save_path, ylim=None, Ps_labels=No
     for i in range(n_state):
         for j, (d, label) in enumerate(zip(differences, Ps_labels)):
             ts_ = ts[n_point_start:-n_point_start] if n_point_start != 0 else ts[n_point_start:]
-            ax.plot(ts_, d[n_point_start:, i], linestyle=styles[j], color=colors[i],
+            ax.plot(ts_, abs(d[n_point_start:, i]), linestyle=styles[j], color=colors[i],
                     label=f'$\Delta P^{{{label}}}_{i + 1}(t)$')
 
     if ylim is not None:
@@ -298,7 +298,7 @@ def plot_difference(ts, Ps, Z, n_point_delay, save_path, ylim=None, Ps_labels=No
             # ax.yaxis.set_major_locator(y_locator)
             # ax.yaxis.set_major_formatter(LogFormatterMathtext())
             # ax.set_ylim([0, ylim[1]])
-            ax.set_yticks([1e-4, 1e-2, 1, 100])
+            ax.set_yticks([1e-4, 1e-3, 1e-2, 1e-1, 1])
             # ax.set_ylim([0, 100])
         except:
             ...
