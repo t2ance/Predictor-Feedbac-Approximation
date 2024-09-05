@@ -483,7 +483,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.residual = True
             train_config.zero_init = True
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
-            train_config.learning_rate = 1e-4
+            train_config.learning_rate = 6e-4
             train_config.scheduler_min_lr = 0
 
             train_config.batch_size = 512
@@ -502,7 +502,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.residual = True
             train_config.zero_init = True
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
-            train_config.learning_rate = 1e-4
+            train_config.learning_rate = 6e-4
             train_config.scheduler_min_lr = 0
 
             train_config.batch_size = 512
@@ -521,7 +521,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.residual = True
             train_config.zero_init = True
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
-            train_config.learning_rate = 1e-4
+            train_config.learning_rate = 6e-4
             train_config.scheduler_min_lr = 0
 
             train_config.batch_size = 512
@@ -539,7 +539,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.residual = True
             train_config.zero_init = True
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
-            train_config.learning_rate = 1e-4
+            train_config.learning_rate = 6e-4
             train_config.scheduler_min_lr = 0
 
             train_config.batch_size = 512
