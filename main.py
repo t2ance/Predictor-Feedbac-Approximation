@@ -53,15 +53,10 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
 
     p_numerical_count = 0
     p_no_count = 0
-    # Z[n_point_start, :] = Z0
     Z[:n_point_start + 1, :] = Z0
     runtime = 0.
     if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, TimeAwareFFN):
         model.reset_state()
-    # if silence:
-    #     bar = range(n_point_start, dataset_config.n_point)
-    # else:
-    #     bar = tqdm(range(n_point_start, dataset_config.n_point))
     if silence:
         bar = range(dataset_config.n_point)
     else:

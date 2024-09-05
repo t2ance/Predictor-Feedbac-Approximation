@@ -142,23 +142,25 @@ def resize_rfft(ar, s):
 
 
 class TimeAwareFFN(torch.nn.Module):
-    def __init__(self, residual, *args, **kwargs):
+    def __init__(self, residual, zero_init, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.mse_loss = torch.nn.MSELoss()
+        self.zero_init = zero_init
         self.initialized = False
         self.residual = residual
 
     def initialize(self):
-        for module in self.ffn.modules():
+        for module in self.rnn.modules():
             if isinstance(module, nn.Linear):
                 nn.init.constant_(module.weight, 0)
                 if module.bias is not None:
                     nn.init.constant_(module.bias, 0)
         self.initialized = True
+        print(self.__class__.__name__, 'initialized to zero for its RNN')
 
     def forward(self, x: torch.Tensor, label: torch.Tensor = None):
-        # if not self.initialized:
-        #     self.initialize()
+        if self.zero_init and not self.initialized:
+            self.initialize()
 
         x = self.ffn(x)
         if self.residual:

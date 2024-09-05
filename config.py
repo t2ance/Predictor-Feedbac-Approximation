@@ -111,6 +111,8 @@ class TrainConfig:
     freeze_ffn: Optional[bool] = field(default=False)
     # let GRU in FNO-GRU to only model the residual (i.e. x = gru(fno(x))+x) or not
     residual: Optional[bool] = field(default=False)
+    # initilize the RNN to zero (usually combined with residual x)
+    zero_init: Optional[bool] = field(default=False)
     training_type: Optional[Literal['offline', 'switching', 'scheduled sampling']] = field(default='scheduled sampling')
 
     @property
