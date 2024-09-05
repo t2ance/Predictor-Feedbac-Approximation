@@ -478,7 +478,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.lstm_layer_width = 2
             model_config.batch_size = 512
         elif model_name == 'FNO-GRU':
-            train_config.two_stage = True
+            train_config.two_stage = False
             train_config.train_first_stage = False
             train_config.residual = False
             train_config.zero_init = False
@@ -497,7 +497,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_modes_height = 64
             model_config.fno_hidden_channels = 64
         elif model_name == 'FNO-LSTM':
-            train_config.two_stage = True
+            train_config.two_stage = False
             train_config.train_first_stage = False
             train_config.residual = False
             train_config.zero_init = False
@@ -516,7 +516,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_n_modes_height = 64
             model_config.fno_hidden_channels = 64
         elif model_name == 'DeepONet-GRU':
-            train_config.two_stage = True
+            train_config.two_stage = False
             train_config.train_first_stage = False
             train_config.residual = False
             train_config.zero_init = False
@@ -534,7 +534,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 3
         elif model_name == 'DeepONet-LSTM':
-            train_config.two_stage = True
+            train_config.two_stage = False
             train_config.train_first_stage = False
             train_config.residual = False
             train_config.zero_init = False
