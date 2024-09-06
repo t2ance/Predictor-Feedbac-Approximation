@@ -164,7 +164,7 @@ class TimeAwareFFN(torch.nn.Module):
 
         ffn_x = self.ffn(x)
         if self.residual:
-            rnn_x = self.rnnffn_(ffn_x) + ffn_x
+            rnn_x = self.rnn(ffn_x) + ffn_x
         else:
             rnn_x = self.rnn(ffn_x)
         if ffn_out:
