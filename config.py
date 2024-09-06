@@ -480,7 +480,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO-GRU':
             train_config.two_stage = False
             train_config.train_first_stage = False
-            train_config.residual = False
+            train_config.residual = True
             train_config.zero_init = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 1e-5
@@ -499,7 +499,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'FNO-LSTM':
             train_config.two_stage = False
             train_config.train_first_stage = False
-            train_config.residual = False
+            train_config.residual = True
             train_config.zero_init = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 1e-5
@@ -518,7 +518,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'DeepONet-GRU':
             train_config.two_stage = False
             train_config.train_first_stage = False
-            train_config.residual = False
+            train_config.residual = True
             train_config.zero_init = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 1e-5
@@ -536,7 +536,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'DeepONet-LSTM':
             train_config.two_stage = False
             train_config.train_first_stage = False
-            train_config.residual = False
+            train_config.residual = True
             train_config.zero_init = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 1e-5
