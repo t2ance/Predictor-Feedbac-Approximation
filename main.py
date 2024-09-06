@@ -309,13 +309,13 @@ def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, 
                     [batch[i][1] for i in range(batch_len)])
                 inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
                 if isinstance(model, TimeAwareFFN) and train_config.auxiliary_loss:
-                    _, _, loss_ffn, loss_rnn = predict_and_loss(inputs, labels, model)
+                    _, _, loss_ffn, loss_rnn = predict_and_loss(inputs, labels, model, ffn_out=True)
                     loss = loss_ffn + loss_rnn
                     losses_ffn.append(loss_ffn.detach())
                     losses_rnn.append(loss_rnn.detach())
                 else:
                     _, loss = predict_and_loss(inputs, labels, model)
-                    losses.append(loss.detach())
+                losses.append(loss.detach())
                 loss.backward()
                 optimizer.step()
 
@@ -348,13 +348,13 @@ def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, 
                         [batch[i][1] for i in range(batch_len)])
                     inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
                     if isinstance(model, TimeAwareFFN) and train_config.auxiliary_loss:
-                        _, _, loss_ffn, loss_rnn = predict_and_loss(inputs, labels, model)
+                        _, _, loss_ffn, loss_rnn = predict_and_loss(inputs, labels, model, ffn_out=True)
                         loss = loss_ffn + loss_rnn
                         losses_ffn.append(loss_ffn.detach())
                         losses_rnn.append(loss_rnn.detach())
                     else:
                         _, loss = predict_and_loss(inputs, labels, model)
-                        losses.append(loss.detach())
+                    losses.append(loss.detach())
                 validating_loss += (sum(losses) / len(losses)).item()
                 if isinstance(model, TimeAwareFFN) and train_config.auxiliary_loss:
                     validating_ffn_loss += (sum(losses_ffn) / len(losses_ffn)).item()

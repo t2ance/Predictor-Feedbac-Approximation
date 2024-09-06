@@ -297,8 +297,8 @@ def check_dir(path):
         os.makedirs(path)
 
 
-def predict_and_loss(inputs, labels, model):
-    return model(inputs[:, 1:], labels)
+def predict_and_loss(inputs, labels, model, **args):
+    return model(inputs[:, 1:], labels, **args)
 
 
 def prediction_comparison(P, n_point_delay, ts):
