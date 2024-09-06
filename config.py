@@ -114,7 +114,7 @@ class TrainConfig:
     # initilize the RNN to zero (usually combined with residual x)
     zero_init: Optional[bool] = field(default=False)
     # use auxiliary loss or not
-    ffn_out: Optional[bool] = field(default=False)
+    auxiliary_loss: Optional[bool] = field(default=False)
     training_type: Optional[Literal['offline', 'switching', 'scheduled sampling']] = field(default='scheduled sampling')
 
     @property
@@ -484,6 +484,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.train_first_stage = False
             train_config.residual = True
             train_config.zero_init = False
+            train_config.auxiliary_loss = True
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 0
@@ -503,6 +504,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.train_first_stage = False
             train_config.residual = True
             train_config.zero_init = False
+            train_config.auxiliary_loss = True
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 0
@@ -522,6 +524,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.train_first_stage = False
             train_config.residual = True
             train_config.zero_init = False
+            train_config.auxiliary_loss = True
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 0
@@ -540,6 +543,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.train_first_stage = False
             train_config.residual = True
             train_config.zero_init = False
+            train_config.auxiliary_loss = True
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 0

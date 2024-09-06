@@ -308,7 +308,7 @@ def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, 
                 inputs, labels = torch.vstack([batch[i][0] for i in range(batch_len)]), torch.vstack(
                     [batch[i][1] for i in range(batch_len)])
                 inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
-                if isinstance(model, TimeAwareFFN) and train_config.ffn_out:
+                if isinstance(model, TimeAwareFFN) and train_config.auxiliary_loss:
                     _, _, loss_ffn, loss_rnn = predict_and_loss(inputs, labels, model)
                     loss = loss_ffn + loss_rnn
                     losses_ffn.append(loss_ffn.detach())
@@ -320,7 +320,7 @@ def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, 
                 optimizer.step()
 
             training_loss += (sum(losses) / len(losses)).item()
-            if isinstance(model, TimeAwareFFN) and train_config.ffn_out:
+            if isinstance(model, TimeAwareFFN) and train_config.auxiliary_loss:
                 training_ffn_loss += (sum(losses_ffn) / len(losses_ffn)).item()
                 training_rnn_loss += (sum(losses_rnn) / len(losses_rnn)).item()
 
@@ -347,7 +347,7 @@ def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, 
                         [batch[i][0] for i in range(batch_len)]), torch.vstack(
                         [batch[i][1] for i in range(batch_len)])
                     inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
-                    if isinstance(model, TimeAwareFFN) and train_config.ffn_out:
+                    if isinstance(model, TimeAwareFFN) and train_config.auxiliary_loss:
                         _, _, loss_ffn, loss_rnn = predict_and_loss(inputs, labels, model)
                         loss = loss_ffn + loss_rnn
                         losses_ffn.append(loss_ffn.detach())
@@ -356,7 +356,7 @@ def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, 
                         _, loss = predict_and_loss(inputs, labels, model)
                         losses.append(loss.detach())
                 validating_loss += (sum(losses) / len(losses)).item()
-                if isinstance(model, TimeAwareFFN) and train_config.ffn_out:
+                if isinstance(model, TimeAwareFFN) and train_config.auxiliary_loss:
                     validating_ffn_loss += (sum(losses_ffn) / len(losses_ffn)).item()
                     validating_rnn_loss += (sum(losses_rnn) / len(losses_rnn)).item()
                 n_epoch += 1
@@ -373,7 +373,7 @@ def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, 
             f'learning rate': optimizer.param_groups[0]['lr'],
             f'epoch': epoch
         }
-        if isinstance(model, TimeAwareFFN) and train_config.ffn_out:
+        if isinstance(model, TimeAwareFFN) and train_config.auxiliary_loss:
             log_dict.update({
                 f'training ffn loss': training_ffn_loss,
                 f'validating ffn loss': validating_ffn_loss,
