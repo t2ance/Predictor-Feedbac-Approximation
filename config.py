@@ -485,16 +485,16 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.zero_init = False
             train_config.auxiliary_loss = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
-            train_config.learning_rate = 1e-4
+            train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 0
 
             train_config.batch_size = 512
             train_config.n_epoch = 100
-            train_config.weight_decay = 0
+            train_config.weight_decay = 1e-1
 
             model_config.gru_n_layer = 3
-            # model_config.gru_layer_width = 32
-            model_config.gru_layer_width = 8
+            model_config.gru_layer_width = 32
+            # model_config.gru_layer_width = 8
 
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 64
@@ -506,16 +506,16 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.zero_init = False
             train_config.auxiliary_loss = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
-            train_config.learning_rate = 1e-4
+            train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 0
 
             train_config.batch_size = 512
             train_config.n_epoch = 100
-            train_config.weight_decay = 0
+            train_config.weight_decay = 1e-1
 
             model_config.lstm_n_layer = 3
-            # model_config.lstm_layer_width = 32
-            model_config.lstm_layer_width = 8
+            model_config.lstm_layer_width = 32
+            # model_config.lstm_layer_width = 8
 
             model_config.fno_n_layer = 5
             model_config.fno_n_modes_height = 64
