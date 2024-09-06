@@ -422,8 +422,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
     elif system_ == 's6':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=32, dt=0.01, n_training_dataset=900,
-                                       n_validation_dataset=100,
-                                       n_sample_per_dataset=-1, ic_lower_bound=-0.5,
+                                       n_validation_dataset=100, n_sample_per_dataset=-1, ic_lower_bound=-0.5,
                                        ic_upper_bound=0.5)
         model_config = ModelConfig(model_name='FNO', fno_n_layer=3, fno_n_modes_height=16, fno_hidden_channels=16)
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=2000, batch_size=128,
@@ -538,7 +537,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.gru_n_layer = 3
             model_config.gru_layer_width = 8
 
-            model_config.deeponet_hidden_size = 32
+            model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 3
         elif model_name == 'DeepONet-LSTM':
             train_config.two_stage = False
@@ -557,7 +556,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.lstm_n_layer = 3
             model_config.lstm_layer_width = 8
 
-            model_config.deeponet_hidden_size = 32
+            model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 3
     elif system_ == 's9':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
