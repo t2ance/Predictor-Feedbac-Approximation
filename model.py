@@ -158,18 +158,23 @@ class TimeAwareFFN(torch.nn.Module):
         self.initialized = True
         print(self.__class__.__name__, 'initialized to zero for its RNN')
 
-    def forward(self, x: torch.Tensor, label: torch.Tensor = None):
+    def forward(self, x: torch.Tensor, label: torch.Tensor = None, ffn_out: bool = False):
         if self.zero_init and not self.initialized:
             self.initialize()
 
-        x = self.ffn(x)
+        ffn_x = self.ffn(x)
         if self.residual:
-            x = self.rnn(x) + x
+            rnn_x = self.rnnffn_(ffn_x) + ffn_x
         else:
-            x = self.rnn(x)
-        if label is None:
-            return x
-        return x, self.mse_loss(x, label)
+            rnn_x = self.rnn(ffn_x)
+        if ffn_out:
+            if label is None:
+                return rnn_x, ffn_x
+            return rnn_x, ffn_x, self.mse_loss(rnn_x, label), self.mse_loss(ffn_x, label)
+        else:
+            if label is None:
+                return rnn_x
+            return rnn_x, self.mse_loss(rnn_x, label)
 
     def reset_state(self):
         self.rnn.reset_state()

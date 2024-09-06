@@ -113,6 +113,8 @@ class TrainConfig:
     residual: Optional[bool] = field(default=False)
     # initilize the RNN to zero (usually combined with residual x)
     zero_init: Optional[bool] = field(default=False)
+    # use auxiliary loss or not
+    ffn_out: Optional[bool] = field(default=False)
     training_type: Optional[Literal['offline', 'switching', 'scheduled sampling']] = field(default='scheduled sampling')
 
     @property
