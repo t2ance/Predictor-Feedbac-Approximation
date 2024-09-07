@@ -46,7 +46,6 @@ def set_config(config, dataset_config, model_config, train_config):
 
 def get_parameters(system: str, model_name: str):
     ffn, rnn = model_name.split('-')
-    print(f'Getting parameters from {ffn}-{rnn}')
     parameters = {
         'learning_rate': {
             'distribution': 'log_uniform',
@@ -55,7 +54,7 @@ def get_parameters(system: str, model_name: str):
         },
         'weight_decay': {
             'distribution': 'log_uniform',
-            'min': 0,
+            'min': 1e-5,
             'max': 1e-1
         }
     }
@@ -68,12 +67,14 @@ def get_parameters(system: str, model_name: str):
                 'max': 6
             },
             'fno_n_modes_height': {
-                'distribution': 'log_uniform',
+                'distribution': 'q_log_uniform_values',
+                'q': 2,
                 'min': 4,
                 'max': 64
             },
             'fno_hidden_channels': {
-                'distribution': 'log_uniform',
+                'distribution': 'q_log_uniform_values',
+                'q': 2,
                 'min': 4,
                 'max': 128
             }
@@ -81,12 +82,14 @@ def get_parameters(system: str, model_name: str):
     elif ffn == 'DeepONet':
         parameters.update({
             'deeponet_n_layer': {
-                'distribution': 'int_uniform',
+                'distribution': 'q_log_uniform_values',
+                'q': 2,
                 'min': 1,
                 'max': 6
             },
             'deeponet_hidden_size': {
-                'distribution': 'log_uniform',
+                'distribution': 'q_log_uniform_values',
+                'q': 2,
                 'min': 4,
                 'max': 64
             },
@@ -102,7 +105,8 @@ def get_parameters(system: str, model_name: str):
                 'max': 6
             },
             'gru_layer_width': {
-                'distribution': 'log_uniform',
+                'distribution': 'q_log_uniform_values',
+                'q': 2,
                 'min': 4,
                 'max': 128
             }
@@ -115,14 +119,16 @@ def get_parameters(system: str, model_name: str):
                 'max': 6
             },
             'lstm_layer_width': {
-                'distribution': 'log_uniform',
+                'distribution': 'q_log_uniform_values',
+                'q': 2,
                 'min': 4,
                 'max': 128
             }
         })
     else:
         raise NotImplementedError()
-
+    print(f'Getting parameters from {ffn}-{rnn}')
+    print(parameters)
     return parameters
 
 
