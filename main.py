@@ -459,7 +459,12 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
     return TestResult(runtime=runtime, l2=l2, success_cases=len(l2_list), results=results, no_pred_ratio=no_pred_ratio)
 
 
-def run_tests(model, train_config, dataset_config, model_config, test_points):
+def run_tests(model, train_config, dataset_config, model_config, test_points, only_no_out: bool = False):
+    if only_no_out:
+        return {
+            'no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                           base_path=model_config.base_path, test_points=test_points, method='no')
+        }
     if train_config.training_type == 'switching':
         return {
             'no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
@@ -482,7 +487,8 @@ def run_tests(model, train_config, dataset_config, model_config, test_points):
         }
 
 
-def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig, run):
+def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig, run,
+         only_no_out: bool = False):
     test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
     print('All test points:')
     print(test_points)
@@ -541,7 +547,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         validation_dataset=validation_dataset, model=model
     )
     model_config.save_model(run, model)
-    return run_tests(model, train_config, dataset_config, model_config, test_points), model
+    return run_tests(model, train_config, dataset_config, model_config, test_points, only_no_out), model
 
 
 if __name__ == '__main__':
