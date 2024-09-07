@@ -532,10 +532,10 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
 
             train_config.batch_size = 512
             train_config.n_epoch = 100
-            train_config.weight_decay = 3e-3
+            train_config.weight_decay = 1e-3
 
             model_config.gru_n_layer = 3
-            model_config.gru_layer_width = 16
+            model_config.gru_layer_width = 32
 
             model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 3
@@ -551,10 +551,10 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
 
             train_config.batch_size = 512
             train_config.n_epoch = 100
-            train_config.weight_decay = 3e-3
+            train_config.weight_decay = 1e-3
 
             model_config.lstm_n_layer = 3
-            model_config.lstm_layer_width = 16
+            model_config.lstm_layer_width = 32
 
             model_config.deeponet_hidden_size = 64
             model_config.deeponet_n_layer = 3
