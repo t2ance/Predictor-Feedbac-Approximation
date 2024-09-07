@@ -482,7 +482,7 @@ def run_tests(model, train_config, dataset_config, model_config, test_points):
         }
 
 
-def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig):
+def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig, run):
     test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
     print('All test points:')
     print(test_points)
@@ -575,7 +575,7 @@ if __name__ == '__main__':
     print_args(dataset_config_)
     print_args(model_config_)
     print_args(train_config_)
-    results_, model = main(dataset_config_, model_config_, train_config_)
+    results_, model = main(dataset_config_, model_config_, train_config_, run)
     for method_, result_ in results_.items():
         print(method_)
         print_result(result_, dataset_config_)
