@@ -115,7 +115,7 @@ class TrainConfig:
     zero_init: Optional[bool] = field(default=False)
     # use auxiliary loss or not
     auxiliary_loss: Optional[bool] = field(default=False)
-    training_type: Optional[Literal['offline', 'switching', 'scheduled sampling']] = field(default='scheduled sampling')
+    training_type: Optional[Literal['offline', 'switching', 'scheduled sampling']] = field(default='sequence')
 
     @property
     def batch_size2(self):
