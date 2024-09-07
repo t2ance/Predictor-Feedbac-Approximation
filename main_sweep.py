@@ -6,6 +6,8 @@ from utils import print_args, set_everything
 
 
 def set_config(config, dataset_config, model_config, train_config):
+    print('Setting configuration')
+    print(config)
     ffn, rnn = model_config.model_name.split('-')
     train_config.two_stage = False
     train_config.train_first_stage = False
@@ -48,12 +50,12 @@ def get_parameters(system: str, model_name: str):
     ffn, rnn = model_name.split('-')
     parameters = {
         'learning_rate': {
-            'distribution': 'log_uniform',
+            'distribution': 'log_uniform_values',
             'min': 1e-6,
             'max': 1e-3
         },
         'weight_decay': {
-            'distribution': 'log_uniform',
+            'distribution': 'log_uniform_values',
             'min': 1e-5,
             'max': 1e-1
         }
@@ -68,13 +70,13 @@ def get_parameters(system: str, model_name: str):
             },
             'fno_n_modes_height': {
                 'distribution': 'q_log_uniform_values',
-                'q': 2,
+                'q': 4,
                 'min': 4,
                 'max': 64
             },
             'fno_hidden_channels': {
                 'distribution': 'q_log_uniform_values',
-                'q': 2,
+                'q': 4,
                 'min': 4,
                 'max': 128
             }
@@ -82,14 +84,13 @@ def get_parameters(system: str, model_name: str):
     elif ffn == 'DeepONet':
         parameters.update({
             'deeponet_n_layer': {
-                'distribution': 'q_log_uniform_values',
-                'q': 2,
+                'distribution': 'int_uniform',
                 'min': 1,
                 'max': 6
             },
             'deeponet_hidden_size': {
                 'distribution': 'q_log_uniform_values',
-                'q': 2,
+                'q': 4,
                 'min': 4,
                 'max': 64
             },
@@ -106,7 +107,7 @@ def get_parameters(system: str, model_name: str):
             },
             'gru_layer_width': {
                 'distribution': 'q_log_uniform_values',
-                'q': 2,
+                'q': 4,
                 'min': 4,
                 'max': 128
             }
@@ -120,7 +121,7 @@ def get_parameters(system: str, model_name: str):
             },
             'lstm_layer_width': {
                 'distribution': 'q_log_uniform_values',
-                'q': 2,
+                'q': 4,
                 'min': 4,
                 'max': 128
             }
