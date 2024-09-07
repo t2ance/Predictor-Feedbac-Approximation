@@ -490,7 +490,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
 
             train_config.batch_size = 2048
             train_config.n_epoch = 100
-            train_config.weight_decay = 0
+            train_config.weight_decay = 1e-3
 
             model_config.gru_n_layer = 3
             model_config.gru_layer_width = 8
@@ -511,7 +511,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
 
             train_config.batch_size = 2048
             train_config.n_epoch = 100
-            train_config.weight_decay = 0
+            train_config.weight_decay = 1e-3
 
             model_config.lstm_n_layer = 3
             model_config.lstm_layer_width = 8
@@ -537,8 +537,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.gru_n_layer = 3
             model_config.gru_layer_width = 8
 
-            model_config.deeponet_hidden_size = 64
-            model_config.deeponet_n_layer = 5
+            model_config.deeponet_hidden_size = 128
+            model_config.deeponet_n_layer = 3
         elif model_name == 'DeepONet-LSTM':
             train_config.two_stage = False
             train_config.train_first_stage = False
@@ -556,8 +556,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.lstm_n_layer = 3
             model_config.lstm_layer_width = 8
 
-            model_config.deeponet_hidden_size = 64
-            model_config.deeponet_n_layer = 5
+            model_config.deeponet_hidden_size = 128
+            model_config.deeponet_n_layer = 3
     elif system_ == 's9':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=TimeVaryingDelay(), duration=8, dt=0.004, n_training_dataset=1400,
