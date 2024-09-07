@@ -6,6 +6,7 @@ from utils import print_args, set_everything
 
 
 def set_config(config, dataset_config, model_config, train_config):
+    ffn, rnn = model_config.model_name.split('-')
     train_config.two_stage = False
     train_config.train_first_stage = False
     train_config.residual = True
@@ -19,18 +20,24 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.learning_rate = config.learning_rate
     train_config.weight_decay = config.weight_decay
 
-    model_config.gru_n_layer = config.gru_n_layer
-    model_config.gru_layer_width = config.gru_layer_width
+    if ffn == 'FNO':
+        model_config.fno_n_layer = config.fno_n_layer
+        model_config.fno_n_modes_height = config.fno_n_modes_height
+        model_config.fno_hidden_channels = config.fno_hidden_channels
+    elif ffn == 'DeepONet':
+        model_config.deeponet_hidden_size = config.deeponet_hidden_size
+        model_config.deeponet_n_layer = config.deeponet_n_layer
+    else:
+        raise NotImplementedError()
 
-    model_config.deeponet_hidden_size = config.deeponet_hidden_size
-    model_config.deeponet_n_layer = config.deeponet_n_layer
-
-    model_config.lstm_n_layer = config.lstm_n_layer
-    model_config.lstm_layer_width = config.lstm_layer_width
-
-    model_config.fno_n_layer = config.fno_n_layer
-    model_config.fno_n_modes_height = config.fno_n_modes_height
-    model_config.fno_hidden_channels = config.fno_hidden_channels
+    if rnn == 'GRU':
+        model_config.gru_n_layer = config.gru_n_layer
+        model_config.gru_layer_width = config.gru_layer_width
+    elif rnn == 'LSTM':
+        model_config.lstm_n_layer = config.lstm_n_layer
+        model_config.lstm_layer_width = config.lstm_layer_width
+    else:
+        raise NotImplementedError()
 
     print_args(dataset_config)
     print_args(model_config)
@@ -39,6 +46,7 @@ def set_config(config, dataset_config, model_config, train_config):
 
 def get_parameters(system: str, model_name: str):
     ffn, rnn = model_name.split('-')
+    print(f'Getting parameters from {ffn}-{rnn}')
     parameters = {
         'learning_rate': {
             'distribution': 'log_uniform',
