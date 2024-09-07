@@ -17,7 +17,7 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
     train_config.scheduler_min_lr = 0
     train_config.batch_size = 2048
-    train_config.n_epoch = 2
+    train_config.n_epoch = 100
 
     train_config.learning_rate = config.learning_rate
     train_config.weight_decay = config.weight_decay
@@ -66,7 +66,7 @@ def get_parameters(system: str, model_name: str):
             'fno_n_layer': {
                 'distribution': 'int_uniform',
                 'min': 1,
-                'max': 6
+                'max': 4
             },
             'fno_n_modes_height': {
                 'distribution': 'q_log_uniform_values',
@@ -78,7 +78,7 @@ def get_parameters(system: str, model_name: str):
                 'distribution': 'q_log_uniform_values',
                 'q': 4,
                 'min': 4,
-                'max': 128
+                'max': 64
             }
         })
     elif ffn == 'DeepONet':
@@ -86,7 +86,7 @@ def get_parameters(system: str, model_name: str):
             'deeponet_n_layer': {
                 'distribution': 'int_uniform',
                 'min': 1,
-                'max': 6
+                'max': 4
             },
             'deeponet_hidden_size': {
                 'distribution': 'q_log_uniform_values',
@@ -103,13 +103,13 @@ def get_parameters(system: str, model_name: str):
             'gru_n_layer': {
                 'distribution': 'int_uniform',
                 'min': 1,
-                'max': 6
+                'max': 4
             },
             'gru_layer_width': {
                 'distribution': 'q_log_uniform_values',
                 'q': 4,
                 'min': 4,
-                'max': 128
+                'max': 32
             }
         })
     elif rnn == 'LSTM':
@@ -117,13 +117,13 @@ def get_parameters(system: str, model_name: str):
             'lstm_n_layer': {
                 'distribution': 'int_uniform',
                 'min': 1,
-                'max': 6
+                'max': 4
             },
             'lstm_layer_width': {
                 'distribution': 'q_log_uniform_values',
                 'q': 4,
                 'min': 4,
-                'max': 128
+                'max': 32
             }
         })
     else:
