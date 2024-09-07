@@ -630,7 +630,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.fno_hidden_channels = 16
 
             model_config.lstm_n_layer = 3
-            model_config.lstm_layer_width = 32
+            model_config.lstm_layer_width = 64
         elif model_name == 'DeepONet-GRU':
             train_config.two_stage = False
             train_config.train_first_stage = False
