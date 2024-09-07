@@ -609,6 +609,8 @@ if __name__ == '__main__':
     result_list_num = results['Successive \n Approximation']
     avg_prediction_time_num = sum([r.avg_prediction_time for r in result_list_num]) / len(result_list_num)
 
+    print(
+        ' Method    & Parameters  & Raw Prediction Time  &  Speedup & $L_2$ Error')
     for method, result_list in results.items():
         avg_prediction_time = sum([r.avg_prediction_time for r in result_list]) / len(result_list)
         l2 = sum([r.l2 for r in result_list]) / len(result_list)
