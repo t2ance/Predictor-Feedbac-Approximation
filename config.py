@@ -482,7 +482,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.two_stage = False
             train_config.train_first_stage = False
             train_config.residual = True
-            train_config.zero_init = False
+            train_config.zero_init = True
             train_config.auxiliary_loss = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 1e-4
@@ -503,7 +503,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.two_stage = False
             train_config.train_first_stage = False
             train_config.residual = True
-            train_config.zero_init = False
+            train_config.zero_init = True
             train_config.auxiliary_loss = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 1e-4
@@ -524,7 +524,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.two_stage = False
             train_config.train_first_stage = False
             train_config.residual = True
-            train_config.zero_init = False
+            train_config.zero_init = True
             train_config.auxiliary_loss = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 1e-4
@@ -543,7 +543,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.two_stage = False
             train_config.train_first_stage = False
             train_config.residual = True
-            train_config.zero_init = False
+            train_config.zero_init = True
             train_config.auxiliary_loss = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
             train_config.learning_rate = 1e-4
