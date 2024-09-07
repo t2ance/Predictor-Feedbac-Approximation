@@ -488,7 +488,7 @@ def run_tests(model, train_config, dataset_config, model_config, test_points, on
 
 
 def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig, run,
-         only_no_out: bool = False):
+         only_no_out: bool = False, save_model: bool = True):
     test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
     print('All test points:')
     print(test_points)
@@ -546,7 +546,8 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         model_config=model_config, train_config=train_config, training_dataset=training_dataset,
         validation_dataset=validation_dataset, model=model
     )
-    model_config.save_model(run, model)
+    if save_model:
+        model_config.save_model(run, model)
     return run_tests(model, train_config, dataset_config, model_config, test_points, only_no_out), model
 
 

@@ -151,7 +151,7 @@ def do_sweep(system, model_name):
             config = wandb.config
             dataset_config, model_config, train_config = get_config(system_=system, model_name=model_name)
             set_config(config, dataset_config, model_config, train_config)
-            results, model = main(dataset_config, model_config, train_config, run, only_no_out=True)
+            results, model = main(dataset_config, model_config, train_config, run, only_no_out=True, save_model=False)
             wandb.log(
                 {
                     'l2': results['no'].l2
