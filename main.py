@@ -26,7 +26,10 @@ warnings.filterwarnings('ignore')
 def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
                method: Literal[
                    'explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling', 'baseline'] = None,
-               model=None, img_save_path: str = None, silence: bool = True, set_ground_truth: bool = False):
+               model=None, img_save_path: str = None, silence: bool = True, metric_list: List = None):
+    # metric_list may contain l2_p_z, rl2_p_z, l2_p_phat, rl2_p_phat
+    if metric_list is None:
+        metric_list = ['l2_p_z', 'rl2_p_z']
     system: DynamicSystem = dataset_config.system
     ts = dataset_config.ts
     dt = dataset_config.dt
@@ -71,7 +74,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
         Z_t = Z[t_i, :] + dataset_config.noise()
 
         # set the ground truth (or not for fast evaluation)
-        if method != 'numerical' and set_ground_truth:
+        if method != 'numerical' and 'l2_p_z' in metric_list or 'rl2_p_z' in metric_list:
             solution = solve_integral(Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
                                       dataset_config=dataset_config, delay=dataset_config.delay)
             P_numerical[t_i, :] = solution.solution
@@ -220,16 +223,24 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
         P = P_switching
     else:
         raise NotImplementedError()
-    # l2 = l2_p_phat(P, P_numerical, dataset_config.n_point_start())
-    l2 = l2_p_z(P, Z, dataset_config.n_point_delay, ts)
-    # l2 = l2_p_phat_value
+    if 'l2_p_z' in metric_list:
+        l2_p_z_value, rl2_p_z_value = l2_p_z(P, Z, dataset_config.n_point_delay, ts)
+    else:
+        l2_p_z_value, rl2_p_z_value = None, None
+    if 'l2_p_phat' in metric_list:
+        l2_p_phat_value, rl2_p_phat_value = l2_p_phat(P, P_numerical, dataset_config.n_point_start())
+    else:
+        l2_p_phat_value, rl2_p_phat_value = None, None
+    success = not (np.any(np.isnan(Z)) or np.any(np.isinf(Z)))
     return SimulationResult(
         U=U, Z=Z, D_explicit=D_explicit, D_no=D_no, D_numerical=D_numerical, D_switching=D_switching,
         P_explicit=P_explicit, P_no=P_no, P_no_ci=P_no_ci, P_numerical=P_numerical,
         P_switching=P_switching, runtime=runtime, P_numerical_n_iters=P_numerical_n_iters,
         p_numerical_count=p_numerical_count, p_no_count=p_no_count, P_no_Ri=P_no_Ri, alpha_ts=alpha_ts, q_ts=q_ts,
-        e_ts=e_ts, switching_indicator=switching_indicator, avg_prediction_time=runtime / n_point, l2=l2,
-        success=not (np.isinf(l2) or np.isnan(l2)), n_parameter=count_params(model) if model is not None else 'N/A')
+        e_ts=e_ts, switching_indicator=switching_indicator, avg_prediction_time=runtime / n_point,
+        l2_p_z=l2_p_z_value, rl2_p_z=rl2_p_z_value, l2_p_phat=l2_p_phat_value,
+        rl2_p_phat=rl2_p_phat_value, success=success,
+        n_parameter=count_params(model) if model is not None else 'N/A')
 
 
 def simulation_result_to_samples(result: SimulationResult, dataset_config):

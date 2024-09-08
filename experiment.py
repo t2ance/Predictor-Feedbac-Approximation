@@ -23,7 +23,7 @@ def interval(min_, max_):
 
 def plot_comparisons(test_point, plot_name, dataset_config, train_config, system,
                      fno=None, deeponet=None, gru=None, lstm=None, fno_gru=None, fno_lstm=None, deeponet_gru=None,
-                     deeponet_lstm=None):
+                     deeponet_lstm=None, metric_list=None):
     if system == 's8':
         n_max_state = 5
         n_row = 4
@@ -54,7 +54,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
 
     if fno is not None:
         result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=fno,
-                            method='no', silence=False)
+                            method='no', silence=False, metric_list=metric_list)
         Ps.append(result.P_no)
         Zs.append(result.Z)
         Ds.append(result.D_no)
@@ -64,7 +64,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
 
     if deeponet is not None:
         result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=deeponet,
-                            method='no', silence=False)
+                            method='no', silence=False, metric_list=metric_list)
         Ps.append(result.P_no)
         Zs.append(result.Z)
         Ds.append(result.D_no)
@@ -74,7 +74,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
 
     if gru is not None:
         result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=gru,
-                            method='no', silence=False)
+                            method='no', silence=False, metric_list=metric_list)
         Ps.append(result.P_no)
         Zs.append(result.Z)
         Ds.append(result.D_no)
@@ -84,7 +84,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
 
     if lstm is not None:
         result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=lstm,
-                            method='no', silence=False)
+                            method='no', silence=False, metric_list=metric_list)
         Ps.append(result.P_no)
         Zs.append(result.Z)
         Ds.append(result.D_no)
@@ -94,7 +94,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
 
     if fno_gru is not None:
         result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=fno_gru,
-                            method='no', silence=False)
+                            method='no', silence=False, metric_list=metric_list)
         Ps.append(result.P_no)
         Zs.append(result.Z)
         Ds.append(result.D_no)
@@ -104,7 +104,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
 
     if fno_lstm is not None:
         result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=fno_lstm,
-                            method='no', silence=False)
+                            method='no', silence=False, metric_list=metric_list)
         Ps.append(result.P_no)
         Zs.append(result.Z)
         Ds.append(result.D_no)
@@ -114,7 +114,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
 
     if deeponet_gru is not None:
         result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=deeponet_gru,
-                            method='no', silence=False)
+                            method='no', silence=False, metric_list=metric_list)
         Ps.append(result.P_no)
         Zs.append(result.Z)
         Ds.append(result.D_no)
@@ -124,7 +124,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
 
     if deeponet_lstm is not None:
         result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point,
-                            model=deeponet_lstm, method='no', silence=False)
+                            model=deeponet_lstm, method='no', silence=False, metric_list=metric_list)
         Ps.append(result.P_no)
         Zs.append(result.Z)
         Ds.append(result.D_no)
@@ -133,12 +133,13 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         results.append(result)
     captions = []
     for label, result in zip(labels, results):
-        if np.isnan(result.l2):
-            caption = f'{label} \n Failed'
-        elif result.l2 == 0:
-            caption = label
-        else:
-            caption = f'{label} \n $L_2$: {result.l2:.3f}'
+        caption = label
+        # if np.isnan(result.l2):
+        #     caption = f'{label} \n Failed'
+        # elif result.l2 == 0:
+        #     caption = label
+        # else:
+        #     caption = f'{label} \n $L_2$: {result.l2:.3f}'
         captions.append(caption)
     print(f'End simulation {plot_name}')
     print(labels)
@@ -211,65 +212,6 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     wandb.log({f'comparison {plot_name}': wandb.Image(f"./misc/plots/{plot_name}.png")})
     results_dict = {k: v for k, v in zip(labels, results)}
     return results_dict
-
-
-def plot_no_numerical_comparison(test_points, plot_name, dataset_config, train_config, model_config, model, n_row):
-    print(f'Begin simulation {plot_name}')
-    result_numerical = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
-                                test_points=test_points, method='numerical')
-    result_no = run_test(dataset_config=dataset_config, train_config=train_config, m=model, test_points=test_points,
-                         method='no')
-    print_results([result_no, result_numerical], result_numerical)
-    print(f'End simulation {plot_name}')
-
-    for i, (test_point, numerical, no) in enumerate(zip(test_points, result_numerical.results, result_no.results)):
-        ts = dataset_config.ts
-        delay = dataset_config.delay
-        n_state = dataset_config.n_state
-        n_point_delay = dataset_config.n_point_delay
-        fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(n_row, 2), height_add=0.6))
-        subfigs = fig.subfigures(nrows=1, ncols=2)
-        numerical_fig, no_fig = subfigs
-        numerical_fig.suptitle('Successive \n Approximation')
-        no_fig.suptitle(model_config.model_name)
-        numerical_axes = numerical_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
-        no_axes = no_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
-
-        min_p, max_p = interval(min(numerical.P_numerical.min(), no.P_no.min()),
-                                max(numerical.P_numerical.max(), no.P_no.max()))
-
-        plot_comparison(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, ylim=[min_p, max_p],
-                        ax=numerical_axes[0], comment=False)
-        plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, ylim=[min_p, max_p], ax=no_axes[0],
-                        comment=False)
-        min_d, max_d = interval(min(numerical.D_numerical.min(), no.D_no.min()),
-                                max(numerical.D_numerical.max(), no.D_no.max()))
-
-        plot_difference(ts, [numerical.P_numerical], numerical.Z, n_point_delay, None, ylim=[min_d, max_d],
-                        ax=numerical_axes[1], comment=False, differences=[numerical.D_numerical])
-        plot_difference(ts, [no.P_no], no.Z, n_point_delay, None, ylim=[min_d, max_d], ax=no_axes[1],
-                        comment=False, differences=[no.D_no])
-
-        min_u, max_u = interval(min(numerical.U.min(), no.U.min()),
-                                max(numerical.U.max(), no.U.max()))
-        plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[2], comment=False, ylim=[min_u, max_u],
-                     linestyle='--')
-        plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
-
-        if n_row == 4:
-            q_des = np.array([dataset_config.system.q_des(t) for t in ts])
-            q_numerical = q_des - numerical.Z[:, :2]
-            q_no = q_des - no.Z[:, :2]
-            n_point_start = n_point_delay(0)
-            q_des = q_des[n_point_start:]
-            q_numerical = q_numerical[n_point_start:]
-            q_no = q_no[n_point_start:]
-            plot_q(ts[n_point_start:], [q_numerical], q_des, None, ax=numerical_axes[3],
-                   comment=False)
-            plot_q(ts[n_point_start:], [q_no], q_des, None, ax=no_axes[3], comment=False)
-
-        check_dir(f'./misc/plots/{plot_name}')
-        plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
 
 
 def plot_sw_numerical_comparison(test_points, plot_name, dataset_config, train_config, model_config, model, n_row):
@@ -488,22 +430,6 @@ def load_config(system, model_name, cp_alpha, version='latest'):
 
 
 def plot_figure(n_test=10):
-    train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', None)
-    test_points = [
-        (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
-        in range(n_test)
-    ]
-    plot_no_numerical_comparison(test_points, 'baxter-id-fno-gru', dataset_config, train_config, model_config,
-                                 model, n_row=4)
-
-    train_config, dataset_config, model_config, model = load_config('s7', 'FNO-GRU', None)
-    test_points = [
-        (np.random.uniform(-0.5, 0.5), np.random.uniform(-0.5, 0.5), np.random.uniform(-0.5, 0.5)) for _ in
-        range(n_test)
-    ]
-    plot_no_numerical_comparison(test_points, 'unicycle-id-fno-gru', dataset_config, train_config, model_config,
-                                 model, n_row=3)
-
     train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', cp_alpha=0.1)
     test_points = [
         (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
@@ -552,6 +478,7 @@ if __name__ == '__main__':
     deeponet_gru = None
     deeponet_lstm = None
     model_parameters = []
+    metric_list = ['l2_p_z', 'rl2_p_z', 'l2_p_phat', 'rl2_p_phat']
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO')
     fno, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
 
@@ -581,7 +508,7 @@ if __name__ == '__main__':
         result_dict = plot_comparisons(
             test_point, f'{args.s}-{i}', dataset_config, train_config, system=args.s, fno=fno, deeponet=deeponet,
             gru=gru, lstm=lstm, fno_gru=fno_gru, fno_lstm=fno_lstm, deeponet_gru=deeponet_gru,
-            deeponet_lstm=deeponet_lstm)
+            deeponet_lstm=deeponet_lstm, metric_list=metric_list)
         if results is None:
             results = {k: [] for k in result_dict.keys()}
 
@@ -592,11 +519,16 @@ if __name__ == '__main__':
     avg_prediction_time_num = sum([r.avg_prediction_time for r in result_list_num]) / len(result_list_num)
 
     print(
-        ' Method    & Parameters  & Raw Prediction Time  &  Speedup & $L_2$ Error')
+        r' Method    & Parameters  & Raw Prediction Time  &  Speedup & $L_2$ & $\hat{L}_2$ & Relative $L_2$ & Relative $\hat{L}_2$')
     for method, result_list in results.items():
         avg_prediction_time = sum([r.avg_prediction_time for r in result_list]) / len(result_list)
-        l2 = sum([r.l2 for r in result_list]) / len(result_list)
+        l2_p_z = sum([r.l2_p_z for r in result_list]) / len(result_list)
+        rl2_p_z = sum([r.rl2_p_z for r in result_list]) / len(result_list)
+        l2_p_phat = sum([r.l2_p_phat for r in result_list]) / len(result_list)
+        rl2_p_phat = sum([r.rl2_p_phat for r in result_list]) / len(result_list)
         n_success = sum([1 if r.success else 0 for r in result_list])
-        method_result = SimulationResult(avg_prediction_time=avg_prediction_time, l2=l2, n_success=n_success)
+        method_result = SimulationResult(avg_prediction_time=avg_prediction_time, l2_p_z=l2_p_z, rl2_p_z=rl2_p_phat,
+                                         l2_p_phat=l2_p_phat, rl2_p_phat=rl2_p_phat, n_success=n_success)
         print(f'{method} & {result_list[0].n_parameter} & {avg_prediction_time * 1000:.3f} '
-              f'& {avg_prediction_time_num / avg_prediction_time:.3f} & {l2:.3f} \\\\')
+              f'& {avg_prediction_time_num / avg_prediction_time:.3f} '
+              f'& {l2_p_z:.3f} & {l2_p_phat:.3f} & {rl2_p_z:.3f} & {rl2_p_phat:.3f}\\\\')

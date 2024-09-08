@@ -43,7 +43,10 @@ class SimulationResult:
     q_ts: np.ndarray = None
     e_ts: np.ndarray = None
     switching_indicator: np.ndarray = None
-    l2: float = None
+    l2_p_z: float = None
+    rl2_p_z: float = None
+    l2_p_phat: float = None
+    rl2_p_phat: float = None
     success: bool = None
     n_success: int = None
     n_parameter: int = None
@@ -224,17 +227,20 @@ def l2_p_z(P, Z, n_point_delay, ts):
     P = np.atleast_2d(P)
     Z = np.atleast_2d(Z)
     l2 = np.sum(np.linalg.norm(P - Z, axis=1)) / N
-    # rl2 = np.sum(np.linalg.norm(P - Z, axis=1) / np.linalg.norm(Z, axis=1)) / N
-    return l2
+    rl2 = np.sum(np.linalg.norm(P - Z, axis=1) / np.linalg.norm(Z, axis=1)) / N
+    return l2, rl2
 
 
 def l2_p_phat(P, P_numerical, n_point_delay):
     P = np.atleast_2d(P)
     P_numerical = np.atleast_2d(P_numerical)
+    N = P.shape[0]
     assert P.shape == P_numerical.shape
     P = P[n_point_delay:]
     P_numerical = P_numerical[n_point_delay:]
-    return np.sum(np.linalg.norm(P - P_numerical, axis=1)) / P.shape[0]
+    l2 = np.sum(np.linalg.norm(P - P_numerical, axis=1)) / N
+    rl2 = np.sum(np.linalg.norm(P - P_numerical, axis=1)) / np.linalg.norm(P_numerical, axis=1) / N
+    return l2, rl2
 
 
 def check_dir(path):
