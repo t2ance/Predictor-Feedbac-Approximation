@@ -421,11 +421,6 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
             wandb.log({f'{method}-u': wandb.Image(f"{img_save_path}/{method}_u.png")})
         plt.close()
 
-        if not result.success:
-            if not silence:
-                print(f'[WARNING] Running with initial condition Z = {test_point} with method [{method}] failed.')
-            continue
-
         if method == 'switching':
             # plot_switch_system(train_config, dataset_config, result, n_point_start, img_save_path)
             no_pred_ratio.append(result.p_no_count / (result.p_no_count + result.p_numerical_count))
@@ -433,6 +428,11 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
         l2_list.append(result.l2)
         prediction_time.append(result.avg_prediction_time)
         n_iter_list.append(result.P_numerical_n_iters)
+
+        if not result.success:
+            if not silence:
+                print(f'[WARNING] Running with initial condition Z = {test_point} with method [{method}] failed.')
+            continue
     # l2 = np.nanmean(l2_list).item()
     l2 = np.mean(l2_list).item()
     runtime = np.nanmean(prediction_time).item()

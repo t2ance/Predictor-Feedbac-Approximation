@@ -542,7 +542,7 @@ if __name__ == '__main__':
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     run = wandb.init(
         project="no",
-        name=f'result-plotting {get_time_str()}'
+        name=f'experiment {args.s} {args.n} {get_time_str()}'
     )
 
     fno = None
