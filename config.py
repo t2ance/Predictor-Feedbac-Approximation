@@ -72,6 +72,10 @@ class ModelConfig:
             model_name = 'FNOProjectionGRU'
         elif self.model_name == 'FNO-LSTM':
             model_name = 'FNOProjectionLSTM'
+        elif self.model_name == 'DeepONet-GRU':
+            model_name = 'DeepONetGRU'
+        elif self.model_name == 'DeepONet-LSTM':
+            model_name = 'DeepONetLSTM'
         elif self.model_name == 'GRU':
             model_name = 'GRUNet'
         elif self.model_name == 'LSTM':
