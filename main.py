@@ -437,7 +437,7 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
             # plot_switch_system(train_config, dataset_config, result, n_point_start, img_save_path)
             no_pred_ratio.append(result.p_no_count / (result.p_no_count + result.p_numerical_count))
 
-        l2_list.append(result.l2)
+        l2_list.append(result.l2_p_z)
         prediction_time.append(result.avg_prediction_time)
         n_iter_list.append(result.P_numerical_n_iters)
 
