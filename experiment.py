@@ -525,15 +525,20 @@ if __name__ == '__main__':
     print(
         r' Method    & Parameters  & Raw Prediction Time  &  Speedup & $L_2$ & $\hat{L}_2$ & Relative $L_2$ & Relative $\hat{L}_2$')
     for method, result_list in results.items():
-        avg_prediction_time = sum([r.avg_prediction_time for r in result_list]) / len(result_list)
+        n_test = len(result_list)
+        avg_prediction_time = sum([r.avg_prediction_time for r in result_list]) / n_test
         # print(result_list)
-        l2_p_z = sum([r.l2_p_z for r in result_list]) / len(result_list)
-        rl2_p_z = sum([r.rl2_p_z for r in result_list]) / len(result_list)
-        l2_p_phat = sum([r.l2_p_phat for r in result_list]) / len(result_list)
-        rl2_p_phat = sum([r.rl2_p_phat for r in result_list]) / len(result_list)
+        l2_p_z = sum([r.l2_p_z for r in result_list]) / n_test
+        rl2_p_z = sum([r.rl2_p_z for r in result_list]) / n_test
+        l2_p_phat = sum([r.l2_p_phat for r in result_list]) / n_test
+        rl2_p_phat = sum([r.rl2_p_phat for r in result_list]) / n_test
         n_success = sum([1 if r.success else 0 for r in result_list])
         # method_result = SimulationResult(avg_prediction_time=avg_prediction_time, l2_p_z=l2_p_z, rl2_p_z=rl2_p_phat,
         #                                  l2_p_phat=l2_p_phat, rl2_p_phat=rl2_p_phat, n_success=n_success)
+        print(l2_p_z)
+        print(rl2_p_z)
+        print(l2_p_phat)
+        print(rl2_p_phat)
         print(f'{method} & {result_list[0].n_parameter} & {avg_prediction_time * 1000:.3f} '
               f'& {avg_prediction_time_num / avg_prediction_time:.3f} '
               f'& {l2_p_z.item():.3f} & {l2_p_phat.item():.3f} & {rl2_p_z.item():.3f} & {rl2_p_phat.item():.3f}\\\\')
