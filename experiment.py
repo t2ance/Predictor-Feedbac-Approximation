@@ -492,15 +492,19 @@ if __name__ == '__main__':
     lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-GRU')
+    train_config.zero_init = False
     fno_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-LSTM')
+    train_config.zero_init = False
     fno_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-GRU')
+    train_config.zero_init = False
     deeponet_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-LSTM')
+    train_config.zero_init = False
     deeponet_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
 
     results = None
