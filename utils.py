@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from dataset import PredictionDataset
 from model import FNOProjection, FFN, GRUNet, LSTMNet, FNOProjectionGRU, FNOProjectionLSTM, DeepONet, DeepONetGRU, \
-    DeepONetLSTM
+    DeepONetLSTM, TimeAwareFFN
 
 from torch import nn
 from torch.nn import init
@@ -144,28 +144,31 @@ def load_model(train_config, model_config, dataset_config, ffn=None, n_param_out
         model = FNOProjectionGRU(
             n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
             n_state=n_state, fno_n_layers=model_config.fno_n_layer, gru_n_layers=model_config.gru_n_layer,
-            gru_layer_width=model_config.gru_layer_width, ffn=ffn, residual=train_config.residual,
-            zero_init=train_config.zero_init)
+            gru_layer_width=model_config.gru_layer_width, ffn=ffn, residual=train_config.residual)
     elif model_name == 'FNO-LSTM':
         model = FNOProjectionLSTM(
             n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
             n_state=n_state, fno_n_layers=model_config.fno_n_layer, lstm_n_layers=model_config.lstm_n_layer,
-            lstm_layer_width=model_config.lstm_layer_width, ffn=ffn, residual=train_config.residual,
-            zero_init=train_config.zero_init)
+            lstm_layer_width=model_config.lstm_layer_width, ffn=ffn, residual=train_config.residual)
     elif model_name == 'DeepONet-GRU':
         model = DeepONetGRU(n_state=n_state, gru_n_layers=model_config.gru_n_layer, n_point_start=n_point_start,
                             n_input=n_input, gru_layer_width=model_config.gru_layer_width, ffn=ffn,
                             deeponet_hidden_size=model_config.deeponet_hidden_size,
-                            deeponet_n_layer=model_config.deeponet_n_layer, residual=train_config.residual,
-                            zero_init=train_config.zero_init)
+                            deeponet_n_layer=model_config.deeponet_n_layer, residual=train_config.residual)
     elif model_name == 'DeepONet-LSTM':
         model = DeepONetLSTM(n_state=n_state, lstm_n_layers=model_config.lstm_n_layer, n_point_start=n_point_start,
                              n_input=n_input, lstm_layer_width=model_config.lstm_layer_width, ffn=ffn,
                              deeponet_hidden_size=model_config.deeponet_hidden_size,
-                             deeponet_n_layer=model_config.deeponet_n_layer, residual=train_config.residual,
-                             zero_init=train_config.zero_init)
+                             deeponet_n_layer=model_config.deeponet_n_layer, residual=train_config.residual)
     else:
         raise NotImplementedError()
+    if isinstance(model, TimeAwareFFN) and train_config.zero_init:
+        for module in model.rnn.modules():
+            if isinstance(module, nn.Linear):
+                nn.init.constant_(module.weight, 0)
+                if module.bias is not None:
+                    nn.init.constant_(module.bias, 0)
+        print(model_name, 'initialized to zero for its RNN')
     n_params = count_params(model)
     print(f'Using {model_name} with {n_params} parameters. Xavier initializing.')
     initialize_weights(model)
