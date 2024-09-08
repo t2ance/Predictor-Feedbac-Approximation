@@ -43,7 +43,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     print(f'Begin simulation {plot_name}')
 
     result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, method='numerical',
-                        silence=False)
+                        silence=False, metric_list=metric_list)
     Ps.append(result.P_numerical)
     Zs.append(result.Z)
     Ds.append(result.D_numerical)
@@ -526,7 +526,7 @@ if __name__ == '__main__':
         r' Method    & Parameters  & Raw Prediction Time  &  Speedup & $L_2$ & $\hat{L}_2$ & Relative $L_2$ & Relative $\hat{L}_2$')
     for method, result_list in results.items():
         avg_prediction_time = sum([r.avg_prediction_time for r in result_list]) / len(result_list)
-        print(result_list)
+        # print(result_list)
         l2_p_z = sum([r.l2_p_z for r in result_list]) / len(result_list)
         rl2_p_z = sum([r.rl2_p_z for r in result_list]) / len(result_list)
         l2_p_phat = sum([r.l2_p_phat for r in result_list]) / len(result_list)
