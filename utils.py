@@ -12,7 +12,6 @@ from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from config import DatasetConfig, TrainConfig, ModelConfig
 from dataset import PredictionDataset
 from model import FNOProjection, FFN, GRUNet, LSTMNet, FNOProjectionGRU, FNOProjectionLSTM, DeepONet, DeepONetGRU, \
     DeepONetLSTM
@@ -74,61 +73,6 @@ def print_args(args):
     print('=' * 100)
 
 
-def postprocess(samples, dataset_config: DatasetConfig):
-    def add_noise(tensor, std):
-        noise = torch.randn_like(tensor) * std
-        return tensor + noise
-
-    print('[DEBUG] postprocessing')
-    new_samples = []
-    for _ in tqdm(range(dataset_config.n_augment)):
-        for feature, p in samples:
-            t = feature[:1]
-            z = feature[1:3]
-            u = feature[3:]
-            z = add_noise(z, dataset_config.epsilon)
-            u = add_noise(u, dataset_config.epsilon)
-            # p = solve_integral_successive(Z_t=z, U_D=u, dt=dataset_config.dt, n_state=dataset_config.system.n_state,
-            #                               n_points=dataset_config.n_point_delay, f=dataset_config.system.dynamic,
-            #                               n_iterations=dataset_config.successive_approximation_n_iteration)
-            new_samples.append((torch.concatenate([t, z, u]), p))
-            # u = add_noise(u, dataset_config.epsilon)
-            # feature = sample[0].cpu().numpy()
-            # p = sample[1].cpu().numpy()
-            # new_samples.append((torch.from_numpy(np.concatenate([t, z, u])), torch.tensor(p)))
-        # print(f'[WARNING] {len(new_samples)} samples replaced by numerical solutions')
-    # all_samples = new_samples
-    samples_ = [*samples, *new_samples]
-    random.shuffle(samples_)
-    return samples_
-    # return new_samples
-
-
-def split_dataset(dataset, ratio):
-    n_total = len(dataset)
-    n_sample = int(n_total * ratio)
-    random.shuffle(dataset)
-    return dataset[:n_sample], dataset[n_sample:]
-
-
-def prepare_datasets(training_samples, batch_size: int, training_ratio: float = None, validation_samples=None):
-    assert training_ratio is not None or validation_samples is not None
-    if validation_samples is not None:
-        print(f'training and validation datasets are both provided: '
-              f'#train {len(training_samples)} and #val {len(validation_samples)}')
-        train_dataset, validate_dataset = training_samples, validation_samples
-    elif training_ratio is not None:
-        train_dataset, validate_dataset = split_dataset(training_samples, training_ratio)
-    else:
-        raise NotImplementedError()
-    training_dataloader = DataLoader(PredictionDataset(train_dataset), batch_size=batch_size, shuffle=False)
-    if len(validate_dataset) == 0:
-        validating_dataloader = None
-    else:
-        validating_dataloader = DataLoader(PredictionDataset(validate_dataset), batch_size=batch_size, shuffle=False)
-    return training_dataloader, validating_dataloader
-
-
 def load_cp_hyperparameters(case: str):
     """
     tlb,tub,cp_gamma,cp_alpha
@@ -171,8 +115,7 @@ def load_cp_hyperparameters(case: str):
         raise NotImplementedError()
 
 
-def load_model(train_config: TrainConfig, model_config: ModelConfig, dataset_config: DatasetConfig, ffn=None,
-               n_param_out: bool = False, model_name: str = None):
+def load_model(train_config, model_config, dataset_config, ffn=None, n_param_out: bool = False, model_name: str = None):
     if model_name is None:
         model_name = model_config.model_name
     device = train_config.device
@@ -237,7 +180,6 @@ def load_optimizer(parameters, train_config):
 
 
 def load_lr_scheduler(optimizer: torch.optim.Optimizer, config):
-    assert isinstance(config, TrainConfig) or isinstance(config, DatasetConfig)
     """ Create a schedule with a learning rate that decreases linearly after
     linearly increasing during a warmup period.
     """
