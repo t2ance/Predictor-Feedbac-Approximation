@@ -66,7 +66,7 @@ class ModelConfig:
     def get_model(self, run, train_config, dataset_config, version: str = None):
         if version is None:
             version = self.model_version
-        model_name = self.model_name
+        model_name = self.model_name.replace('FNO', 'FNOProjection')
         model_artifact = run.use_artifact(f"{model_name}-{self.system}:{version}")
         metadata = model_artifact.metadata
         model_dir = model_artifact.download()
@@ -86,7 +86,7 @@ class ModelConfig:
             self.lstm_n_layer = metadata['lstm_n_layer']
             self.lstm_layer_width = metadata['lstm_layer_width']
 
-        model, n_params = load_model(train_config, self, dataset_config, model_name=model_name, n_param_out=True)
+        model, n_params = load_model(train_config, self, dataset_config, model_name=self.model_name, n_param_out=True)
         model.load_state_dict(state_dict)
         return model, n_params
 
