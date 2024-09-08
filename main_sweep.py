@@ -17,7 +17,7 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
     train_config.scheduler_min_lr = 0
     train_config.batch_size = 2048
-    train_config.n_epoch = 2
+    train_config.n_epoch = 100
 
     train_config.learning_rate = config.learning_rate
     train_config.weight_decay = config.weight_decay
