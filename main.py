@@ -17,8 +17,8 @@ from dataset import sample_to_tensor
 from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral
 from model import GRUNet, LSTMNet, TimeAwareFFN
 from plot_utils import plot_result, set_size, difference
-from utils import pad_zeros, metric, check_dir, predict_and_loss, load_lr_scheduler, set_everything, print_result, \
-    load_model, load_optimizer, print_args, get_time_str, SimulationResult, TestResult, count_params
+from utils import pad_zeros, l2_p_phat, check_dir, predict_and_loss, load_lr_scheduler, set_everything, print_result, \
+    load_model, load_optimizer, print_args, get_time_str, SimulationResult, TestResult, count_params, l2_p_z
 
 warnings.filterwarnings('ignore')
 
@@ -26,7 +26,7 @@ warnings.filterwarnings('ignore')
 def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
                method: Literal[
                    'explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling', 'baseline'] = None,
-               model=None, img_save_path: str = None, silence: bool = True):
+               model=None, img_save_path: str = None, silence: bool = True, set_ground_truth: bool = False):
     system: DynamicSystem = dataset_config.system
     ts = dataset_config.ts
     dt = dataset_config.dt
@@ -70,8 +70,8 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
 
         Z_t = Z[t_i, :] + dataset_config.noise()
 
-        # set the ground truth
-        if method != 'numerical':
+        # set the ground truth (or not for fast evaluation)
+        if method != 'numerical' and set_ground_truth:
             solution = solve_integral(Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
                                       dataset_config=dataset_config, delay=dataset_config.delay)
             P_numerical[t_i, :] = solution.solution
@@ -220,7 +220,9 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
         P = P_switching
     else:
         raise NotImplementedError()
-    l2 = metric(P, P_numerical, dataset_config.n_point_start())
+    # l2 = l2_p_phat(P, P_numerical, dataset_config.n_point_start())
+    l2 = l2_p_z(P, Z, dataset_config.n_point_delay, ts)
+    # l2 = l2_p_phat_value
     return SimulationResult(
         U=U, Z=Z, D_explicit=D_explicit, D_no=D_no, D_numerical=D_numerical, D_switching=D_switching,
         P_explicit=P_explicit, P_no=P_no, P_no_ci=P_no_ci, P_numerical=P_numerical,

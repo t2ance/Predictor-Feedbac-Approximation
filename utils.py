@@ -272,18 +272,18 @@ def load_lr_scheduler(optimizer: torch.optim.Optimizer, config):
         raise NotImplementedError()
 
 
-'''def metric(P, Z, n_point_delay, ts):
+def l2_p_z(P, Z, n_point_delay, ts):
     P = prediction_comparison(P, n_point_delay, ts)[n_point_delay(0):]
     Z = Z[2 * n_point_delay(0):]
     N = Z.shape[0]
     P = np.atleast_2d(P)
     Z = np.atleast_2d(Z)
     l2 = np.sum(np.linalg.norm(P - Z, axis=1)) / N
-    rl2 = np.sum(np.linalg.norm(P - Z, axis=1) / np.linalg.norm(Z, axis=1)) / N
-    return rl2, l2'''
+    # rl2 = np.sum(np.linalg.norm(P - Z, axis=1) / np.linalg.norm(Z, axis=1)) / N
+    return l2
 
 
-def metric(P, P_numerical, n_point_delay):
+def l2_p_phat(P, P_numerical, n_point_delay):
     P = np.atleast_2d(P)
     P_numerical = np.atleast_2d(P_numerical)
     assert P.shape == P_numerical.shape

@@ -4,7 +4,7 @@ import dynamic_systems
 from config import get_config
 from dynamic_systems import ConstantDelay, TimeVaryingDelay
 from main import simulation
-from utils import metric
+from utils import l2_p_phat
 
 
 def baxter_test1dof():
@@ -88,9 +88,9 @@ def baxter_test_unicycle():
     dataset_config.dt = 0.05
     result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
                         img_save_path='./misc', silence=False)
-    l2 = metric(result.P_numerical, result.P_numerical, dataset_config.n_point_start())
-    print(l2)
-    print(result.runtime)
+    # l2 = l2_p_phat(result.P_numerical, result.P_numerical, dataset_config.n_point_start())
+    # print(l2)
+    # print(result.runtime)
 
 
 if __name__ == '__main__':
