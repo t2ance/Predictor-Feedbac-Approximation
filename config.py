@@ -489,15 +489,15 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.batch_size = 2048
             train_config.n_epoch = 100
 
-            train_config.learning_rate = 1e-4
-            train_config.weight_decay = 1e-1
+            train_config.learning_rate = 0.0006438749095530441
+            train_config.weight_decay = 0.00017448178605708448
 
-            model_config.gru_n_layer = 3
-            model_config.gru_layer_width = 8
+            model_config.gru_n_layer = 2
+            model_config.gru_layer_width = 4
 
-            model_config.fno_n_layer = 5
-            model_config.fno_n_modes_height = 64
-            model_config.fno_hidden_channels = 64
+            model_config.fno_n_layer = 1
+            model_config.fno_n_modes_height = 12
+            model_config.fno_hidden_channels = 60
         elif model_name == 'FNO-LSTM':
             train_config.two_stage = False
             train_config.train_first_stage = False
@@ -526,18 +526,17 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.zero_init = True
             train_config.auxiliary_loss = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
-            train_config.learning_rate = 1e-4
             train_config.scheduler_min_lr = 0
-
-            train_config.batch_size = 2048
             train_config.n_epoch = 100
-            train_config.weight_decay = 1e-2
+            train_config.batch_size = 2048
 
-            model_config.gru_n_layer = 3
+            train_config.learning_rate = 0.0007175130680942407
+            train_config.weight_decay = 0.0027916906331343044
+            model_config.gru_n_layer = 4
             model_config.gru_layer_width = 8
 
-            model_config.deeponet_hidden_size = 128
-            model_config.deeponet_n_layer = 5
+            model_config.deeponet_hidden_size = 4
+            model_config.deeponet_n_layer = 3
         elif model_name == 'DeepONet-LSTM':
             train_config.two_stage = False
             train_config.train_first_stage = False
@@ -545,18 +544,18 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.zero_init = True
             train_config.auxiliary_loss = False
             train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
-            train_config.learning_rate = 1e-4
             train_config.scheduler_min_lr = 0
-
             train_config.batch_size = 2048
             train_config.n_epoch = 100
-            train_config.weight_decay = 1e-2
 
-            model_config.lstm_n_layer = 3
-            model_config.lstm_layer_width = 8
+            train_config.learning_rate = 0.00045317409722254033
+            train_config.weight_decay = 0.05270152196246609
 
-            model_config.deeponet_hidden_size = 128
-            model_config.deeponet_n_layer = 5
+            model_config.lstm_n_layer = 4
+            model_config.lstm_layer_width = 20
+
+            model_config.deeponet_hidden_size = 60
+            model_config.deeponet_n_layer = 1
     elif system_ == 's9':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=TimeVaryingDelay(), duration=8, dt=0.004, n_training_dataset=1400,
