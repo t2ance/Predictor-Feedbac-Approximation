@@ -448,28 +448,10 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
     # l2 = np.nanmean(l2_list).item()
     l2 = np.mean(l2_list).item()
     runtime = np.nanmean(prediction_time).item()
-    to_save = [l2, runtime]
     if method == 'numerical':
         n_iter = np.concatenate(n_iter_list).mean()
-        to_save.append(n_iter)
         print(f'Numerical method uses {n_iter} iterations on average.')
-    if plot or base_path is not None:
-        def plot_result(data, label, title, xlabel, path):
-            fig = plt.figure(figsize=set_size())
-            plt.hist(data, bins=20, label=label)
-            plt.legend()
-            plt.title(title)
-            plt.xlabel(xlabel)
-            plt.ylabel('Frequency')
-            if plot:
-                plt.show()
-            else:
-                plt.savefig(path)
-                fig.clear()
-                plt.close(fig)
 
-        plot_result(data=l2_list, label=f'L2 error', title='L2 error', xlabel='L2 error',
-                    path=f'{base_path}/l2.png')
     return TestResult(runtime=runtime, l2=l2, success_cases=len(l2_list), results=results, no_pred_ratio=no_pred_ratio)
 
 
