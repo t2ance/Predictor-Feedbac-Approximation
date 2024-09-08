@@ -233,10 +233,11 @@ class DatasetConfig:
     @property
     def test_points(self) -> List[Tuple]:
         if self.random_test:
+            state = np.random.RandomState(seed=0)
             if self.random_test_points is None:
                 self.random_test_points = [
-                    tuple((np.random.uniform(self.random_test_lower_bound, self.random_test_upper_bound,
-                                             self.system.n_state)).tolist()) for _ in range(3)
+                    tuple((state.uniform(self.random_test_lower_bound, self.random_test_upper_bound,
+                                         self.system.n_state)).tolist()) for _ in range(5)
                 ]
             return self.random_test_points
         else:

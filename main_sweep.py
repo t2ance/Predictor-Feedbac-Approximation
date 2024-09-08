@@ -1,7 +1,7 @@
 import wandb
 
 from config import get_config
-from main import main
+from main import main, load_dataset
 from utils import print_args, set_everything
 
 
@@ -146,12 +146,32 @@ def do_sweep(system, model_name):
 
     sweep_id = wandb.sweep(sweep_config, project="no")
 
+    class Data:
+        training_dataset = None
+        validation_dataset = None
+        test_points = None
+
+    data = Data()
+
     def train(config=None):
         with wandb.init(config=config) as run:
             config = wandb.config
             dataset_config, model_config, train_config = get_config(system_=system, model_name=model_name)
             set_config(config, dataset_config, model_config, train_config)
-            results, model = main(dataset_config, model_config, train_config, run, only_no_out=True, save_model=True)
+            if data.training_dataset is None:
+                test_points = dataset_config.test_points
+                training_dataset, validation_dataset = load_dataset(dataset_config, train_config, test_points)
+                data.training_dataset = training_dataset
+                data.validation_dataset = validation_dataset
+                data.test_points = test_points
+                print('Create data for current sweep')
+            else:
+                print('Data already created for current sweep, skip')
+
+            results, model = main(dataset_config, model_config, train_config, run, only_no_out=True, save_model=True,
+                                  training_dataset=data.training_dataset,
+                                  validation_dataset=data.validation_dataset,
+                                  test_points=data.test_points)
             wandb.log(
                 {
                     'l2': results['no'].l2

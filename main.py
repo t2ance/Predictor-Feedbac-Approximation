@@ -389,8 +389,7 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
              silence: bool = False, test_points: List = None, plot: bool = False):
     if base_path is not None:
         base_path = f'{base_path}/{method}'
-    if test_points is None:
-        test_points = dataset_config.test_points
+    assert test_points is not None
 
     bar = test_points if silence else tqdm(test_points)
     l2_list = []
@@ -488,15 +487,7 @@ def run_tests(model, train_config, dataset_config, model_config, test_points, on
         }
 
 
-def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig, run,
-         only_no_out: bool = True, save_model: bool = True):
-    set_everything(0)
-    test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
-    print('All test points:')
-    print(test_points)
-
-    assert train_config.training_type == 'sequence'
-
+def load_dataset(dataset_config, train_config, test_points):
     if dataset_config.recreate_dataset:
         print('Begin generating dataset...')
         training_results = create_sequence_simulation_result(
@@ -517,7 +508,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 
     # the sample to visualize
     validation_results = create_sequence_simulation_result(
-        dataset_config, train_config, test_points=dataset_config.test_points)
+        dataset_config, train_config, test_points=test_points)
 
     training_dataset = []
     for result in training_results:
@@ -526,8 +517,32 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     for result in validation_results:
         validation_dataset.append(simulation_result_to_samples(result, dataset_config))
 
-    if train_config.two_stage and (model_config.model_name == 'FNO-GRU' or model_config.model_name == 'FNO-LSTM'
-                                   or model_config.model_name == 'DeepONet-GRU' or model_config.model_name == 'DeepONet-LSTM'):
+    return training_dataset, validation_dataset
+
+
+def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig, run,
+         only_no_out: bool = True, save_model: bool = True, training_dataset=None, validation_dataset=None,
+         test_points=None):
+    assert train_config.training_type == 'sequence'
+    set_everything(0)
+    if test_points is None:
+        test_points = dataset_config.test_points
+    else:
+        print('Test points loaded', test_points)
+
+    test_point_pairs = [(tp, uuid.uuid4()) for tp in test_points]
+    print('All test points:')
+    print(test_point_pairs)
+
+    if training_dataset is None or validation_dataset is None:
+        training_dataset, validation_dataset = load_dataset(dataset_config, train_config, test_points)
+        print('Load dataset in this run')
+    else:
+        print('Dataset already set, skip loading dataset')
+
+    if (train_config.two_stage and (model_config.model_name == 'FNO-GRU' or model_config.model_name == 'FNO-LSTM'
+                                    or model_config.model_name == 'DeepONet-GRU'
+                                    or model_config.model_name == 'DeepONet-LSTM')):
         ffn = load_model(train_config, model_config, dataset_config, model_name=model_config.model_name.split('-')[0])
         model = load_model(train_config, model_config, dataset_config, ffn=ffn)
 
@@ -540,7 +555,6 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
             model_config.save_model(run, ffn, model_name=first_stage_model)
         else:
             model_config.load_model(run, ffn, model_name=first_stage_model)
-        # run_tests(ffn, train_config, dataset_config, model_config, test_points)
     else:
         model = load_model(train_config, model_config, dataset_config, ffn=None)
 
@@ -550,7 +564,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     )
     if save_model:
         model_config.save_model(run, model)
-    test_results = run_tests(model, train_config, dataset_config, model_config, test_points, only_no_out)
+    test_results = run_tests(model, train_config, dataset_config, model_config, test_point_pairs, only_no_out)
     wandb.log({'l2': test_results['no'].l2})
     return test_results, model
 
