@@ -150,11 +150,11 @@ class TimeAwareFFN(torch.nn.Module):
         self.residual = residual
 
     def initialize(self):
-        for module in self.rnn.modules():
-            if isinstance(module, nn.Linear):
-                nn.init.constant_(module.weight, 0)
-                if module.bias is not None:
-                    nn.init.constant_(module.bias, 0)
+        # for module in self.rnn.modules():
+        #     if isinstance(module, nn.Linear):
+        #         nn.init.constant_(module.weight, 0)
+        #         if module.bias is not None:
+        #             nn.init.constant_(module.bias, 0)
         self.initialized = True
         print(self.__class__.__name__, 'initialized to zero for its RNN')
 
