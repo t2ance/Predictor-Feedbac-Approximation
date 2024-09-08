@@ -26,6 +26,7 @@ class ModelConfig:
     lstm_n_layer: Optional[int] = field(default=4)
     lstm_layer_width: Optional[int] = field(default=8)
     model_name: Optional[Literal['FFN', 'FNO', 'DeepONet', 'GRU', 'LSTM']] = field(default='FNO')
+    model_version: Optional[str] = field(default='latest')
 
     system: Optional[str] = field(default='s1')
 
@@ -47,7 +48,9 @@ class ModelConfig:
         wandb.save("model.pth")
         run.log_artifact(model_artifact)
 
-    def load_model(self, run, model, version='latest', model_name: str = None):
+    def load_model(self, run, model, model_name: str = None, version: str = None):
+        if version is None:
+            version = self.model_version
         if model_name is None:
             model_name = model.__class__.__name__
         model_artifact = run.use_artifact(f"{model_name}-{self.system}:{version}")
