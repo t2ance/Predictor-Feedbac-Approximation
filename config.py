@@ -66,8 +66,12 @@ class ModelConfig:
     def get_model(self, run, train_config, dataset_config, version: str = None):
         if version is None:
             version = self.model_version
-        if 'FNO' in self.model_name:
-            model_name = self.model_name.replace('FNO', 'FNOProjection')
+        if self.model_name == 'FNO':
+            model_name = 'FNOProjection'
+        elif self.model_name == 'FNO-GRU':
+            model_name = 'FNOProjectionGRU'
+        elif self.model_name == 'FNO-LSTM':
+            model_name = 'FNOProjectionLSTM'
         elif self.model_name == 'GRU':
             model_name = 'GRUNet'
         elif self.model_name == 'LSTM':
