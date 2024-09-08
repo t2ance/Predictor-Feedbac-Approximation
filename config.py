@@ -616,7 +616,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    scheduler_min_lr=1e-5)
         if model_name == 'FNO':
             train_config.n_epoch = 50
-            train_config.batch_size = 512
+            train_config.batch_size = 2048
             train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 6e-6
             model_config.fno_n_layer = 16
