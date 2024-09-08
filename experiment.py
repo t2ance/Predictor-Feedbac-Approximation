@@ -532,8 +532,8 @@ if __name__ == '__main__':
         l2_p_phat = sum([r.l2_p_phat for r in result_list]) / len(result_list)
         rl2_p_phat = sum([r.rl2_p_phat for r in result_list]) / len(result_list)
         n_success = sum([1 if r.success else 0 for r in result_list])
-        method_result = SimulationResult(avg_prediction_time=avg_prediction_time, l2_p_z=l2_p_z, rl2_p_z=rl2_p_phat,
-                                         l2_p_phat=l2_p_phat, rl2_p_phat=rl2_p_phat, n_success=n_success)
+        # method_result = SimulationResult(avg_prediction_time=avg_prediction_time, l2_p_z=l2_p_z, rl2_p_z=rl2_p_phat,
+        #                                  l2_p_phat=l2_p_phat, rl2_p_phat=rl2_p_phat, n_success=n_success)
         print(f'{method} & {result_list[0].n_parameter} & {avg_prediction_time * 1000:.3f} '
               f'& {avg_prediction_time_num / avg_prediction_time:.3f} '
-              f'& {l2_p_z:.3f} & {l2_p_phat:.3f} & {rl2_p_z:.3f} & {rl2_p_phat:.3f}\\\\')
+              f'& {l2_p_z.item():.3f} & {l2_p_phat.item():.3f} & {rl2_p_z.item():.3f} & {rl2_p_phat.item():.3f}\\\\')
