@@ -151,7 +151,7 @@ def do_sweep(system, model_name):
             config = wandb.config
             dataset_config, model_config, train_config = get_config(system_=system, model_name=model_name)
             set_config(config, dataset_config, model_config, train_config)
-            results, model = main(dataset_config, model_config, train_config, run, only_no_out=True, save_model=False)
+            results, model = main(dataset_config, model_config, train_config, run, only_no_out=True, save_model=True)
             wandb.log(
                 {
                     'l2': results['no'].l2
@@ -163,8 +163,6 @@ def do_sweep(system, model_name):
 
 if __name__ == '__main__':
     import argparse
-
-    set_everything(0)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', type=str)

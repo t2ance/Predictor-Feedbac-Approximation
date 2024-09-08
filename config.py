@@ -236,7 +236,7 @@ class DatasetConfig:
             if self.random_test_points is None:
                 self.random_test_points = [
                     tuple((np.random.uniform(self.random_test_lower_bound, self.random_test_upper_bound,
-                                             self.system.n_state)).tolist()) for _ in range(1)
+                                             self.system.n_state)).tolist()) for _ in range(3)
                 ]
             return self.random_test_points
         else:

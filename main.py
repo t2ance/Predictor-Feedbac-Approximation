@@ -432,7 +432,8 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
         l2_list.append(result.l2)
         prediction_time.append(result.avg_prediction_time)
         n_iter_list.append(result.P_numerical_n_iters)
-    l2 = np.nanmean(l2_list).item()
+    # l2 = np.nanmean(l2_list).item()
+    l2 = np.mean(l2_list).item()
     runtime = np.nanmean(prediction_time).item()
     to_save = [l2, runtime]
     if method == 'numerical':
@@ -489,6 +490,7 @@ def run_tests(model, train_config, dataset_config, model_config, test_points, on
 
 def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig, run,
          only_no_out: bool = True, save_model: bool = True):
+    set_everything(0)
     test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
     print('All test points:')
     print(test_points)
@@ -554,7 +556,6 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 
 
 if __name__ == '__main__':
-    set_everything(0)
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', type=str, default='s9')
     parser.add_argument('-delay', type=float, default=None)
