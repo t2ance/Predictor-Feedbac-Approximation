@@ -2,7 +2,7 @@ import wandb
 
 from config import get_config
 from main import main, load_dataset
-from utils import print_args, set_everything
+from utils import print_args, set_everything, get_time_str
 
 
 def set_config(config, dataset_config, model_config, train_config):
@@ -135,7 +135,7 @@ def get_parameters(system: str, model_name: str):
 def do_sweep(system, model_name):
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     sweep_config = {
-        "name": system + ' ' + model_name,
+        "name": system + ' ' + model_name + ' ' + get_time_str(),
         'method': 'bayes',
         'metric': {
             'name': 'l2',

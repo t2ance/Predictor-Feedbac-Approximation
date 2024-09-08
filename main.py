@@ -487,7 +487,7 @@ def run_tests(model, train_config, dataset_config, model_config, test_points, on
         }
 
 
-def load_dataset(dataset_config, train_config, test_points):
+def load_dataset(dataset_config, train_config, test_points, run):
     if dataset_config.recreate_dataset:
         print('Begin generating dataset...')
         training_results = create_sequence_simulation_result(
@@ -535,7 +535,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     print(test_point_pairs)
 
     if training_dataset is None or validation_dataset is None:
-        training_dataset, validation_dataset = load_dataset(dataset_config, train_config, test_points)
+        training_dataset, validation_dataset = load_dataset(dataset_config, train_config, test_points, run)
         print('Load dataset in this run')
     else:
         print('Dataset already set, skip loading dataset')
