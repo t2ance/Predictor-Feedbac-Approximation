@@ -10,6 +10,7 @@ import wandb
 
 import dynamic_systems
 from dynamic_systems import ConstantDelay, TimeVaryingDelay
+from utils import load_model
 
 
 @dataclass
@@ -54,12 +55,40 @@ class ModelConfig:
         if model_name is None:
             model_name = model.__class__.__name__
         model_artifact = run.use_artifact(f"{model_name}-{self.system}:{version}")
+
         model_dir = model_artifact.download()
         model_path = os.path.join(model_dir, "model.pth")
 
         state_dict = torch.load(model_path)
         model.load_state_dict(state_dict)
         return state_dict
+
+    def get_model(self, run, train_config, dataset_config, version: str = None):
+        if version is None:
+            version = self.model_version
+        model_name = self.model_name
+        model_artifact = run.use_artifact(f"{model_name}-{self.system}:{version}")
+        metadata = model_artifact.metadata
+        model_dir = model_artifact.download()
+        model_path = os.path.join(model_dir, "model.pth")
+        state_dict = torch.load(model_path)
+        if 'FNO' in model_name:
+            self.fno_n_layer = metadata['fno_n_layer']
+            self.fno_n_modes_height = metadata['fno_n_modes_height']
+            self.fno_hidden_channels = metadata['fno_hidden_channels']
+        if 'DeepONet' in model_name:
+            self.deeponet_hidden_size = metadata['deeponet_hidden_size']
+            self.deeponet_n_layer = metadata['deeponet_n_layer']
+        if 'GRU' in model_name:
+            self.gru_n_layer = metadata['gru_n_layer']
+            self.gru_layer_width = metadata['gru_layer_width']
+        if 'LSTM' in model_name:
+            self.lstm_n_layer = metadata['lstm_n_layer']
+            self.lstm_layer_width = metadata['lstm_layer_width']
+
+        model, n_params = load_model(train_config, self, dataset_config, model_name=model_name, n_param_out=True)
+        model.load_state_dict(state_dict)
+        return model, n_params
 
 
 @dataclass

@@ -104,5 +104,6 @@ if __name__ == '__main__':
         project="no",
         name=f'test'
     )
-    dataset_config_, model_config_, train_config_ = get_config(system_='s9', model_name='FNO')
-    training_dataset, validation_dataset = dataset_config_.load_dataset(run, resize=False)
+    art = run.use_artifact(f"FNOProjectionGRU-s9:latest")
+    # dataset_config_, model_config_, train_config_ = get_config(system_='s9', model_name='FNO')
+    # training_dataset, validation_dataset = dataset_config_.load_dataset(run, resize=False)
