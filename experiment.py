@@ -553,16 +553,16 @@ if __name__ == '__main__':
     deeponet_lstm = None
     model_parameters = []
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO')
-    fno, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    fno, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet')
-    deeponet, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    deeponet, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='GRU')
-    gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    gru, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='LSTM')
-    lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-GRU')
     fno_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
