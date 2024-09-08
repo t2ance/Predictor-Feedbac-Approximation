@@ -160,7 +160,7 @@ def do_sweep(system, model_name):
             set_config(config, dataset_config, model_config, train_config)
             if data.training_dataset is None:
                 test_points = dataset_config.test_points
-                training_dataset, validation_dataset = load_dataset(dataset_config, train_config, test_points)
+                training_dataset, validation_dataset = load_dataset(dataset_config, train_config, test_points, run)
                 data.training_dataset = training_dataset
                 data.validation_dataset = validation_dataset
                 data.test_points = test_points
