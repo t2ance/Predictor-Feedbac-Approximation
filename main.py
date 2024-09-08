@@ -227,6 +227,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
         l2_p_z_value, rl2_p_z_value = l2_p_z(P, Z, dataset_config.n_point_delay, ts)
     else:
         l2_p_z_value, rl2_p_z_value = None, None
+
     if 'l2_p_phat' in metric_list:
         l2_p_phat_value, rl2_p_phat_value = l2_p_phat(P, P_numerical, dataset_config.n_point_start())
     else:

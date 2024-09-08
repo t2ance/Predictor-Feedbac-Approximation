@@ -482,30 +482,30 @@ if __name__ == '__main__':
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO')
     fno, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
 
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet')
-    deeponet, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='GRU')
-    gru, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='LSTM')
-    lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-GRU')
-    train_config.zero_init = False
-    fno_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-LSTM')
-    train_config.zero_init = False
-    fno_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-GRU')
-    train_config.zero_init = False
-    deeponet_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-LSTM')
-    train_config.zero_init = False
-    deeponet_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet')
+    # deeponet, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='GRU')
+    # gru, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='LSTM')
+    # lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-GRU')
+    # train_config.zero_init = False
+    # fno_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-LSTM')
+    # train_config.zero_init = False
+    # fno_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-GRU')
+    # train_config.zero_init = False
+    # deeponet_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-LSTM')
+    # train_config.zero_init = False
+    # deeponet_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
 
     results = None
     for i, test_point in enumerate(dataset_config.get_test_points(n_point=args.n)):
@@ -526,6 +526,7 @@ if __name__ == '__main__':
         r' Method    & Parameters  & Raw Prediction Time  &  Speedup & $L_2$ & $\hat{L}_2$ & Relative $L_2$ & Relative $\hat{L}_2$')
     for method, result_list in results.items():
         avg_prediction_time = sum([r.avg_prediction_time for r in result_list]) / len(result_list)
+        print(result_list)
         l2_p_z = sum([r.l2_p_z for r in result_list]) / len(result_list)
         rl2_p_z = sum([r.rl2_p_z for r in result_list]) / len(result_list)
         l2_p_phat = sum([r.l2_p_phat for r in result_list]) / len(result_list)
