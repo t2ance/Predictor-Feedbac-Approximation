@@ -21,7 +21,6 @@ def set_config(config, dataset_config, model_config, train_config):
 
     train_config.learning_rate = config.learning_rate
     train_config.weight_decay = config.weight_decay
-
     if ffn == 'FNO':
         model_config.fno_n_layer = config.fno_n_layer
         model_config.fno_n_modes_height = config.fno_n_modes_height

@@ -488,7 +488,7 @@ def run_tests(model, train_config, dataset_config, model_config, test_points, on
 
 
 def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig, run,
-         only_no_out: bool = False, save_model: bool = True):
+         only_no_out: bool = True, save_model: bool = True):
     test_points = [(tp, uuid.uuid4()) for tp in dataset_config.test_points]
     print('All test points:')
     print(test_points)
@@ -548,7 +548,9 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     )
     if save_model:
         model_config.save_model(run, model)
-    return run_tests(model, train_config, dataset_config, model_config, test_points, only_no_out), model
+    test_results = run_tests(model, train_config, dataset_config, model_config, test_points, only_no_out)
+    wandb.log({'l2': test_results['no'].l2})
+    return test_results, model
 
 
 if __name__ == '__main__':
