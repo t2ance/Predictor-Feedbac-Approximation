@@ -3,6 +3,7 @@ import wandb
 from config import get_config
 from main import main, load_dataset
 from utils import print_args, get_time_str
+import numpy as np
 
 
 def set_config(config, dataset_config, model_config, train_config):
@@ -172,9 +173,12 @@ def do_sweep(system, model_name):
                                   training_dataset=data.training_dataset,
                                   validation_dataset=data.validation_dataset,
                                   test_points=data.test_points)
+            l2 = results['no'].l2
+            if l2 > 10:
+                l2 = np.nan
             wandb.log(
                 {
-                    'l2': results['no'].l2
+                    'l2': l2
                 }
             )
 
