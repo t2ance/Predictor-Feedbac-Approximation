@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 
 import config
 from main import run_test, simulation
-from plot_utils import plot_comparison, plot_difference, plot_control, set_size, fig_width, plot_switch_segments, \
+from plot_utils import plot_comparison, plot_difference, plot_control, set_size, fig_width, plot_switched_control, \
     plot_q, plot_quantile
 from utils import set_everything, load_model, get_time_str, check_dir, SimulationResult
 
@@ -21,9 +21,33 @@ def interval(min_, max_):
     return new_min, new_max
 
 
-def plot_comparisons(test_point, plot_name, dataset_config, train_config, system,
-                     fno=None, deeponet=None, gru=None, lstm=None, fno_gru=None, fno_lstm=None, deeponet_gru=None,
-                     deeponet_lstm=None, metric_list=None):
+def plot_comparisons(test_point, plot_name, dataset_config, train_config, system, fno=None, deeponet=None, gru=None,
+                     lstm=None, fno_gru=None, fno_lstm=None, deeponet_gru=None, deeponet_lstm=None, fno_cp=None,
+                     deeponet_cp=None, gru_cp=None, lstm_cp=None, fno_gru_cp=None, fno_lstm_cp=None,
+                     deeponet_gru_cp=None, deeponet_lstm_cp=None, fno_gm=None, deeponet_gm=None, gru_gm=None,
+                     lstm_gm=None, fno_gru_gm=None, fno_lstm_gm=None, deeponet_gru_gm=None, deeponet_lstm_gm=None,
+                     metric_list=None):
+    def simulate_ml_methods(model, model_name):
+        if model is None:
+            print(f'Model {model} excluded')
+            return
+        if model_name.endswith(r'_{CP}'):
+            prediction_method = 'switching'
+            train_config.uq_type = 'conformal prediction'
+        elif model_name.endswith(r'_{GM}'):
+            prediction_method = 'switching'
+            train_config.uq_type = 'gaussian process'
+        else:
+            prediction_method = 'no'
+        m_result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=model,
+                              method=prediction_method, silence=False, metric_list=metric_list)
+        Ps.append(m_result.P_no)
+        Zs.append(m_result.Z)
+        Ds.append(m_result.D_no)
+        Us.append(m_result.U)
+        labels.append(model_name)
+        results.append(m_result)
+
     if system == 's8':
         n_max_state = 5
         n_row = 4
@@ -41,7 +65,6 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     results = []
 
     print(f'Begin simulation {plot_name}')
-
     result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, method='numerical',
                         silence=False, metric_list=metric_list)
     Ps.append(result.P_numerical)
@@ -52,94 +75,35 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     results.append(result)
     print('Numerical approximation iteration', result.P_numerical_n_iters.mean())
 
-    if fno is not None:
-        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=fno,
-                            method='no', silence=False, metric_list=metric_list)
-        Ps.append(result.P_no)
-        Zs.append(result.Z)
-        Ds.append(result.D_no)
-        Us.append(result.U)
-        labels.append('FNO')
-        results.append(result)
+    simulate_ml_methods(fno, model_name='FNO')
+    simulate_ml_methods(deeponet, model_name='DeepONet')
+    simulate_ml_methods(gru, model_name='GRU')
+    simulate_ml_methods(lstm, model_name='LSTM')
+    simulate_ml_methods(fno_gru, model_name='FNO-GRU')
+    simulate_ml_methods(fno_lstm, model_name='FNO-LSTM')
+    simulate_ml_methods(deeponet_gru, model_name='DeepONet-GRU')
+    simulate_ml_methods(deeponet_lstm, model_name='DeepONet-LSTM')
 
-    if deeponet is not None:
-        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=deeponet,
-                            method='no', silence=False, metric_list=metric_list)
-        Ps.append(result.P_no)
-        Zs.append(result.Z)
-        Ds.append(result.D_no)
-        Us.append(result.U)
-        labels.append('DeepONet')
-        results.append(result)
+    simulate_ml_methods(fno_cp, model_name='FNO_{CP}')
+    simulate_ml_methods(deeponet_cp, model_name='DeepONet_{CP}')
+    simulate_ml_methods(gru_cp, model_name='GRU_{CP}')
+    simulate_ml_methods(lstm_cp, model_name='LSTM_{CP}')
+    simulate_ml_methods(fno_gru_cp, model_name='FNO-GRU_{CP}')
+    simulate_ml_methods(fno_lstm_cp, model_name='FNO-LSTM_{CP}')
+    simulate_ml_methods(deeponet_gru_cp, model_name='DeepONet-GRU_{CP}')
+    simulate_ml_methods(deeponet_lstm_cp, model_name='DeepONet-LSTM_{CP}')
 
-    if gru is not None:
-        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=gru,
-                            method='no', silence=False, metric_list=metric_list)
-        Ps.append(result.P_no)
-        Zs.append(result.Z)
-        Ds.append(result.D_no)
-        Us.append(result.U)
-        labels.append('GRU')
-        results.append(result)
-
-    if lstm is not None:
-        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=lstm,
-                            method='no', silence=False, metric_list=metric_list)
-        Ps.append(result.P_no)
-        Zs.append(result.Z)
-        Ds.append(result.D_no)
-        Us.append(result.U)
-        labels.append('LSTM')
-        results.append(result)
-
-    if fno_gru is not None:
-        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=fno_gru,
-                            method='no', silence=False, metric_list=metric_list)
-        Ps.append(result.P_no)
-        Zs.append(result.Z)
-        Ds.append(result.D_no)
-        Us.append(result.U)
-        labels.append('FNO-GRU')
-        results.append(result)
-
-    if fno_lstm is not None:
-        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=fno_lstm,
-                            method='no', silence=False, metric_list=metric_list)
-        Ps.append(result.P_no)
-        Zs.append(result.Z)
-        Ds.append(result.D_no)
-        Us.append(result.U)
-        labels.append('FNO-LSTM')
-        results.append(result)
-
-    if deeponet_gru is not None:
-        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=deeponet_gru,
-                            method='no', silence=False, metric_list=metric_list)
-        Ps.append(result.P_no)
-        Zs.append(result.Z)
-        Ds.append(result.D_no)
-        Us.append(result.U)
-        labels.append('DeepONet-GRU')
-        results.append(result)
-
-    if deeponet_lstm is not None:
-        result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point,
-                            model=deeponet_lstm, method='no', silence=False, metric_list=metric_list)
-        Ps.append(result.P_no)
-        Zs.append(result.Z)
-        Ds.append(result.D_no)
-        Us.append(result.U)
-        labels.append('DeepONet-LSTM')
-        results.append(result)
+    simulate_ml_methods(fno_gm, model_name='FNO_{GM}')
+    simulate_ml_methods(deeponet_gm, model_name='DeepONet_{GM}')
+    simulate_ml_methods(gru_gm, model_name='GRU_{GM}')
+    simulate_ml_methods(lstm_gm, model_name='LSTM_{GM}')
+    simulate_ml_methods(fno_gru_gm, model_name='FNO-GRU_{GM}')
+    simulate_ml_methods(fno_lstm_gm, model_name='FNO-LSTM_{GM}')
+    simulate_ml_methods(deeponet_gru_gm, model_name='DeepONet-GRU_{GM}')
+    simulate_ml_methods(deeponet_lstm_gm, model_name='DeepONet-LSTM_{GM}')
     captions = []
     for label, result in zip(labels, results):
         caption = label
-        # if np.isnan(result.l2):
-        #     caption = f'{label} \n Failed'
-        # elif result.l2 == 0:
-        #     caption = label
-        # else:
-        #     caption = f'{label} \n $L_2$: {result.l2:.3f}'
         captions.append(caption)
     print(f'End simulation {plot_name}')
     print(labels)
@@ -193,9 +157,11 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         plot_difference(ts, [P], Z, n_point_delay, None, ylim=[min_d, max_d], ax=axes[1], comment=comment,
                         differences=[D])
 
-    for i, (axes, P, Z, D, U) in enumerate(zip(method_axes, Ps, Zs, Ds, Us)):
+    for i, (axes, P, Z, D, U, result) in enumerate(zip(method_axes, Ps, Zs, Ds, Us, results)):
         comment = i == n_col - 1
+
         plot_control(ts, U, None, n_point_delay, ax=axes[2], comment=comment, ylim=[min_u, max_u])
+        plot_switched_control(ts, result, n_point_delay(0), ax=axes[2], legend=True, ylim=[min_u, max_u])
 
     if n_row == 4:
         q_des = np.array([dataset_config.system.q_des(t) for t in ts])
@@ -254,7 +220,7 @@ def plot_sw_numerical_comparison(test_points, plot_name, dataset_config, train_c
 
         min_u, max_u = interval(min(numerical.U.min(), cp.U.min()), max(numerical.U.max(), cp.U.max()))
         plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[2], comment=False, ylim=[min_u, max_u])
-        plot_switch_segments(ts, cp, n_point_delay(0), ax=cp_axes[2], legend=True, ylim=[min_u, max_u])
+        plot_switched_control(ts, cp, n_point_delay(0), ax=cp_axes[2], legend=True, ylim=[min_u, max_u])
 
         if n_row == 4:
             q_des = np.array([dataset_config.system.q_des(t) for t in ts])
@@ -324,8 +290,8 @@ def plot_uq_ablation(test_points, plot_name, dataset_config, train_config, model
         min_u, max_u = interval(min(no.U.min(), cp.U.min(), gp.U.min()),
                                 max(no.U.max(), cp.U.max(), gp.U.max()))
         plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
-        plot_switch_segments(ts, cp, n_point_delay(0), ax=cp_axes[2], legend=False, ylim=[min_u, max_u])
-        plot_switch_segments(ts, gp, n_point_delay(0), ax=gp_axes[2], legend=True, ylim=[min_u, max_u])
+        plot_switched_control(ts, cp, n_point_delay(0), ax=cp_axes[2], legend=False, ylim=[min_u, max_u])
+        plot_switched_control(ts, gp, n_point_delay(0), ax=gp_axes[2], legend=True, ylim=[min_u, max_u])
 
         if n_row == 4:
             q_des = np.array([dataset_config.system.q_des(t) for t in ts])
@@ -394,13 +360,13 @@ def plot_alpha(test_points, plot_name, dataset_config, train_config, model, alph
             max([switching_result.U.max() for switching_result in test_result])
         )
         for switching_result, switching_alpha_ax in zip(test_result, switching_alpha_axes):
-            plot_switch_segments(ts, switching_result, n_point_delay(0), ax=switching_alpha_ax[2], legend=False,
-                                 ylim=[min_u, max_u])
+            plot_switched_control(ts, switching_result, n_point_delay(0), ax=switching_alpha_ax[2], legend=False,
+                                  ylim=[min_u, max_u])
 
         n_point_start = n_point_delay(0)
         for switching_result, switching_alpha_ax, alpha in zip(test_result, switching_alpha_axes, alphas):
-            plot_switch_segments(ts, switching_result, n_point_delay(0), ax=switching_alpha_ax[2], legend=False,
-                                 ylim=[min_u, max_u])
+            plot_switched_control(ts, switching_result, n_point_delay(0), ax=switching_alpha_ax[2], legend=False,
+                                  ylim=[min_u, max_u])
             plot_quantile(n_point_start, switching_result.P_no_Ri, alpha, switching_alpha_ax[3], ylim=[0, 30],
                           comment=False, legend_loc='upper right')
 
@@ -477,42 +443,92 @@ if __name__ == '__main__':
     fno_lstm = None
     deeponet_gru = None
     deeponet_lstm = None
+
+    fno_cp = None
+    deeponet_cp = None
+    gru_cp = None
+    lstm_cp = None
+    fno_gru_cp = None
+    fno_lstm_cp = None,
+    deeponet_gru_cp = None
+    deeponet_lstm_cp = None
+
+    fno_gm = None
+    deeponet_gm = None
+    gru_gm = None,
+    lstm_gm = None
+    fno_gru_gm = None
+    fno_lstm_gm = None
+    deeponet_gru_gm = None
+    deeponet_lstm_gm = None
+
     model_parameters = []
     metric_list = ['l2_p_z', 'rl2_p_z', 'l2_p_phat', 'rl2_p_phat']
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO')
     fno, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
+    fno_cp, fno_gm = fno, fno
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet')
     deeponet, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
+    deeponet_cp, deeponet_gm = deeponet, deeponet
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='GRU')
     gru, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
+    gru_cp, gru_gm = gru, gru
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='LSTM')
     lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
+    lstm_cp, lstm_gm = lstm, lstm
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-GRU')
     train_config.zero_init = False
     fno_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    fno_gru_cp, fno_gru_gm = fno_gru, fno_gru
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-LSTM')
     train_config.zero_init = False
     fno_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    fno_lstm_cp, fno_lstm_gm = fno_lstm, fno_lstm
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-GRU')
     train_config.zero_init = False
     deeponet_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    deeponet_gru_cp, deeponet_gru_gm = deeponet_gru, deeponet_gru
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-LSTM')
     train_config.zero_init = False
     deeponet_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    deeponet_lstm_cp, deeponet_lstm_gm = deeponet_lstm, deeponet_lstm
 
     results = None
     for i, test_point in enumerate(dataset_config.get_test_points(n_point=args.n)):
         result_dict = plot_comparisons(
-            test_point, f'{args.s}-{i}', dataset_config, train_config, system=args.s, fno=fno, deeponet=deeponet,
-            gru=gru, lstm=lstm, fno_gru=fno_gru, fno_lstm=fno_lstm, deeponet_gru=deeponet_gru,
-            deeponet_lstm=deeponet_lstm, metric_list=metric_list)
+            test_point, f'{args.s}-{i}', dataset_config, train_config, system=args.s, metric_list=metric_list,
+            fno=fno,
+            deeponet=deeponet,
+            gru=gru,
+            lstm=lstm,
+            fno_gru=fno_gru,
+            fno_lstm=fno_lstm,
+            deeponet_gru=deeponet_gru,
+            deeponet_lstm=deeponet_lstm,
+            fno_cp=fno_cp,
+            deeponet_cp=deeponet_cp,
+            gru_cp=gru_cp,
+            lstm_cp=lstm_cp,
+            fno_gru_cp=fno_gru_cp,
+            fno_lstm_cp=fno_lstm_cp,
+            deeponet_gru_cp=deeponet_gru_cp,
+            deeponet_lstm_cp=deeponet_lstm_cp,
+            fno_gm=fno_gm,
+            deeponet_gm=deeponet_gm,
+            gru_gm=gru_gm,
+            lstm_gm=lstm_gm,
+            fno_gru_gm=fno_gru_gm,
+            fno_lstm_gm=fno_lstm_gm,
+            deeponet_gru_gm=deeponet_gru_gm,
+            deeponet_lstm_gm=deeponet_lstm_gm,
+        )
         if results is None:
             results = {k: [] for k in result_dict.keys()}
 
@@ -528,14 +544,11 @@ if __name__ == '__main__':
     for method, result_list in results.items():
         n_test = len(result_list)
         avg_prediction_time = sum([r.avg_prediction_time for r in result_list]) / n_test
-        # print(result_list)
         l2_p_z = sum([r.l2_p_z for r in result_list]) / n_test
         rl2_p_z = sum([r.rl2_p_z for r in result_list]) / n_test
         l2_p_phat = sum([r.l2_p_phat for r in result_list]) / n_test
         rl2_p_phat = sum([r.rl2_p_phat for r in result_list]) / n_test
         n_success = sum([1 if r.success else 0 for r in result_list])
-        # method_result = SimulationResult(avg_prediction_time=avg_prediction_time, l2_p_z=l2_p_z, rl2_p_z=rl2_p_phat,
-        #                                  l2_p_phat=l2_p_phat, rl2_p_phat=rl2_p_phat, n_success=n_success)
         line = f'{method} & {result_list[0].n_parameter} & {avg_prediction_time * 1000:.3f} ' \
                f'& {avg_prediction_time_num / avg_prediction_time:.3f} ' \
                f'& {l2_p_phat.item():.3f} & {l2_p_z.item():.3f} & {rl2_p_phat.item():.3f} & {rl2_p_z.item():.3f}\\\\'

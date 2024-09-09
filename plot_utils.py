@@ -18,7 +18,7 @@ fig_width = 469.75502
 n_ticks = 5
 
 
-def plot_switch_segments(ts, result: SimulationResult, n_point_delay, ylim=None, ax=None, legend=True):
+def plot_switched_control(ts, result: SimulationResult, n_point_delay, ylim=None, ax=None, legend=True):
     if ax is None:
         ax = plt.figure(figsize=set_size(width=fig_width)).gca()
     ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
@@ -132,7 +132,7 @@ def plot_switch_system(train_config, dataset_config, result: SimulationResult, n
     ax.savefig(f'{img_save_path}/I.png')
     ax.close()
 
-    plot_switch_segments(dataset_config.ts, result, n_point_delay)
+    plot_switched_control(dataset_config.ts, result, n_point_delay)
 
 
 def plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_switching, Z, U,
