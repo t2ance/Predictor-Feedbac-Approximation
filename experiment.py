@@ -482,30 +482,30 @@ if __name__ == '__main__':
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO')
     fno, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
 
-    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet')
-    # deeponet, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='GRU')
-    # gru, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='LSTM')
-    # lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-GRU')
-    # train_config.zero_init = False
-    # fno_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-LSTM')
-    # train_config.zero_init = False
-    # fno_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-GRU')
-    # train_config.zero_init = False
-    # deeponet_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-LSTM')
-    # train_config.zero_init = False
-    # deeponet_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet')
+    deeponet, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
+
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='GRU')
+    gru, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
+
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='LSTM')
+    lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
+
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-GRU')
+    train_config.zero_init = False
+    fno_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-LSTM')
+    train_config.zero_init = False
+    fno_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-GRU')
+    train_config.zero_init = False
+    deeponet_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-LSTM')
+    train_config.zero_init = False
+    deeponet_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
 
     results = None
     for i, test_point in enumerate(dataset_config.get_test_points(n_point=args.n)):
@@ -535,10 +535,6 @@ if __name__ == '__main__':
         n_success = sum([1 if r.success else 0 for r in result_list])
         # method_result = SimulationResult(avg_prediction_time=avg_prediction_time, l2_p_z=l2_p_z, rl2_p_z=rl2_p_phat,
         #                                  l2_p_phat=l2_p_phat, rl2_p_phat=rl2_p_phat, n_success=n_success)
-        print(l2_p_z)
-        print(rl2_p_z)
-        print(l2_p_phat)
-        print(rl2_p_phat)
         print(f'{method} & {result_list[0].n_parameter} & {avg_prediction_time * 1000:.3f} '
               f'& {avg_prediction_time_num / avg_prediction_time:.3f} '
               f'& {l2_p_z.item():.3f} & {l2_p_phat.item():.3f} & {rl2_p_z.item():.3f} & {rl2_p_phat.item():.3f}\\\\')
