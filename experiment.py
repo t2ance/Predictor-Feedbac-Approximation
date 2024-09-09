@@ -202,6 +202,16 @@ def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alpha
         Us.append(m_result.U)
         labels.append(rf'$\alpha = {alpha}$')
         results.append(m_result)
+
+    result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, method='numerical',
+                        silence=False, metric_list=metric_list)
+    Ps.append(result.P_numerical)
+    Zs.append(result.Z)
+    Ds.append(result.D_numerical)
+    Us.append(result.U)
+    labels.append('Successive \n Approximation')
+    results.append(result)
+    print('Numerical approximation iteration', result.P_numerical_n_iters.mean())
     print('End simulation')
 
     return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, captions=labels)
