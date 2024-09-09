@@ -241,8 +241,8 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s8')
-    parser.add_argument('-n', type=int, default=1)
+    parser.add_argument('-s', type=str, default='s9')
+    parser.add_argument('-n', type=int, default=5)
     parser.add_argument('-m', type=str, default='cp-ood')
     args = parser.parse_args()
 
@@ -393,6 +393,38 @@ if __name__ == '__main__':
             fno_gru_gm = None
             # fno_lstm_gm = None
             deeponet_gru_gm = None
+            deeponet_lstm_gm = None
+
+            dataset_config.random_test_lower_bound = 1
+            dataset_config.random_test_upper_bound = 2
+            train_config.uq_gamma = 0.01
+            train_config.uq_alpha = 0.1
+        elif args.s == 's9':
+            fno = None
+            deeponet = None
+            gru = None
+            lstm = None
+            fno_gru = None
+            fno_lstm = None
+            # deeponet_gru = None
+            deeponet_lstm = None
+
+            fno_cp = None
+            deeponet_cp = None
+            gru_cp = None
+            lstm_cp = None
+            fno_gru_cp = None
+            fno_lstm_cp = None
+            # deeponet_gru_cp = None
+            deeponet_lstm_cp = None
+
+            fno_gm = None
+            deeponet_gm = None
+            gru_gm = None
+            lstm_gm = None
+            fno_gru_gm = None
+            fno_lstm_gm = None
+            # deeponet_gru_gm = None
             deeponet_lstm_gm = None
 
             dataset_config.random_test_lower_bound = 1
