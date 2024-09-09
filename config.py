@@ -272,10 +272,14 @@ class DatasetConfig:
     def base_path(self):
         return f'./{self.system_}/datasets'
 
-    def get_test_points(self, n_point=1):
+    def get_test_points(self, n_point=1, lower_bound=None, upper_bound=None):
+        if lower_bound is None:
+            lower_bound = self.random_test_lower_bound
+        if upper_bound is None:
+            upper_bound = self.random_test_upper_bound
+        state = np.random.RandomState(seed=0)
         return [
-            tuple((np.random.uniform(self.random_test_lower_bound, self.random_test_upper_bound,
-                                     self.system.n_state)).tolist()) for _ in range(n_point)
+            tuple((state.uniform(lower_bound, upper_bound, self.system.n_state)).tolist()) for _ in range(n_point)
         ]
 
     @property
@@ -283,10 +287,7 @@ class DatasetConfig:
         if self.random_test:
             state = np.random.RandomState(seed=0)
             if self.random_test_points is None:
-                self.random_test_points = [
-                    tuple((state.uniform(self.random_test_lower_bound, self.random_test_upper_bound,
-                                         self.system.n_state)).tolist()) for _ in range(5)
-                ]
+                self.random_test_points = self.get_test_points(5)
             return self.random_test_points
         else:
             if self.system_ == 's1':

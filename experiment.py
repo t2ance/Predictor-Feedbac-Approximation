@@ -427,16 +427,17 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', type=str, default='s9')
     parser.add_argument('-n', type=int, default=1)
+    parser.add_argument('-m', type=str, default='table')
     args = parser.parse_args()
 
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     run = wandb.init(
         project="no",
-        name=f'experiment {args.s} {args.n} {get_time_str()}'
+        name=f'experiment {args.s} {args.n} {args.m} {get_time_str()}'
     )
 
-    model_parameters = []
     metric_list = ['l2_p_z', 'rl2_p_z', 'l2_p_phat', 'rl2_p_phat']
+
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO')
     fno, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
     fno_cp, fno_gm = fno, fno
@@ -473,35 +474,56 @@ if __name__ == '__main__':
     deeponet_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
     deeponet_lstm_cp, deeponet_lstm_gm = deeponet_lstm, deeponet_lstm
 
-    # fno = None
-    # deeponet = None
-    # gru = None
-    # lstm = None
-    # fno_gru = None
-    # fno_lstm = None
-    # deeponet_gru = None
-    # deeponet_lstm = None
-    #
-    fno_cp = None
-    deeponet_cp = None
-    gru_cp = None
-    lstm_cp = None
-    fno_gru_cp = None
-    fno_lstm_cp = None
-    deeponet_gru_cp = None
-    deeponet_lstm_cp = None
+    if args.m == 'table':
+        fno_cp = None
+        deeponet_cp = None
+        gru_cp = None
+        lstm_cp = None
+        fno_gru_cp = None
+        fno_lstm_cp = None
+        deeponet_gru_cp = None
+        deeponet_lstm_cp = None
 
-    fno_gm = None
-    deeponet_gm = None
-    gru_gm = None
-    lstm_gm = None
-    fno_gru_gm = None
-    fno_lstm_gm = None
-    deeponet_gru_gm = None
-    deeponet_lstm_gm = None
+        fno_gm = None
+        deeponet_gm = None
+        gru_gm = None
+        lstm_gm = None
+        fno_gru_gm = None
+        fno_lstm_gm = None
+        deeponet_gru_gm = None
+        deeponet_lstm_gm = None
+    elif args.m == 'figure':
+        fno = None
+        deeponet = None
+        gru = None
+        lstm = None
+        fno_gru = None
+        fno_lstm = None
+        deeponet_gru = None
+        deeponet_lstm = None
+
+        fno_cp = None
+        deeponet_cp = None
+        gru_cp = None
+        lstm_cp = None
+        fno_gru_cp = None
+        fno_lstm_cp = None
+        deeponet_gru_cp = None
+        deeponet_lstm_cp = None
+
+        fno_gm = None
+        deeponet_gm = None
+        gru_gm = None
+        lstm_gm = None
+        fno_gru_gm = None
+        fno_lstm_gm = None
+        deeponet_gru_gm = None
+        deeponet_lstm_gm = None
 
     results = None
-    for i, test_point in enumerate(dataset_config.get_test_points(n_point=args.n)):
+
+    test_points = dataset_config.get_test_points(n_point=args.n)
+    for i, test_point in enumerate(test_points):
         result_dict = plot_comparisons(
             test_point, f'{args.s}-{i}', dataset_config, train_config, system=args.s, metric_list=metric_list,
             fno=fno,
@@ -539,8 +561,6 @@ if __name__ == '__main__':
     avg_prediction_time_num = sum([r.avg_prediction_time for r in result_list_num]) / len(result_list_num)
     print(
         r'Method& Parameters& \makecell{Raw Prediction Time \\ (ms/prediction)}  &  Speedup & $\mathcal{E}$ & $\mathcal{E}^\prime$ & $\mathcal{E}_r$ & $\mathcal{E}_r^\prime$ \\ \midrule')
-    print(
-        r'Method    & Parameters  & Raw Prediction Time  &  Speedup & $L_2$ & $\hat{L}_2$ & Relative $L_2$ & Relative $\hat{L}_2$')
     for method, result_list in results.items():
         n_test = len(result_list)
         avg_prediction_time = sum([r.avg_prediction_time for r in result_list]) / n_test
