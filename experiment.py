@@ -83,7 +83,7 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, caption
         if 'CP' in label or 'GM' in label or 'alpha' in label:
             plot_switched_control(ts, result, n_point_delay(0), ax=axes[2], comment=comment, ylim=[min_u, max_u])
         else:
-            if 'Successive' in label:
+            if 'Successive' in label and plot_alpha:
                 linestyle = ':'
             else:
                 linestyle = '-'
