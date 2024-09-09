@@ -235,7 +235,6 @@ if __name__ == '__main__':
     )
 
     metric_list = ['l2_p_z', 'rl2_p_z', 'l2_p_phat', 'rl2_p_phat']
-    # metric_list = ['l2_p_z', 'rl2_p_z']
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO')
     fno, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
@@ -292,6 +291,7 @@ if __name__ == '__main__':
         deeponet_gru_gm = None
         deeponet_lstm_gm = None
     elif args.m == 'figure':
+        metric_list = ['l2_p_z', 'rl2_p_z']
         if args.s == 's8':
             fno = None
             # deeponet = None
@@ -387,6 +387,7 @@ if __name__ == '__main__':
         if args.s == 's8':
             model = deeponet_gru
             alphas = [0.01, 0.1, 0.5]
+            metric_list = ['l2_p_z', 'rl2_p_z']
         else:
             raise NotImplementedError()
     else:
