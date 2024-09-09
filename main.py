@@ -142,9 +142,9 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
                         if subsystem_history[t_i - 1] == 1:
                             a = np.where(subsystem_history[:t_i] == 0)[0]
                             if len(a) == 0:
-                                t_last_no = a[-1]
-                            else:
                                 t_last_no = t_i
+                            else:
+                                t_last_no = a[-1]
 
                             if t_i - t_last_no > n_point_start:
                                 # switch back
