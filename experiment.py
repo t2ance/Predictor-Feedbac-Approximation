@@ -131,6 +131,8 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         Us.append(m_result.U)
         labels.append(model_name)
         results.append(m_result)
+        if not result.success:
+            print(f'{model_name} failed')
 
     Ps = []
     Zs = []
@@ -193,6 +195,17 @@ def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alpha
     labels = []
     results = []
     print('Begin simulation')
+
+    result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, method='numerical',
+                        silence=False, metric_list=metric_list)
+    Ps.append(result.P_numerical)
+    Zs.append(result.Z)
+    Ds.append(result.D_numerical)
+    Us.append(result.U)
+    labels.append('Successive \n Approximation')
+    results.append(result)
+    print('Numerical approximation iteration', result.P_numerical_n_iters.mean())
+
     for alpha in alphas:
         train_config.uq_alpha = alpha
         m_result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=model,
@@ -204,15 +217,6 @@ def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alpha
         labels.append(rf'$\alpha = {alpha}$')
         results.append(m_result)
 
-    result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, method='numerical',
-                        silence=False, metric_list=metric_list)
-    Ps.append(result.P_numerical)
-    Zs.append(result.Z)
-    Ds.append(result.D_numerical)
-    Us.append(result.U)
-    labels.append('Successive \n Approximation')
-    results.append(result)
-    print('Numerical approximation iteration', result.P_numerical_n_iters.mean())
     print('End simulation')
 
     return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, labels, results)
@@ -390,8 +394,7 @@ if __name__ == '__main__':
             dataset_config.random_test_lower_bound = 1
             dataset_config.random_test_upper_bound = 1.2
             train_config.uq_gamma = 0.01
-            # alphas = [0.01, 0.1, 0.5]
-            alphas = [0.1]
+            alphas = [0.01, 0.1, 0.5]
             metric_list = ['l2_p_z', 'rl2_p_z']
         else:
             raise NotImplementedError()
@@ -448,8 +451,12 @@ if __name__ == '__main__':
         avg_prediction_time = sum([r.avg_prediction_time for r in result_list]) / n_test
         l2_p_z = sum([r.l2_p_z for r in result_list]) / n_test
         rl2_p_z = sum([r.rl2_p_z for r in result_list]) / n_test
-        l2_p_phat = sum([r.l2_p_phat for r in result_list]) / n_test
-        rl2_p_phat = sum([r.rl2_p_phat for r in result_list]) / n_test
+        if 'l2_p_phat' not in metric_list:
+            l2_p_phat = -1
+            rl2_p_phat = -1
+        else:
+            l2_p_phat = sum([r.l2_p_phat for r in result_list]) / n_test
+            rl2_p_phat = sum([r.rl2_p_phat for r in result_list]) / n_test
         n_success = sum([1 if r.success else 0 for r in result_list])
         line = f'{method} & {result_list[0].n_parameter} & {avg_prediction_time * 1000:.3f} ' \
                f'& {avg_prediction_time_num / avg_prediction_time:.3f} ' \
