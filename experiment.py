@@ -311,13 +311,13 @@ if __name__ == '__main__':
     elif args.m == 'figure':
         metric_list = ['l2_p_z', 'rl2_p_z']
         if args.s == 's8':
-            fno = None
-            # deeponet = None
-            # gru = None
-            lstm = None
+            # fno = None
+            deeponet = None
+            gru = None
+            # lstm = None
             fno_gru = None
-            fno_lstm = None
-            # deeponet_gru = None
+            # fno_lstm = None
+            deeponet_gru = None
             deeponet_lstm = None
 
             fno_cp = None
