@@ -83,7 +83,12 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, caption
         if 'CP' in label or 'GM' in label or 'alpha' in label:
             plot_switched_control(ts, result, n_point_delay(0), ax=axes[2], comment=comment, ylim=[min_u, max_u])
         else:
-            plot_control(ts, U, None, n_point_delay, ax=axes[2], comment=comment, ylim=[min_u, max_u])
+            if 'Successive' in label:
+                linestyle = ':'
+            else:
+                linestyle = '-'
+            plot_control(ts, U, None, n_point_delay, ax=axes[2], comment=comment, ylim=[min_u, max_u],
+                         linestyle=linestyle)
 
     if n_row == 4:
         q_des = np.array([dataset_config.system.q_des(t) for t in ts])
