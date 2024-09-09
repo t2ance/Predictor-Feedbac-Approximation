@@ -396,7 +396,7 @@ if __name__ == '__main__':
             deeponet_lstm_gm = None
 
             dataset_config.random_test_lower_bound = 1
-            dataset_config.random_test_upper_bound = 2
+            dataset_config.random_test_upper_bound = 1.5
             train_config.uq_gamma = 0.01
             train_config.uq_alpha = 0.1
         elif args.s == 's9':
@@ -428,7 +428,7 @@ if __name__ == '__main__':
             deeponet_lstm_gm = None
 
             dataset_config.random_test_lower_bound = 1
-            dataset_config.random_test_upper_bound = 2
+            dataset_config.random_test_upper_bound = 1.5
             train_config.uq_gamma = 0.01
             train_config.uq_alpha = 0.01
         else:
