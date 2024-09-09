@@ -225,7 +225,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', type=str, default='s8')
     parser.add_argument('-n', type=int, default=1)
-    parser.add_argument('-m', type=str, default='figure')
+    parser.add_argument('-m', type=str, default='alpha')
     args = parser.parse_args()
 
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
@@ -234,8 +234,8 @@ if __name__ == '__main__':
         name=f'experiment {args.s} {args.n} {args.m} {get_time_str()}'
     )
 
-    # metric_list = ['l2_p_z', 'rl2_p_z', 'l2_p_phat', 'rl2_p_phat']
-    metric_list = ['l2_p_z', 'rl2_p_z']
+    metric_list = ['l2_p_z', 'rl2_p_z', 'l2_p_phat', 'rl2_p_phat']
+    # metric_list = ['l2_p_z', 'rl2_p_z']
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO')
     fno, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
