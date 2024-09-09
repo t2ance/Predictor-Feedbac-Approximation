@@ -425,9 +425,9 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s9')
+    parser.add_argument('-s', type=str, default='s8')
     parser.add_argument('-n', type=int, default=1)
-    parser.add_argument('-m', type=str, default='table')
+    parser.add_argument('-m', type=str, default='figure')
     args = parser.parse_args()
 
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
@@ -436,7 +436,8 @@ if __name__ == '__main__':
         name=f'experiment {args.s} {args.n} {args.m} {get_time_str()}'
     )
 
-    metric_list = ['l2_p_z', 'rl2_p_z', 'l2_p_phat', 'rl2_p_phat']
+    # metric_list = ['l2_p_z', 'rl2_p_z', 'l2_p_phat', 'rl2_p_phat']
+    metric_list = ['l2_p_z', 'rl2_p_z']
 
     dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO')
     fno, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
@@ -556,7 +557,7 @@ if __name__ == '__main__':
             gru = None
             lstm = None
             fno_gru = None
-            fno_lstm = None
+            # fno_lstm = None
             deeponet_gru = None
             deeponet_lstm = None
 
@@ -565,7 +566,7 @@ if __name__ == '__main__':
             gru_cp = None
             lstm_cp = None
             fno_gru_cp = None
-            fno_lstm_cp = None
+            # fno_lstm_cp = None
             deeponet_gru_cp = None
             deeponet_lstm_cp = None
 
@@ -574,9 +575,10 @@ if __name__ == '__main__':
             gru_gm = None
             lstm_gm = None
             fno_gru_gm = None
-            fno_lstm_gm = None
+            # fno_lstm_gm = None
             deeponet_gru_gm = None
             deeponet_lstm_gm = None
+
             dataset_config.random_test_lower_bound = 1
             dataset_config.random_test_upper_bound = 1.5
             train_config.uq_alpha = 0.1
