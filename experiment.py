@@ -21,33 +21,7 @@ def interval(min_, max_):
     return new_min, new_max
 
 
-def plot_comparisons(test_point, plot_name, dataset_config, train_config, system, fno=None, deeponet=None, gru=None,
-                     lstm=None, fno_gru=None, fno_lstm=None, deeponet_gru=None, deeponet_lstm=None, fno_cp=None,
-                     deeponet_cp=None, gru_cp=None, lstm_cp=None, fno_gru_cp=None, fno_lstm_cp=None,
-                     deeponet_gru_cp=None, deeponet_lstm_cp=None, fno_gm=None, deeponet_gm=None, gru_gm=None,
-                     lstm_gm=None, fno_gru_gm=None, fno_lstm_gm=None, deeponet_gru_gm=None, deeponet_lstm_gm=None,
-                     metric_list=None):
-    def simulate_ml_methods(model, model_name):
-        if model is None:
-            print(f'Model {model_name} excluded')
-            return
-        if model_name.endswith(r'\textsuperscript{CP}'):
-            prediction_method = 'switching'
-            train_config.uq_type = 'conformal prediction'
-        elif model_name.endswith(r'\textsuperscript{GM}'):
-            prediction_method = 'switching'
-            train_config.uq_type = 'gaussian process'
-        else:
-            prediction_method = 'no'
-        m_result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=model,
-                              method=prediction_method, silence=False, metric_list=metric_list)
-        Ps.append(m_result.P_no)
-        Zs.append(m_result.Z)
-        Ds.append(m_result.D_no)
-        Us.append(m_result.U)
-        labels.append(model_name)
-        results.append(m_result)
-
+def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, captions):
     if system == 's8':
         n_max_state = 5
         n_row = 4
@@ -56,57 +30,6 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         n_row = 3
     else:
         raise NotImplementedError()
-
-    Ps = []
-    Zs = []
-    Ds = []
-    Us = []
-    labels = []
-    results = []
-
-    print(f'Begin simulation {plot_name}')
-    result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, method='numerical',
-                        silence=False, metric_list=metric_list)
-    Ps.append(result.P_numerical)
-    Zs.append(result.Z)
-    Ds.append(result.D_numerical)
-    Us.append(result.U)
-    labels.append('Successive \n Approximation')
-    results.append(result)
-    print('Numerical approximation iteration', result.P_numerical_n_iters.mean())
-
-    simulate_ml_methods(fno, model_name='FNO')
-    simulate_ml_methods(deeponet, model_name='DeepONet')
-    simulate_ml_methods(gru, model_name='GRU')
-    simulate_ml_methods(lstm, model_name='LSTM')
-    simulate_ml_methods(fno_gru, model_name='FNO-GRU')
-    simulate_ml_methods(fno_lstm, model_name='FNO-LSTM')
-    simulate_ml_methods(deeponet_gru, model_name='DeepONet-GRU')
-    simulate_ml_methods(deeponet_lstm, model_name='DeepONet-LSTM')
-
-    simulate_ml_methods(fno_cp, model_name=r'FNO\textsuperscript{CP}')
-    simulate_ml_methods(deeponet_cp, model_name=r'DeepONet\textsuperscript{CP}')
-    simulate_ml_methods(gru_cp, model_name=r'GRU\textsuperscript{CP}')
-    simulate_ml_methods(lstm_cp, model_name=r'LSTM\textsuperscript{CP}')
-    simulate_ml_methods(fno_gru_cp, model_name=r'FNO-GRU\textsuperscript{CP}')
-    simulate_ml_methods(fno_lstm_cp, model_name=r'FNO-LSTM\textsuperscript{CP}')
-    simulate_ml_methods(deeponet_gru_cp, model_name=r'DeepONet-GRU\textsuperscript{CP}')
-    simulate_ml_methods(deeponet_lstm_cp, model_name=r'DeepONet-LSTM\textsuperscript{CP}')
-
-    simulate_ml_methods(fno_gm, model_name=r'FNO\textsuperscript{GM}')
-    simulate_ml_methods(deeponet_gm, model_name=r'DeepONet\textsuperscript{GM}')
-    simulate_ml_methods(gru_gm, model_name=r'GRU\textsuperscript{GM}')
-    simulate_ml_methods(lstm_gm, model_name=r'LSTM\textsuperscript{GM}')
-    simulate_ml_methods(fno_gru_gm, model_name=r'FNO-GRU\textsuperscript{GM}')
-    simulate_ml_methods(fno_lstm_gm, model_name=r'FNO-LSTM\textsuperscript{GM}')
-    simulate_ml_methods(deeponet_gru_gm, model_name=r'DeepONet-GRU\textsuperscript{GM}')
-    simulate_ml_methods(deeponet_lstm_gm, model_name=r'DeepONet-LSTM\textsuperscript{GM}')
-    captions = []
-    for label, result in zip(labels, results):
-        caption = label
-        captions.append(caption)
-    print(f'End simulation {plot_name}')
-    print(labels)
     Ps = [P[:, :n_max_state] for P in Ps]
     Zs = [Z[:, :n_max_state] for Z in Zs]
     Ds = [D[:, :n_max_state] for D in Ds]
@@ -155,7 +78,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     for i, (axes, P, Z, D) in enumerate(zip(method_axes, Ps, Zs, Ds)):
         comment = i == n_col - 1
         plot_difference(ts, [P], Z, n_point_delay, None, ylim=[min_d, max_d], ax=axes[1], comment=comment,
-                        differences=[D])
+                        differences=[D], xlim=[0, dataset_config.duration])
 
     for i, (axes, P, Z, D, U, result, label) in enumerate(zip(method_axes, Ps, Zs, Ds, Us, results, labels)):
         comment = i == n_col - 1
@@ -181,243 +104,107 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     return results_dict
 
 
-def plot_sw_numerical_comparison(test_points, plot_name, dataset_config, train_config, model_config, model, n_row):
+def plot_comparisons(test_point, plot_name, dataset_config, train_config, system, fno=None, deeponet=None, gru=None,
+                     lstm=None, fno_gru=None, fno_lstm=None, deeponet_gru=None, deeponet_lstm=None, fno_cp=None,
+                     deeponet_cp=None, gru_cp=None, lstm_cp=None, fno_gru_cp=None, fno_lstm_cp=None,
+                     deeponet_gru_cp=None, deeponet_lstm_cp=None, fno_gm=None, deeponet_gm=None, gru_gm=None,
+                     lstm_gm=None, fno_gru_gm=None, fno_lstm_gm=None, deeponet_gru_gm=None, deeponet_lstm_gm=None,
+                     metric_list=None):
+    def simulate_ml_methods(model, model_name):
+        if model is None:
+            print(f'Model {model_name} excluded')
+            return
+        if model_name.endswith(r'\textsuperscript{CP}'):
+            prediction_method = 'switching'
+            train_config.uq_type = 'conformal prediction'
+        elif model_name.endswith(r'\textsuperscript{GM}'):
+            prediction_method = 'switching'
+            train_config.uq_type = 'gaussian process'
+        else:
+            prediction_method = 'no'
+        m_result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=model,
+                              method=prediction_method, silence=False, metric_list=metric_list)
+        Ps.append(m_result.P_no)
+        Zs.append(m_result.Z)
+        Ds.append(m_result.D_no)
+        Us.append(m_result.U)
+        labels.append(model_name)
+        results.append(m_result)
+
+    Ps = []
+    Zs = []
+    Ds = []
+    Us = []
+    labels = []
+    results = []
     print(f'Begin simulation {plot_name}')
-    result_numerical = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
-                                test_points=test_points, method='numerical')
-    train_config.uq_type = 'conformal prediction'
-    result_cp = run_test(dataset_config=dataset_config, train_config=train_config, m=model, test_points=test_points,
-                         method='switching')
-    print_results([result_cp, result_numerical], result_numerical)
+    result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, method='numerical',
+                        silence=False, metric_list=metric_list)
+    Ps.append(result.P_numerical)
+    Zs.append(result.Z)
+    Ds.append(result.D_numerical)
+    Us.append(result.U)
+    labels.append('Successive \n Approximation')
+    results.append(result)
+    print('Numerical approximation iteration', result.P_numerical_n_iters.mean())
+
+    simulate_ml_methods(fno, model_name='FNO')
+    simulate_ml_methods(deeponet, model_name='DeepONet')
+    simulate_ml_methods(gru, model_name='GRU')
+    simulate_ml_methods(lstm, model_name='LSTM')
+    simulate_ml_methods(fno_gru, model_name='FNO-GRU')
+    simulate_ml_methods(fno_lstm, model_name='FNO-LSTM')
+    simulate_ml_methods(deeponet_gru, model_name='DeepONet-GRU')
+    simulate_ml_methods(deeponet_lstm, model_name='DeepONet-LSTM')
+
+    simulate_ml_methods(fno_cp, model_name=r'FNO\textsuperscript{CP}')
+    simulate_ml_methods(deeponet_cp, model_name=r'DeepONet\textsuperscript{CP}')
+    simulate_ml_methods(gru_cp, model_name=r'GRU\textsuperscript{CP}')
+    simulate_ml_methods(lstm_cp, model_name=r'LSTM\textsuperscript{CP}')
+    simulate_ml_methods(fno_gru_cp, model_name=r'FNO-GRU\textsuperscript{CP}')
+    simulate_ml_methods(fno_lstm_cp, model_name=r'FNO-LSTM\textsuperscript{CP}')
+    simulate_ml_methods(deeponet_gru_cp, model_name=r'DeepONet-GRU\textsuperscript{CP}')
+    simulate_ml_methods(deeponet_lstm_cp, model_name=r'DeepONet-LSTM\textsuperscript{CP}')
+
+    simulate_ml_methods(fno_gm, model_name=r'FNO\textsuperscript{GM}')
+    simulate_ml_methods(deeponet_gm, model_name=r'DeepONet\textsuperscript{GM}')
+    simulate_ml_methods(gru_gm, model_name=r'GRU\textsuperscript{GM}')
+    simulate_ml_methods(lstm_gm, model_name=r'LSTM\textsuperscript{GM}')
+    simulate_ml_methods(fno_gru_gm, model_name=r'FNO-GRU\textsuperscript{GM}')
+    simulate_ml_methods(fno_lstm_gm, model_name=r'FNO-LSTM\textsuperscript{GM}')
+    simulate_ml_methods(deeponet_gru_gm, model_name=r'DeepONet-GRU\textsuperscript{GM}')
+    simulate_ml_methods(deeponet_lstm_gm, model_name=r'DeepONet-LSTM\textsuperscript{GM}')
+    captions = []
+    for label, result in zip(labels, results):
+        caption = label
+        captions.append(caption)
     print(f'End simulation {plot_name}')
+    print(labels)
 
-    for i, (test_point, numerical, cp) in enumerate(zip(test_points, result_numerical.results, result_cp.results)):
-        ts = dataset_config.ts
-        delay = dataset_config.delay
-        n_point_delay = dataset_config.n_point_delay
-        fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(n_row, 2), height_add=0.6))
-        subfigs = fig.subfigures(nrows=1, ncols=2)
-        numerical_fig, cp_fig = subfigs
-        numerical_fig.suptitle('Successive \n Approximation')
-        cp_fig.suptitle(model_config.model_name + '-CP')
-        numerical_axes = numerical_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
-        cp_axes = cp_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
-
-        min_p, max_p = interval(min(numerical.P_numerical.min(), cp.P_switching.min()),
-                                max(numerical.P_numerical.max(), cp.P_switching.max()))
-
-        plot_comparison(ts, [numerical.P_numerical], numerical.Z, delay, n_point_delay, None, ylim=[min_p, max_p],
-                        ax=numerical_axes[0], comment=False)
-        plot_comparison(ts, [cp.P_switching], cp.Z, delay, n_point_delay, None, ylim=[min_p, max_p],
-                        ax=cp_axes[0], comment=True)
-        min_d, max_d = interval(min(numerical.D_numerical.min(), cp.D_switching.min()),
-                                max(numerical.D_numerical.max(), cp.D_switching.max()))
-
-        plot_difference(ts, [numerical.P_numerical], numerical.Z, n_point_delay, None, ylim=[min_d, max_d],
-                        ax=numerical_axes[1],
-                        comment=False, differences=[numerical.D_numerical])
-        plot_difference(ts, [cp.P_switching], cp.Z, n_point_delay, None, ylim=[min_d, max_d],
-                        ax=cp_axes[1], comment=True, differences=[cp.D_switching])
-
-        min_u, max_u = interval(min(numerical.U.min(), cp.U.min()), max(numerical.U.max(), cp.U.max()))
-        plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[2], comment=False, ylim=[min_u, max_u])
-        plot_switched_control(ts, cp, n_point_delay(0), ax=cp_axes[2], comment=True, ylim=[min_u, max_u])
-
-        if n_row == 4:
-            q_des = np.array([dataset_config.system.q_des(t) for t in ts])
-            q_numerical = q_des - numerical.Z[:, :2]
-            q_switching = q_des - cp.Z[:, :2]
-            n_point_start = n_point_delay(0)
-            q_des = q_des[n_point_start:]
-            q_numerical = q_numerical[n_point_start:]
-            q_switching = q_switching[n_point_start:]
-            plot_q(ts[n_point_start:], [q_numerical], q_des, None, ax=numerical_axes[3],
-                   comment=False)
-            plot_q(ts[n_point_start:], [q_switching], q_des, None, ax=cp_axes[3],
-                   comment=True)
-
-        check_dir(f'./misc/plots/{plot_name}')
-        plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
+    return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, captions)
 
 
-def plot_uq_ablation(test_points, plot_name, dataset_config, train_config, model_config, model, n_row):
-    print(f'Begin simulation {plot_name}')
-    result_numerical = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
-                                test_points=test_points, method='numerical')
-    result_no = run_test(dataset_config=dataset_config, train_config=train_config, m=model, test_points=test_points,
-                         method='no')
-    train_config.uq_type = 'conformal prediction'
-    result_cp = run_test(dataset_config=dataset_config, train_config=train_config, m=model, test_points=test_points,
-                         method='switching')
-    train_config.uq_type = 'gaussian process'
-    result_gm = run_test(dataset_config=dataset_config, train_config=train_config, m=model, test_points=test_points,
-                         method='switching')
-    print_results([result_no, result_cp, result_gm], result_numerical)
-    print(f'End simulation {plot_name}')
-
-    for i, (test_point, no, cp, gp) in enumerate(
-            zip(test_points, result_no.results, result_cp.results, result_gm.results)):
-        ts = dataset_config.ts
-        delay = dataset_config.delay
-        n_point_delay = dataset_config.n_point_delay
-        fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(n_row, 3), height_add=0.6))
-        subfigs = fig.subfigures(nrows=1, ncols=3)
-        no_fig, cp_fig, gm_fig = subfigs
-        no_fig.suptitle(model_config.model_name)
-        cp_fig.suptitle(model_config.model_name + '-CP')
-        gm_fig.suptitle(model_config.model_name + '-GM')
-        no_axes = no_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
-        cp_axes = cp_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
-        gp_axes = gm_fig.subplots(nrows=n_row, ncols=1, gridspec_kw={'hspace': 0.5})
-
-        min_p, max_p = interval(min(no.P_no.min(), cp.P_switching.min(), gp.P_switching.min()),
-                                max(no.P_no.max(), cp.P_switching.max(), gp.P_switching.max()))
-
-        plot_comparison(ts, [no.P_no], no.Z, delay, n_point_delay, None, ylim=[min_p, max_p], ax=no_axes[0],
-                        comment=False)
-        plot_comparison(ts, [cp.P_switching], cp.Z, delay, n_point_delay, None, ylim=[min_p, max_p],
-                        ax=gp_axes[0], comment=False)
-        plot_comparison(ts, [gp.P_switching], gp.Z, delay, n_point_delay, None, ylim=[min_p, max_p],
-                        ax=cp_axes[0], comment=True)
-        min_d, max_d = interval(min(no.D_no.min(), cp.D_switching.min(), gp.D_switching.min()),
-                                max(no.D_no.max(), cp.D_switching.max(), gp.D_switching.max()))
-
-        plot_difference(ts, [no.P_no], no.Z, n_point_delay, None, ylim=[min_d, max_d], ax=no_axes[1],
-                        comment=False, differences=[no.D_no])
-        plot_difference(ts, [cp.P_switching], cp.Z, n_point_delay, None, ylim=[min_d, max_d],
-                        ax=gp_axes[1], comment=False, differences=[cp.D_switching])
-        plot_difference(ts, [gp.P_switching], gp.Z, n_point_delay, None, ylim=[min_d, max_d],
-                        ax=cp_axes[1], comment=True, differences=[gp.D_switching])
-        min_u, max_u = interval(min(no.U.min(), cp.U.min(), gp.U.min()),
-                                max(no.U.max(), cp.U.max(), gp.U.max()))
-        plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
-        plot_switched_control(ts, cp, n_point_delay(0), ax=cp_axes[2], comment=False, ylim=[min_u, max_u])
-        plot_switched_control(ts, gp, n_point_delay(0), ax=gp_axes[2], comment=True, ylim=[min_u, max_u])
-
-        if n_row == 4:
-            q_des = np.array([dataset_config.system.q_des(t) for t in ts])
-            q_no = q_des - no.Z[:, :2]
-            q_cp = q_des - cp.Z[:, :2]
-            q_gp = q_des - gp.Z[:, :2]
-            n_point_start = n_point_delay(0)
-            q_des = q_des[n_point_start:]
-            q_no = q_no[n_point_start:]
-            q_cp = q_cp[n_point_start:]
-            q_gp = q_gp[n_point_start:]
-            plot_q(ts[n_point_start:], [q_no], q_des, None, ax=no_axes[3], comment=False)
-            plot_q(ts[n_point_start:], [q_cp], q_des, None, ax=cp_axes[3], comment=True)
-            plot_q(ts[n_point_start:], [q_gp], q_des, None, ax=gp_axes[3], comment=True)
-
-        check_dir(f'./misc/plots/{plot_name}')
-        plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
-
-
-def plot_alpha(test_points, plot_name, dataset_config, train_config, model, alphas):
-    n_col = len(alphas)
-    test_results = []
-    ts = dataset_config.ts
-    delay = dataset_config.delay
-    n_point_delay = dataset_config.n_point_delay
-    n_state = dataset_config.n_state
+def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alphas, system):
+    Ps = []
+    Zs = []
+    Ds = []
+    Us = []
+    labels = []
+    results = []
     print('Begin simulation')
     for alpha in alphas:
         train_config.uq_alpha = alpha
-        switching_result = run_test(dataset_config=dataset_config, train_config=train_config, m=model,
-                                    test_points=test_points, method='switching')
-        test_results.append(switching_result.results)
+        m_result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=model,
+                              method='switching', silence=False, metric_list=metric_list)
+        Ps.append(m_result.P_no)
+        Zs.append(m_result.Z)
+        Ds.append(m_result.D_no)
+        Us.append(m_result.U)
+        labels.append(rf'$\alpha = {alpha}$')
+        results.append(m_result)
     print('End simulation')
-    test_results = zip(*test_results)
 
-    for i, (test_point, test_result) in enumerate(
-            zip(test_points, test_results)):
-        fig = plt.figure(figsize=set_size(width=fig_width, fraction=1.4, subplots=(4, n_col), height_add=0.6))
-        subfigs = fig.subfigures(nrows=1, ncols=n_col)
-        switching_alpha_axes = []
-        for subfig, alpha in zip(subfigs, alphas):
-            subfig.suptitle(rf'$\alpha = {alpha}$')
-
-            switching_alpha_axes.append(subfig.subplots(nrows=4, ncols=1, gridspec_kw={'hspace': 0.5}))
-        test_result: List[SimulationResult]
-
-        min_p, max_p = interval(
-            min([switching_result.P_switching.min() for switching_result in test_result]),
-            max([switching_result.P_switching.max() for switching_result in test_result])
-        )
-        for switching_result, switching_alpha_ax in zip(test_result, switching_alpha_axes):
-            plot_comparison(ts, [switching_result.P_switching], switching_result.Z, delay, n_point_delay, None,
-                            ylim=[min_p, max_p], ax=switching_alpha_ax[0], comment=False)
-
-        min_d, max_d = interval(
-            min([switching_result.D_switching.min() for switching_result in test_result]),
-            max([switching_result.D_switching.max() for switching_result in test_result])
-        )
-        for switching_result, switching_alpha_ax in zip(test_result, switching_alpha_axes):
-            plot_difference(ts, [switching_result.D_switching], switching_result.Z, n_point_delay, None,
-                            ylim=[min_d, max_d],
-                            ax=switching_alpha_ax[1], comment=False, differences=[switching_result.D_numerical])
-
-        min_u, max_u = interval(
-            min([switching_result.U.min() for switching_result in test_result]),
-            max([switching_result.U.max() for switching_result in test_result])
-        )
-        for switching_result, switching_alpha_ax in zip(test_result, switching_alpha_axes):
-            plot_switched_control(ts, switching_result, n_point_delay(0), ax=switching_alpha_ax[2], comment=False,
-                                  ylim=[min_u, max_u])
-
-        n_point_start = n_point_delay(0)
-        for switching_result, switching_alpha_ax, alpha in zip(test_result, switching_alpha_axes, alphas):
-            plot_switched_control(ts, switching_result, n_point_delay(0), ax=switching_alpha_ax[2], comment=False,
-                                  ylim=[min_u, max_u])
-            plot_quantile(n_point_start, switching_result.P_no_Ri, alpha, switching_alpha_ax[3], ylim=[0, 30],
-                          comment=False, legend_loc='upper right')
-
-        check_dir(f'./misc/plots/{plot_name}')
-        plt.savefig(f"./misc/plots/{plot_name}/{i}.pdf")
-
-
-def print_results(results: List[SimulationResult], result_baseline=None):
-    raw_prediction_times = [result.avg_prediction_time for result in results]
-    print('raw prediction time', '&'.join([f'${t * 1000:.3f}$' for t in raw_prediction_times]))
-    if result_baseline is not None:
-        speedups = [result_baseline.avg_prediction_time / result.avg_prediction_time for result in results]
-        print('speedup', '&'.join([f'$\\times {t:.3f}$' for t in speedups]))
-    l2s = [result.l2 for result in results]
-    print('l2 error', '&'.join([f'${t:.3f}$' for t in l2s]))
-    n_success = [result.n_success for result in results]
-    print('n success', n_success)
-
-
-def load_config(system, model_name, cp_alpha, version='latest'):
-    dataset_config, model_config, train_config = config.get_config(system_=system, model_name=model_name)
-    model_config.model_name = model_name
-    train_config.uq_alpha = cp_alpha
-    model = load_model(train_config, model_config, dataset_config)
-    model_config.load_model(run, model, version=version)
-    return train_config, dataset_config, model_config, model
-
-
-def plot_figure(n_test=10):
-    train_config, dataset_config, model_config, model = load_config('s8', 'FNO-GRU', cp_alpha=0.1)
-    test_points = [
-        (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
-        in range(n_test)
-    ]
-    plot_uq_ablation(test_points, 'baxter-id-fno-gru-uq', dataset_config, train_config, model_config, model, n_row=4)
-
-    train_config, dataset_config, model_config, model = load_config('s8', 'FNO-GRU', cp_alpha=0.1)
-    test_points = [
-        (np.random.uniform(1, 2), np.random.uniform(1, 2), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
-        in range(n_test)
-    ]
-    plot_uq_ablation(test_points, 'baxter-ood-fno-gru-uq', dataset_config, train_config, model_config, model, n_row=4)
-
-    train_config, dataset_config, model_config, model = load_config('s8', 'FNO-GRU', None)
-    test_points = [
-        (np.random.uniform(1, 1.2), np.random.uniform(1, 1.2), np.random.uniform(1, 1.2), np.random.uniform(1, 1.2)) for
-        _ in range(n_test)
-    ]
-
-    plot_alpha(test_points, 'alpha-ablation', dataset_config, train_config, model, [0.01, 0.1, 0.5])
+    return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, captions=labels)
 
 
 if __name__ == '__main__':
@@ -586,39 +373,49 @@ if __name__ == '__main__':
             train_config.uq_gamma = 0.01
         else:
             raise NotImplementedError()
+    elif args.m == 'alpha':
+        if args.s == 's8':
+            model = deeponet_gru
+            alphas = [0.01, 0.1, 0.5]
+        else:
+            raise NotImplementedError()
     else:
         raise NotImplementedError()
     results = None
 
     test_points = dataset_config.get_test_points(n_point=args.n)
     for i, test_point in enumerate(test_points):
-        result_dict = plot_comparisons(
-            test_point, f'{args.s}-{i}', dataset_config, train_config, system=args.s, metric_list=metric_list,
-            fno=fno,
-            deeponet=deeponet,
-            gru=gru,
-            lstm=lstm,
-            fno_gru=fno_gru,
-            fno_lstm=fno_lstm,
-            deeponet_gru=deeponet_gru,
-            deeponet_lstm=deeponet_lstm,
-            fno_cp=fno_cp,
-            deeponet_cp=deeponet_cp,
-            gru_cp=gru_cp,
-            lstm_cp=lstm_cp,
-            fno_gru_cp=fno_gru_cp,
-            fno_lstm_cp=fno_lstm_cp,
-            deeponet_gru_cp=deeponet_gru_cp,
-            deeponet_lstm_cp=deeponet_lstm_cp,
-            fno_gm=fno_gm,
-            deeponet_gm=deeponet_gm,
-            gru_gm=gru_gm,
-            lstm_gm=lstm_gm,
-            fno_gru_gm=fno_gru_gm,
-            fno_lstm_gm=fno_lstm_gm,
-            deeponet_gru_gm=deeponet_gru_gm,
-            deeponet_lstm_gm=deeponet_lstm_gm,
-        )
+        plot_name = f'{args.s}-{args.m}-{i}'
+        if args.m == 'alpha':
+            result_dict = plot_alpha(test_points, plot_name, dataset_config, train_config, model, alphas=alphas)
+        else:
+            result_dict = plot_comparisons(
+                test_point, plot_name, dataset_config, train_config, system=args.s, metric_list=metric_list,
+                fno=fno,
+                deeponet=deeponet,
+                gru=gru,
+                lstm=lstm,
+                fno_gru=fno_gru,
+                fno_lstm=fno_lstm,
+                deeponet_gru=deeponet_gru,
+                deeponet_lstm=deeponet_lstm,
+                fno_cp=fno_cp,
+                deeponet_cp=deeponet_cp,
+                gru_cp=gru_cp,
+                lstm_cp=lstm_cp,
+                fno_gru_cp=fno_gru_cp,
+                fno_lstm_cp=fno_lstm_cp,
+                deeponet_gru_cp=deeponet_gru_cp,
+                deeponet_lstm_cp=deeponet_lstm_cp,
+                fno_gm=fno_gm,
+                deeponet_gm=deeponet_gm,
+                gru_gm=gru_gm,
+                lstm_gm=lstm_gm,
+                fno_gru_gm=fno_gru_gm,
+                fno_lstm_gm=fno_lstm_gm,
+                deeponet_gru_gm=deeponet_gru_gm,
+                deeponet_lstm_gm=deeponet_lstm_gm,
+            )
         if results is None:
             results = {k: [] for k in result_dict.keys()}
 

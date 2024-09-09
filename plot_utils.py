@@ -295,8 +295,8 @@ def difference(Z, P, n_point_start, n_point_delay, ts):
     return P_ - Z[n_point_start:]
 
 
-def plot_difference(ts, Ps, Z, n_point_delay, save_path, ylim=None, Ps_labels=None, ax=None,
-                    comment=True, differences=None, figure=None):
+def plot_difference(ts, Ps, Z, n_point_delay, save_path, ylim=None, Ps_labels=None, ax=None, comment=True,
+                    differences=None, figure=None, xlim=None):
     if ax is None:
         figure = plt.figure(figsize=set_size(width=fig_width))
         ax = figure.gca()
@@ -328,6 +328,8 @@ def plot_difference(ts, Ps, Z, n_point_delay, save_path, ylim=None, Ps_labels=No
             # ax.set_ylim([0, 100])
         except:
             ...
+    if xlim is not None:
+        ax.set_xlim(xlim)
     if comment:
         # ax.set_xlabel('Time t')
         if n_state < display_threshold:
