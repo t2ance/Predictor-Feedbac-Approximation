@@ -239,7 +239,7 @@ def l2_p_phat(P, P_numerical, n_point_delay):
     P = P[n_point_delay:]
     P_numerical = P_numerical[n_point_delay:]
     l2 = np.sum(np.linalg.norm(P - P_numerical, axis=1)) / N
-    rl2 = np.sum(np.linalg.norm(P - P_numerical, axis=1)) / np.linalg.norm(P_numerical, axis=1) / N
+    rl2 = np.sum(np.linalg.norm(P - P_numerical, axis=1) / np.linalg.norm(P_numerical, axis=1)) / N
     return l2, rl2
 
 

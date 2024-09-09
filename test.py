@@ -87,23 +87,24 @@ def baxter_test_unicycle():
     dataset_config.delay = TimeVaryingDelay()
     dataset_config.dt = 0.05
     result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
-                        img_save_path='./misc', silence=False)
+                        img_save_path='./misc', silence=False,
+                        metric_list=['l2_p_z', 'rl2_p_z', 'l2_p_phat', 'rl2_p_phat'])
     # l2 = l2_p_phat(result.P_numerical, result.P_numerical, dataset_config.n_point_start())
     # print(l2)
-    # print(result.runtime)
+    print(result.runtime)
 
 
 if __name__ == '__main__':
     # result = baxter_test2dof()
-    # result = baxter_test_unicycle()
-    import wandb
-    from config import get_config
-
-    wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
-    run = wandb.init(
-        project="no",
-        name=f'test'
-    )
-    art = run.use_artifact(f"FNOProjectionGRU-s9:latest")
+    result = baxter_test_unicycle()
+    # import wandb
+    # from config import get_config
+    #
+    # wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
+    # run = wandb.init(
+    #     project="no",
+    #     name=f'test'
+    # )
+    # art = run.use_artifact(f"FNOProjectionGRU-s9:latest")
     # dataset_config_, model_config_, train_config_ = get_config(system_='s9', model_name='FNO')
     # training_dataset, validation_dataset = dataset_config_.load_dataset(run, resize=False)
