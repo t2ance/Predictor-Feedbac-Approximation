@@ -487,13 +487,13 @@ if __name__ == '__main__':
     gru_cp = None
     lstm_cp = None
     fno_gru_cp = None
-    fno_lstm_cp = None,
+    fno_lstm_cp = None
     deeponet_gru_cp = None
     deeponet_lstm_cp = None
 
     fno_gm = None
     deeponet_gm = None
-    gru_gm = None,
+    gru_gm = None
     lstm_gm = None
     fno_gru_gm = None
     fno_lstm_gm = None
