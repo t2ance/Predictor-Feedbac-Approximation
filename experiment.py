@@ -21,7 +21,7 @@ def interval(min_, max_):
     return new_min, new_max
 
 
-def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, captions):
+def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, captions, results):
     if system == 's8':
         n_max_state = 5
         n_row = 4
@@ -181,7 +181,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     print(f'End simulation {plot_name}')
     print(labels)
 
-    return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, captions)
+    return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, captions, results)
 
 
 def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alphas, system):
@@ -214,7 +214,7 @@ def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alpha
     print('Numerical approximation iteration', result.P_numerical_n_iters.mean())
     print('End simulation')
 
-    return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, captions=labels)
+    return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, labels, results)
 
 
 if __name__ == '__main__':
@@ -398,7 +398,8 @@ if __name__ == '__main__':
     for i, test_point in enumerate(test_points):
         plot_name = f'{args.s}-{args.m}-{i}'
         if args.m == 'alpha':
-            result_dict = plot_alpha(test_points, plot_name, dataset_config, train_config, model, alphas=alphas)
+            result_dict = plot_alpha(test_points, plot_name, dataset_config, train_config, model=model, alphas=alphas,
+                                     system=args.s)
         else:
             result_dict = plot_comparisons(
                 test_point, plot_name, dataset_config, train_config, system=args.s, metric_list=metric_list,
