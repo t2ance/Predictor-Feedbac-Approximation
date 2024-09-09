@@ -31,10 +31,10 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         if model is None:
             print(f'Model {model_name} excluded')
             return
-        if model_name.endswith(r'_{CP}'):
+        if model_name.endswith(r'\textsuperscript{CP}'):
             prediction_method = 'switching'
             train_config.uq_type = 'conformal prediction'
-        elif model_name.endswith(r'_{GM}'):
+        elif model_name.endswith(r'\textsuperscript{GM}'):
             prediction_method = 'switching'
             train_config.uq_type = 'gaussian process'
         else:
@@ -84,23 +84,23 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     simulate_ml_methods(deeponet_gru, model_name='DeepONet-GRU')
     simulate_ml_methods(deeponet_lstm, model_name='DeepONet-LSTM')
 
-    simulate_ml_methods(fno_cp, model_name='FNO_{CP}')
-    simulate_ml_methods(deeponet_cp, model_name='DeepONet_{CP}')
-    simulate_ml_methods(gru_cp, model_name='GRU_{CP}')
-    simulate_ml_methods(lstm_cp, model_name='LSTM_{CP}')
-    simulate_ml_methods(fno_gru_cp, model_name='FNO-GRU_{CP}')
-    simulate_ml_methods(fno_lstm_cp, model_name='FNO-LSTM_{CP}')
-    simulate_ml_methods(deeponet_gru_cp, model_name='DeepONet-GRU_{CP}')
-    simulate_ml_methods(deeponet_lstm_cp, model_name='DeepONet-LSTM_{CP}')
+    simulate_ml_methods(fno_cp, model_name=r'FNO\textsuperscript{CP}')
+    simulate_ml_methods(deeponet_cp, model_name=r'DeepONet\textsuperscript{CP}')
+    simulate_ml_methods(gru_cp, model_name=r'GRU\textsuperscript{CP}')
+    simulate_ml_methods(lstm_cp, model_name=r'LSTM\textsuperscript{CP}')
+    simulate_ml_methods(fno_gru_cp, model_name=r'FNO-GRU\textsuperscript{CP}')
+    simulate_ml_methods(fno_lstm_cp, model_name=r'FNO-LSTM\textsuperscript{CP}')
+    simulate_ml_methods(deeponet_gru_cp, model_name=r'DeepONet-GRU\textsuperscript{CP}')
+    simulate_ml_methods(deeponet_lstm_cp, model_name=r'DeepONet-LSTM\textsuperscript{CP}')
 
-    simulate_ml_methods(fno_gm, model_name='FNO_{GM}')
-    simulate_ml_methods(deeponet_gm, model_name='DeepONet_{GM}')
-    simulate_ml_methods(gru_gm, model_name='GRU_{GM}')
-    simulate_ml_methods(lstm_gm, model_name='LSTM_{GM}')
-    simulate_ml_methods(fno_gru_gm, model_name='FNO-GRU_{GM}')
-    simulate_ml_methods(fno_lstm_gm, model_name='FNO-LSTM_{GM}')
-    simulate_ml_methods(deeponet_gru_gm, model_name='DeepONet-GRU_{GM}')
-    simulate_ml_methods(deeponet_lstm_gm, model_name='DeepONet-LSTM_{GM}')
+    simulate_ml_methods(fno_gm, model_name=r'FNO\textsuperscript{GM}')
+    simulate_ml_methods(deeponet_gm, model_name=r'DeepONet\textsuperscript{GM}')
+    simulate_ml_methods(gru_gm, model_name=r'GRU\textsuperscript{GM}')
+    simulate_ml_methods(lstm_gm, model_name=r'LSTM\textsuperscript{GM}')
+    simulate_ml_methods(fno_gru_gm, model_name=r'FNO-GRU\textsuperscript{GM}')
+    simulate_ml_methods(fno_lstm_gm, model_name=r'FNO-LSTM\textsuperscript{GM}')
+    simulate_ml_methods(deeponet_gru_gm, model_name=r'DeepONet-GRU\textsuperscript{GM}')
+    simulate_ml_methods(deeponet_lstm_gm, model_name=r'DeepONet-LSTM\textsuperscript{GM}')
     captions = []
     for label, result in zip(labels, results):
         caption = label
@@ -157,11 +157,12 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         plot_difference(ts, [P], Z, n_point_delay, None, ylim=[min_d, max_d], ax=axes[1], comment=comment,
                         differences=[D])
 
-    for i, (axes, P, Z, D, U, result) in enumerate(zip(method_axes, Ps, Zs, Ds, Us, results)):
+    for i, (axes, P, Z, D, U, result, label) in enumerate(zip(method_axes, Ps, Zs, Ds, Us, results, labels)):
         comment = i == n_col - 1
-
-        plot_control(ts, U, None, n_point_delay, ax=axes[2], comment=comment, ylim=[min_u, max_u])
-        plot_switched_control(ts, result, n_point_delay(0), ax=axes[2], legend=True, ylim=[min_u, max_u])
+        if 'CP' in label or 'GM' in label:
+            plot_switched_control(ts, result, n_point_delay(0), ax=axes[2], comment=comment, ylim=[min_u, max_u])
+        else:
+            plot_control(ts, U, None, n_point_delay, ax=axes[2], comment=comment, ylim=[min_u, max_u])
 
     if n_row == 4:
         q_des = np.array([dataset_config.system.q_des(t) for t in ts])
@@ -220,7 +221,7 @@ def plot_sw_numerical_comparison(test_points, plot_name, dataset_config, train_c
 
         min_u, max_u = interval(min(numerical.U.min(), cp.U.min()), max(numerical.U.max(), cp.U.max()))
         plot_control(ts, numerical.U, None, n_point_delay, ax=numerical_axes[2], comment=False, ylim=[min_u, max_u])
-        plot_switched_control(ts, cp, n_point_delay(0), ax=cp_axes[2], legend=True, ylim=[min_u, max_u])
+        plot_switched_control(ts, cp, n_point_delay(0), ax=cp_axes[2], comment=True, ylim=[min_u, max_u])
 
         if n_row == 4:
             q_des = np.array([dataset_config.system.q_des(t) for t in ts])
@@ -290,8 +291,8 @@ def plot_uq_ablation(test_points, plot_name, dataset_config, train_config, model
         min_u, max_u = interval(min(no.U.min(), cp.U.min(), gp.U.min()),
                                 max(no.U.max(), cp.U.max(), gp.U.max()))
         plot_control(ts, no.U, None, n_point_delay, ax=no_axes[2], comment=False, ylim=[min_u, max_u])
-        plot_switched_control(ts, cp, n_point_delay(0), ax=cp_axes[2], legend=False, ylim=[min_u, max_u])
-        plot_switched_control(ts, gp, n_point_delay(0), ax=gp_axes[2], legend=True, ylim=[min_u, max_u])
+        plot_switched_control(ts, cp, n_point_delay(0), ax=cp_axes[2], comment=False, ylim=[min_u, max_u])
+        plot_switched_control(ts, gp, n_point_delay(0), ax=gp_axes[2], comment=True, ylim=[min_u, max_u])
 
         if n_row == 4:
             q_des = np.array([dataset_config.system.q_des(t) for t in ts])
@@ -360,12 +361,12 @@ def plot_alpha(test_points, plot_name, dataset_config, train_config, model, alph
             max([switching_result.U.max() for switching_result in test_result])
         )
         for switching_result, switching_alpha_ax in zip(test_result, switching_alpha_axes):
-            plot_switched_control(ts, switching_result, n_point_delay(0), ax=switching_alpha_ax[2], legend=False,
+            plot_switched_control(ts, switching_result, n_point_delay(0), ax=switching_alpha_ax[2], comment=False,
                                   ylim=[min_u, max_u])
 
         n_point_start = n_point_delay(0)
         for switching_result, switching_alpha_ax, alpha in zip(test_result, switching_alpha_axes, alphas):
-            plot_switched_control(ts, switching_result, n_point_delay(0), ax=switching_alpha_ax[2], legend=False,
+            plot_switched_control(ts, switching_result, n_point_delay(0), ax=switching_alpha_ax[2], comment=False,
                                   ylim=[min_u, max_u])
             plot_quantile(n_point_start, switching_result.P_no_Ri, alpha, switching_alpha_ax[3], ylim=[0, 30],
                           comment=False, legend_loc='upper right')

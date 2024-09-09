@@ -18,7 +18,7 @@ fig_width = 469.75502
 n_ticks = 5
 
 
-def plot_switched_control(ts, result: SimulationResult, n_point_delay, ylim=None, ax=None, legend=True):
+def plot_switched_control(ts, result: SimulationResult, n_point_delay, ylim=None, ax=None, comment=True):
     if ax is None:
         ax = plt.figure(figsize=set_size(width=fig_width)).gca()
     ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
@@ -49,7 +49,7 @@ def plot_switched_control(ts, result: SimulationResult, n_point_delay, ylim=None
             ax.set_ylim(ylim)
         except:
             ...
-    if legend:
+    if comment:
         # ax.set_xlabel('Time t')
         ax.legend(loc=legend_loc)
         if n_input < display_threshold:
@@ -60,6 +60,32 @@ def plot_switched_control(ts, result: SimulationResult, n_point_delay, ylim=None
                                Line2D([0], [0], color='black', marker='o')
                                ],
                       labels=color_labels, loc=legend_loc)
+
+
+def plot_control(ts, U, save_path, n_point_delay, ylim=None, ax=None, comment=True, figure=None, linestyle='-'):
+    if ax is None:
+        figure = plt.figure(figsize=set_size(width=fig_width))
+        ax = figure.gca()
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
+
+    assert U.ndim == 2
+    n_point_start = n_point_delay(0)
+    U = U.T
+    for i, u in enumerate(U):
+        ax.plot(ts[n_point_start:], u[n_point_start:], label=f'$U_{i + 1}(t)$', color=colors[i], linestyle=linestyle)
+    if ylim is not None:
+        try:
+            ax.set_ylim(ylim)
+        except:
+            ...
+    if comment:
+        # ax.set_xlabel('Time t')
+        ax.legend(loc=legend_loc)
+
+    if figure is not None and save_path is not None:
+        figure.savefig(save_path)
+        figure.clear()
+        plt.close(figure)
 
 
 def plot_quantile(n_point_start, P_no_Ri, cp_alpha, ax, ylim=None, comment=False, legend_loc='best'):
@@ -309,32 +335,6 @@ def plot_difference(ts, Ps, Z, n_point_delay, save_path, ylim=None, Ps_labels=No
         else:
             ax.legend(handles=[Line2D([0], [0], color='black', linestyle='-')],
                       labels=[f'$\Delta P(t)$'], loc=legend_loc)
-    if figure is not None and save_path is not None:
-        figure.savefig(save_path)
-        figure.clear()
-        plt.close(figure)
-
-
-def plot_control(ts, U, save_path, n_point_delay, ylim=None, ax=None, comment=True, figure=None, linestyle='-'):
-    if ax is None:
-        figure = plt.figure(figsize=set_size(width=fig_width))
-        ax = figure.gca()
-    ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
-
-    assert U.ndim == 2
-    n_point_start = n_point_delay(0)
-    U = U.T
-    for i, u in enumerate(U):
-        ax.plot(ts[n_point_start:], u[n_point_start:], label=f'$U_{i + 1}(t)$', color=colors[i], linestyle=linestyle)
-    if ylim is not None:
-        try:
-            ax.set_ylim(ylim)
-        except:
-            ...
-    if comment:
-        # ax.set_xlabel('Time t')
-        ax.legend(loc=legend_loc)
-
     if figure is not None and save_path is not None:
         figure.savefig(save_path)
         figure.clear()

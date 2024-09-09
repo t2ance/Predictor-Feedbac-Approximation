@@ -400,7 +400,7 @@ def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, 
 
 
 def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method: str, base_path: str = None,
-             silence: bool = False, test_points: List = None, plot: bool = False):
+             silence: bool = False, test_points: List = None):
     if base_path is not None:
         base_path = f'{base_path}/{method}'
     assert test_points is not None
