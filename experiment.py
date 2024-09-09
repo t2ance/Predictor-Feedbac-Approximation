@@ -117,10 +117,10 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         if model is None:
             print(f'Model {model_name} excluded')
             return
-        if model_name.endswith(r'\textsuperscript{CP}'):
+        if model_name.endswith(r'\textsubscript{CP}'):
             prediction_method = 'switching'
             train_config.uq_type = 'conformal prediction'
-        elif model_name.endswith(r'\textsuperscript{GM}'):
+        elif model_name.endswith(r'\textsubscript{GM}'):
             prediction_method = 'switching'
             train_config.uq_type = 'gaussian process'
         else:
@@ -160,23 +160,23 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     simulate_ml_methods(deeponet_gru, model_name='DeepONet-GRU')
     simulate_ml_methods(deeponet_lstm, model_name='DeepONet-LSTM')
 
-    simulate_ml_methods(fno_cp, model_name=r'FNO\textsuperscript{CP}')
-    simulate_ml_methods(deeponet_cp, model_name=r'DeepONet\textsuperscript{CP}')
-    simulate_ml_methods(gru_cp, model_name=r'GRU\textsuperscript{CP}')
-    simulate_ml_methods(lstm_cp, model_name=r'LSTM\textsuperscript{CP}')
-    simulate_ml_methods(fno_gru_cp, model_name=r'FNO-GRU\textsuperscript{CP}')
-    simulate_ml_methods(fno_lstm_cp, model_name=r'FNO-LSTM\textsuperscript{CP}')
-    simulate_ml_methods(deeponet_gru_cp, model_name=r'DeepONet-GRU\textsuperscript{CP}')
-    simulate_ml_methods(deeponet_lstm_cp, model_name=r'DeepONet-LSTM\textsuperscript{CP}')
+    simulate_ml_methods(fno_cp, model_name=r'FNO\textsubscript{CP}')
+    simulate_ml_methods(deeponet_cp, model_name=r'DeepONet\textsubscript{CP}')
+    simulate_ml_methods(gru_cp, model_name=r'GRU\textsubscript{CP}')
+    simulate_ml_methods(lstm_cp, model_name=r'LSTM\textsubscript{CP}')
+    simulate_ml_methods(fno_gru_cp, model_name=r'FNO-GRU\textsubscript{CP}')
+    simulate_ml_methods(fno_lstm_cp, model_name=r'FNO-LSTM\textsubscript{CP}')
+    simulate_ml_methods(deeponet_gru_cp, model_name=r'DeepONet-GRU\textsubscript{CP}')
+    simulate_ml_methods(deeponet_lstm_cp, model_name=r'DeepONet-LSTM\textsubscript{CP}')
 
-    simulate_ml_methods(fno_gm, model_name=r'FNO\textsuperscript{GM}')
-    simulate_ml_methods(deeponet_gm, model_name=r'DeepONet\textsuperscript{GM}')
-    simulate_ml_methods(gru_gm, model_name=r'GRU\textsuperscript{GM}')
-    simulate_ml_methods(lstm_gm, model_name=r'LSTM\textsuperscript{GM}')
-    simulate_ml_methods(fno_gru_gm, model_name=r'FNO-GRU\textsuperscript{GM}')
-    simulate_ml_methods(fno_lstm_gm, model_name=r'FNO-LSTM\textsuperscript{GM}')
-    simulate_ml_methods(deeponet_gru_gm, model_name=r'DeepONet-GRU\textsuperscript{GM}')
-    simulate_ml_methods(deeponet_lstm_gm, model_name=r'DeepONet-LSTM\textsuperscript{GM}')
+    simulate_ml_methods(fno_gm, model_name=r'FNO\textsubscript{GM}')
+    simulate_ml_methods(deeponet_gm, model_name=r'DeepONet\textsubscript{GM}')
+    simulate_ml_methods(gru_gm, model_name=r'GRU\textsubscript{GM}')
+    simulate_ml_methods(lstm_gm, model_name=r'LSTM\textsubscript{GM}')
+    simulate_ml_methods(fno_gru_gm, model_name=r'FNO-GRU\textsubscript{GM}')
+    simulate_ml_methods(fno_lstm_gm, model_name=r'FNO-LSTM\textsubscript{GM}')
+    simulate_ml_methods(deeponet_gru_gm, model_name=r'DeepONet-GRU\textsubscript{GM}')
+    simulate_ml_methods(deeponet_lstm_gm, model_name=r'DeepONet-LSTM\textsubscript{GM}')
     captions = []
     for label, result in zip(labels, results):
         caption = label
