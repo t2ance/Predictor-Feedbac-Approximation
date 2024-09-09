@@ -42,7 +42,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
     U = np.zeros((n_point, system.n_input))
     Z = np.zeros((n_point, system.n_state))
     P_numerical_n_iters = np.zeros(n_point)
-    switching_indicator = np.zeros(n_point)
+    subsystem_history = np.zeros(n_point)
     P_explicit = np.zeros((n_point, system.n_state))
     P_numerical = np.zeros((n_point, system.n_state))
     P_baseline = np.zeros((n_point, system.n_state))
@@ -139,27 +139,32 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
                 if train_config.uq_switching_type == 'switching':
                     if e_t == 0:
                         # switch to no scheme if possible
-                        if switching_indicator[t_i - 1] == 1:
-                            t_last_no = np.where(switching_indicator[:t_i] == 0)[0][-1]
+                        if subsystem_history[t_i - 1] == 1:
+                            a = np.where(subsystem_history[:t_i] == 0)[0]
+                            if len(a) == 0:
+                                t_last_no = a[-1]
+                            else:
+                                t_last_no = t_i
+
                             if t_i - t_last_no > n_point_start:
                                 # switch back
-                                switching_indicator[t_i] = 0
+                                subsystem_history[t_i] = 0
                             else:
                                 # cannot switch
-                                switching_indicator[t_i] = 1
+                                subsystem_history[t_i] = 1
                         else:
                             # keeping using no
-                            switching_indicator[t_i] = 0
+                            subsystem_history[t_i] = 0
                     else:
                         # use to numerical scheme
-                        switching_indicator[t_i] = 1
+                        subsystem_history[t_i] = 1
                 elif train_config.uq_switching_type == 'alternating':
                     # alternating between no and numerical arbitrarily
                     # if indicator is 1, then use numerical scheme, otherwise no scheme
-                    switching_indicator[t_i] = e_t
+                    subsystem_history[t_i] = e_t
 
                 # (3) Select the sub-controller
-                if switching_indicator[t_i] == 0:
+                if subsystem_history[t_i] == 0:
                     P_switching[t_i, :] = P_no[t_i, :]
                     p_no_count += 1
                 else:
@@ -179,7 +184,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
                     dataset_config=dataset_config, delay=dataset_config.delay).solution
                 P_switching[t_i, :] = P_numerical[t_i, :]
                 p_numerical_count += 1
-                switching_indicator[t_i] = 1
+                subsystem_history[t_i] = 1
 
             U[t_i] = system.kappa(P_switching[t_i, :], t)
             end = time.time()
@@ -238,7 +243,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
         P_explicit=P_explicit, P_no=P_no, P_no_ci=P_no_ci, P_numerical=P_numerical,
         P_switching=P_switching, runtime=runtime, P_numerical_n_iters=P_numerical_n_iters,
         p_numerical_count=p_numerical_count, p_no_count=p_no_count, P_no_Ri=P_no_Ri, alpha_ts=alpha_ts, q_ts=q_ts,
-        e_ts=e_ts, switching_indicator=switching_indicator, avg_prediction_time=runtime / n_point,
+        e_ts=e_ts, switching_indicator=subsystem_history, avg_prediction_time=runtime / n_point,
         l2_p_z=l2_p_z_value, rl2_p_z=rl2_p_z_value, l2_p_phat=l2_p_phat_value,
         rl2_p_phat=rl2_p_phat_value, success=success,
         n_parameter=count_params(model) if model is not None else 'N/A')
