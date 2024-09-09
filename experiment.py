@@ -1,13 +1,11 @@
-from typing import List
-
 import numpy as np
 from matplotlib import pyplot as plt
 
 import config
-from main import run_test, simulation
+from main import simulation
 from plot_utils import plot_comparison, plot_difference, plot_control, set_size, fig_width, plot_switched_control, \
-    plot_q, plot_quantile
-from utils import set_everything, load_model, get_time_str, check_dir, SimulationResult
+    plot_q
+from utils import set_everything, get_time_str, check_dir
 
 
 def interval(min_, max_):
@@ -82,7 +80,7 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, caption
 
     for i, (axes, P, Z, D, U, result, label) in enumerate(zip(method_axes, Ps, Zs, Ds, Us, results, labels)):
         comment = i == n_col - 1
-        if 'CP' in label or 'GM' in label:
+        if 'CP' in label or 'GM' in label or 'alpha' in label:
             plot_switched_control(ts, result, n_point_delay(0), ax=axes[2], comment=comment, ylim=[min_u, max_u])
         else:
             plot_control(ts, U, None, n_point_delay, ax=axes[2], comment=comment, ylim=[min_u, max_u])
@@ -392,7 +390,8 @@ if __name__ == '__main__':
             dataset_config.random_test_lower_bound = 1
             dataset_config.random_test_upper_bound = 1.5
             train_config.uq_gamma = 0.01
-            alphas = [0.01, 0.1, 0.5]
+            # alphas = [0.01, 0.1, 0.5]
+            alphas = [0.1]
             metric_list = ['l2_p_z', 'rl2_p_z']
         else:
             raise NotImplementedError()

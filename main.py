@@ -116,7 +116,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
             begin = time.time()
             P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
             # actuate the controller
-            start_point = 2 * n_point_start
+            start_point = n_point_start
             # start_point = n_point_start
             if t_i >= start_point:
                 # System switching
@@ -142,7 +142,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
                         if subsystem_history[t_i - 1] == 1:
                             a = np.where(subsystem_history[:t_i] == 0)[0]
                             if len(a) == 0:
-                                t_last_no = t_i
+                                t_last_no = -1
                             else:
                                 t_last_no = a[-1]
 

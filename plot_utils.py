@@ -29,11 +29,13 @@ def plot_switched_control(ts, result: SimulationResult, n_point_delay, ylim=None
     switching_indicator = switching_indicator[n_point_delay:]
     marked_indices = np.where(np.logical_xor(switching_indicator[:-1], switching_indicator[1:]))[0]
     marked_indices = np.insert(marked_indices, 0, 0)
-    color_labels = ['$U_{NO}$', '$U_{Numerical}$', 'Switch Point']
-    styles = ['-', ':']
+    # color_labels = ['$U_{NO}$', '$U_{Numerical}$', 'Switch Point']
+    # styles = ['-', ':']
+    color_labels = ['$U_{Numerical}$', '$U_{NO}$', 'Switch Point']
+    styles = [':', '-']
     for j in range(U.shape[-1]):
         u = U[:, j]
-        # ignore the zero
+        # ignore the starting point zero
         ax.scatter(ts[marked_indices][1:], u[marked_indices][1:], s=25, color=colors[j], facecolors='none',
                    linewidth=0.5)
 
