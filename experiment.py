@@ -430,21 +430,21 @@ def load_config(system, model_name, cp_alpha, version='latest'):
 
 
 def plot_figure(n_test=10):
-    train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', cp_alpha=0.1)
+    train_config, dataset_config, model_config, model = load_config('s8', 'FNO-GRU', cp_alpha=0.1)
     test_points = [
         (np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
         in range(n_test)
     ]
     plot_uq_ablation(test_points, 'baxter-id-fno-gru-uq', dataset_config, train_config, model_config, model, n_row=4)
 
-    train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', cp_alpha=0.1)
+    train_config, dataset_config, model_config, model = load_config('s8', 'FNO-GRU', cp_alpha=0.1)
     test_points = [
         (np.random.uniform(1, 2), np.random.uniform(1, 2), np.random.uniform(0, 1), np.random.uniform(0, 1)) for _
         in range(n_test)
     ]
     plot_uq_ablation(test_points, 'baxter-ood-fno-gru-uq', dataset_config, train_config, model_config, model, n_row=4)
 
-    train_config, dataset_config, model_config, model = load_config('s5', 'FNO-GRU', None)
+    train_config, dataset_config, model_config, model = load_config('s8', 'FNO-GRU', None)
     test_points = [
         (np.random.uniform(1, 1.2), np.random.uniform(1, 1.2), np.random.uniform(1, 1.2), np.random.uniform(1, 1.2)) for
         _ in range(n_test)
@@ -521,9 +521,10 @@ if __name__ == '__main__':
 
     result_list_num = results['Successive \n Approximation']
     avg_prediction_time_num = sum([r.avg_prediction_time for r in result_list_num]) / len(result_list_num)
-
     print(
-        r' Method    & Parameters  & Raw Prediction Time  &  Speedup & $L_2$ & $\hat{L}_2$ & Relative $L_2$ & Relative $\hat{L}_2$')
+        r'Method& Parameters& \makecell{Raw Prediction Time \\ (ms/prediction)}  &  Speedup & $\mathcal{E}$ & $\mathcal{E}^\prime$ & $\mathcal{E}_r$ & $\mathcal{E}_r^\prime$ \\ \midrule')
+    print(
+        r'Method    & Parameters  & Raw Prediction Time  &  Speedup & $L_2$ & $\hat{L}_2$ & Relative $L_2$ & Relative $\hat{L}_2$')
     for method, result_list in results.items():
         n_test = len(result_list)
         avg_prediction_time = sum([r.avg_prediction_time for r in result_list]) / n_test
@@ -535,6 +536,11 @@ if __name__ == '__main__':
         n_success = sum([1 if r.success else 0 for r in result_list])
         # method_result = SimulationResult(avg_prediction_time=avg_prediction_time, l2_p_z=l2_p_z, rl2_p_z=rl2_p_phat,
         #                                  l2_p_phat=l2_p_phat, rl2_p_phat=rl2_p_phat, n_success=n_success)
-        print(f'{method} & {result_list[0].n_parameter} & {avg_prediction_time * 1000:.3f} '
-              f'& {avg_prediction_time_num / avg_prediction_time:.3f} '
-              f'& {l2_p_z.item():.3f} & {l2_p_phat.item():.3f} & {rl2_p_z.item():.3f} & {rl2_p_phat.item():.3f}\\\\')
+        line = f'{method} & {result_list[0].n_parameter} & {avg_prediction_time * 1000:.3f} ' \
+               f'& {avg_prediction_time_num / avg_prediction_time:.3f} ' \
+               f'& {l2_p_phat.item():.3f} & {l2_p_z.item():.3f} & {rl2_p_phat.item():.3f} & {rl2_p_z.item():.3f}\\\\'
+        if method == 'Successive \n Approximation' or method == 'DeepONet' or method == 'LSTM':
+            line += r' \midrule'
+        if method == 'DeepONet-LSTM':
+            line += r' \bottomrule'
+        print(line)
