@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import config
 from main import simulation
 from plot_utils import plot_comparison, plot_difference, plot_control, set_size, fig_width, plot_switched_control, \
-    plot_q
+    plot_q, plot_quantile
 from utils import set_everything, get_time_str, check_dir
 
 
@@ -19,7 +19,7 @@ def interval(min_, max_):
     return new_min, new_max
 
 
-def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, captions, results):
+def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, captions, results, plot_alpha: bool = False):
     if system == 's8':
         n_max_state = 5
         n_row = 4
@@ -91,12 +91,20 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, caption
                          linestyle=linestyle)
 
     if n_row == 4:
-        q_des = np.array([dataset_config.system.q_des(t) for t in ts])
-        n_point_start = n_point_delay(0)
-        for i, (axes, P, Z, D, U) in enumerate(zip(method_axes, Ps, Zs, Ds, Us)):
-            q = q_des[:, :n_max_state] - Z[:, :dataset_config.n_state // 2][:, :n_max_state]
-            q = q[n_point_start:]
-            plot_q(ts[n_point_start:], [q], q_des[n_point_start:], None, ax=axes[3], comment=False)
+        if not plot_alpha:
+            q_des = np.array([dataset_config.system.q_des(t) for t in ts])
+            n_point_start = n_point_delay(0)
+            for i, (axes, P, Z, D, U) in enumerate(zip(method_axes, Ps, Zs, Ds, Us)):
+                comment = i == n_col - 1
+                q = q_des[:, :n_max_state] - Z[:, :dataset_config.n_state // 2][:, :n_max_state]
+                q = q[n_point_start:]
+                plot_q(ts[n_point_start:], [q], q_des[n_point_start:], None, ax=axes[3], comment=comment)
+        else:
+            n_point_start = n_point_delay(0)
+            for i, (result, axes, alpha) in enumerate(zip(results[1:], method_axes[1:], alphas)):
+                comment = i == n_col - 2
+                plot_quantile(n_point_start, result.P_no_Ri, alpha, axes[3], ylim=[0, 100],
+                              comment=comment, legend_loc='upper right')
     check_dir(f'./misc/plots')
     plt.savefig(f'./misc/plots/{plot_name}.png')
     plt.savefig(f'./misc/plots/{plot_name}.pdf')
@@ -120,10 +128,10 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         if model is None:
             print(f'Model {model_name} excluded')
             return
-        if model_name.endswith(r'\textsubscript{CP}'):
+        if model_name.endswith(r'$_{CP}$'):
             prediction_method = 'switching'
             train_config.uq_type = 'conformal prediction'
-        elif model_name.endswith(r'\textsubscript{GM}'):
+        elif model_name.endswith(r'$_{GM}$'):
             prediction_method = 'switching'
             train_config.uq_type = 'gaussian process'
         else:
@@ -136,7 +144,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         Us.append(m_result.U)
         labels.append(model_name)
         results.append(m_result)
-        if not result.success:
+        if not m_result.success:
             print(f'{model_name} failed')
 
     Ps = []
@@ -165,23 +173,23 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     simulate_ml_methods(deeponet_gru, model_name='DeepONet-GRU')
     simulate_ml_methods(deeponet_lstm, model_name='DeepONet-LSTM')
 
-    simulate_ml_methods(fno_cp, model_name=r'FNO\textsubscript{CP}')
-    simulate_ml_methods(deeponet_cp, model_name=r'DeepONet\textsubscript{CP}')
-    simulate_ml_methods(gru_cp, model_name=r'GRU\textsubscript{CP}')
-    simulate_ml_methods(lstm_cp, model_name=r'LSTM\textsubscript{CP}')
-    simulate_ml_methods(fno_gru_cp, model_name=r'FNO-GRU\textsubscript{CP}')
-    simulate_ml_methods(fno_lstm_cp, model_name=r'FNO-LSTM\textsubscript{CP}')
-    simulate_ml_methods(deeponet_gru_cp, model_name=r'DeepONet-GRU\textsubscript{CP}')
-    simulate_ml_methods(deeponet_lstm_cp, model_name=r'DeepONet-LSTM\textsubscript{CP}')
+    simulate_ml_methods(fno_cp, model_name=r'FNO$_{CP}$')
+    simulate_ml_methods(deeponet_cp, model_name=r'DeepONet$_{CP}$')
+    simulate_ml_methods(gru_cp, model_name=r'GRU$_{CP}$')
+    simulate_ml_methods(lstm_cp, model_name=r'LSTM$_{CP}$')
+    simulate_ml_methods(fno_gru_cp, model_name=r'FNO-GRU$_{CP}$')
+    simulate_ml_methods(fno_lstm_cp, model_name=r'FNO-LSTM$_{CP}$')
+    simulate_ml_methods(deeponet_gru_cp, model_name=r'DeepONet-GRU$_{CP}$')
+    simulate_ml_methods(deeponet_lstm_cp, model_name=r'DeepONet-LSTM$_{CP}$')
 
-    simulate_ml_methods(fno_gm, model_name=r'FNO\textsubscript{GM}')
-    simulate_ml_methods(deeponet_gm, model_name=r'DeepONet\textsubscript{GM}')
-    simulate_ml_methods(gru_gm, model_name=r'GRU\textsubscript{GM}')
-    simulate_ml_methods(lstm_gm, model_name=r'LSTM\textsubscript{GM}')
-    simulate_ml_methods(fno_gru_gm, model_name=r'FNO-GRU\textsubscript{GM}')
-    simulate_ml_methods(fno_lstm_gm, model_name=r'FNO-LSTM\textsubscript{GM}')
-    simulate_ml_methods(deeponet_gru_gm, model_name=r'DeepONet-GRU\textsubscript{GM}')
-    simulate_ml_methods(deeponet_lstm_gm, model_name=r'DeepONet-LSTM\textsubscript{GM}')
+    simulate_ml_methods(fno_gm, model_name=r'FNO$_{GM}$')
+    simulate_ml_methods(deeponet_gm, model_name=r'DeepONet$_{GM}$')
+    simulate_ml_methods(gru_gm, model_name=r'GRU$_{GM}$')
+    simulate_ml_methods(lstm_gm, model_name=r'LSTM$_{GM}$')
+    simulate_ml_methods(fno_gru_gm, model_name=r'FNO-GRU$_{GM}$')
+    simulate_ml_methods(fno_lstm_gm, model_name=r'FNO-LSTM$_{GM}$')
+    simulate_ml_methods(deeponet_gru_gm, model_name=r'DeepONet-GRU$_{GM}$')
+    simulate_ml_methods(deeponet_lstm_gm, model_name=r'DeepONet-LSTM$_{GM}$')
     captions = []
     for label, result in zip(labels, results):
         caption = label
@@ -224,7 +232,7 @@ def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alpha
 
     print('End simulation')
 
-    return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, labels, results)
+    return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, labels, results, plot_alpha=True)
 
 
 if __name__ == '__main__':
@@ -235,7 +243,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', type=str, default='s8')
     parser.add_argument('-n', type=int, default=1)
-    parser.add_argument('-m', type=str, default='alpha')
+    parser.add_argument('-m', type=str, default='cp-ood')
     args = parser.parse_args()
 
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
@@ -388,7 +396,7 @@ if __name__ == '__main__':
             deeponet_lstm_gm = None
 
             dataset_config.random_test_lower_bound = 1
-            dataset_config.random_test_upper_bound = 1.5
+            dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
             train_config.uq_alpha = 0.1
         else:
@@ -397,7 +405,7 @@ if __name__ == '__main__':
         if args.s == 's8':
             model = deeponet_gru
             dataset_config.random_test_lower_bound = 1
-            dataset_config.random_test_upper_bound = 1.2
+            dataset_config.random_test_upper_bound = 1.5
             train_config.uq_gamma = 0.01
             alphas = [0.01, 0.1, 0.5]
             metric_list = ['l2_p_z', 'rl2_p_z']
