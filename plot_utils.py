@@ -30,8 +30,9 @@ def plot_switched_control(ts, result: SimulationResult, n_point_delay, ylim=None
     marked_indices = np.where(np.logical_xor(switching_indicator[:-1], switching_indicator[1:]))[0]
     marked_indices = np.insert(marked_indices, 0, 0)
     # color_labels = ['$U_{NO}$', '$U_{Numerical}$', 'Switch Point']
-    styles = ['-', ':']
+    # styles = ['-', ':']
     color_labels = ['$U_{Numerical}$', '$U_{NO}$', 'Switch Point']
+    styles = ['-', ':']
     for j in range(U.shape[-1]):
         u = U[:, j]
         # ignore the starting point zero
@@ -56,8 +57,8 @@ def plot_switched_control(ts, result: SimulationResult, n_point_delay, ylim=None
         if n_input < display_threshold:
             ax.legend(loc=legend_loc)
         else:
-            ax.legend(handles=[Line2D([0], [0], color='black', linestyle=styles[0]),
-                               Line2D([0], [0], color='black', linestyle=styles[1]),
+            ax.legend(handles=[Line2D([0], [0], color='black', linestyle=styles[1]),
+                               Line2D([0], [0], color='black', linestyle=styles[0]),
                                Line2D([0], [0], color='black', marker='o')
                                ],
                       labels=color_labels, loc=legend_loc)
@@ -325,7 +326,7 @@ def plot_difference(ts, Ps, Z, n_point_delay, save_path, ylim=None, Ps_labels=No
             # ax.yaxis.set_major_locator(y_locator)
             # ax.yaxis.set_major_formatter(LogFormatterMathtext())
             # ax.set_ylim([0, ylim[1]])
-            ax.set_yticks([1e-4, 1e-3, 1e-2, 1e-1, 1])
+            ax.set_yticks([1e-6, 1e-4, 1e-2, 1])
             # ax.set_ylim([0, 100])
         except:
             ...

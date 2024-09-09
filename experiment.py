@@ -457,8 +457,8 @@ if __name__ == '__main__':
         l2_p_z = sum([r.l2_p_z for r in result_list]) / n_test
         rl2_p_z = sum([r.rl2_p_z for r in result_list]) / n_test
         if 'l2_p_phat' not in metric_list:
-            l2_p_phat = -1
-            rl2_p_phat = -1
+            l2_p_phat = np.array(-1)
+            rl2_p_phat = np.array(-1)
         else:
             l2_p_phat = sum([r.l2_p_phat for r in result_list]) / n_test
             rl2_p_phat = sum([r.rl2_p_phat for r in result_list]) / n_test
