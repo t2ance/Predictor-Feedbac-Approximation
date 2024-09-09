@@ -29,7 +29,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
                      metric_list=None):
     def simulate_ml_methods(model, model_name):
         if model is None:
-            print(f'Model {model} excluded')
+            print(f'Model {model_name} excluded')
             return
         if model_name.endswith(r'_{CP}'):
             prediction_method = 'switching'
@@ -493,33 +493,98 @@ if __name__ == '__main__':
         deeponet_gru_gm = None
         deeponet_lstm_gm = None
     elif args.m == 'figure':
-        fno = None
-        deeponet = None
-        gru = None
-        lstm = None
-        fno_gru = None
-        fno_lstm = None
-        deeponet_gru = None
-        deeponet_lstm = None
+        if args.s == 's8':
+            fno = None
+            # deeponet = None
+            # gru = None
+            lstm = None
+            fno_gru = None
+            fno_lstm = None
+            # deeponet_gru = None
+            deeponet_lstm = None
 
-        fno_cp = None
-        deeponet_cp = None
-        gru_cp = None
-        lstm_cp = None
-        fno_gru_cp = None
-        fno_lstm_cp = None
-        deeponet_gru_cp = None
-        deeponet_lstm_cp = None
+            fno_cp = None
+            deeponet_cp = None
+            gru_cp = None
+            lstm_cp = None
+            fno_gru_cp = None
+            fno_lstm_cp = None
+            deeponet_gru_cp = None
+            deeponet_lstm_cp = None
 
-        fno_gm = None
-        deeponet_gm = None
-        gru_gm = None
-        lstm_gm = None
-        fno_gru_gm = None
-        fno_lstm_gm = None
-        deeponet_gru_gm = None
-        deeponet_lstm_gm = None
+            fno_gm = None
+            deeponet_gm = None
+            gru_gm = None
+            lstm_gm = None
+            fno_gru_gm = None
+            fno_lstm_gm = None
+            deeponet_gru_gm = None
+            deeponet_lstm_gm = None
+        elif args.s == 's9':
+            fno = None
+            # deeponet = None
+            # gru = None
+            lstm = None
+            fno_gru = None
+            fno_lstm = None
+            # deeponet_gru = None
+            deeponet_lstm = None
 
+            fno_cp = None
+            deeponet_cp = None
+            gru_cp = None
+            lstm_cp = None
+            fno_gru_cp = None
+            fno_lstm_cp = None
+            deeponet_gru_cp = None
+            deeponet_lstm_cp = None
+
+            fno_gm = None
+            deeponet_gm = None
+            gru_gm = None
+            lstm_gm = None
+            fno_gru_gm = None
+            fno_lstm_gm = None
+            deeponet_gru_gm = None
+            deeponet_lstm_gm = None
+        else:
+            raise NotImplementedError()
+    elif args.m == 'cp-ood':
+        if args.s == 's8':
+            fno = None
+            deeponet = None
+            gru = None
+            lstm = None
+            fno_gru = None
+            fno_lstm = None
+            deeponet_gru = None
+            deeponet_lstm = None
+
+            fno_cp = None
+            deeponet_cp = None
+            gru_cp = None
+            lstm_cp = None
+            fno_gru_cp = None
+            fno_lstm_cp = None
+            deeponet_gru_cp = None
+            deeponet_lstm_cp = None
+
+            fno_gm = None
+            deeponet_gm = None
+            gru_gm = None
+            lstm_gm = None
+            fno_gru_gm = None
+            fno_lstm_gm = None
+            deeponet_gru_gm = None
+            deeponet_lstm_gm = None
+            dataset_config.random_test_lower_bound = 1
+            dataset_config.random_test_upper_bound = 1.5
+            train_config.uq_alpha = 0.1
+            train_config.uq_gamma = 0.01
+        else:
+            raise NotImplementedError()
+    else:
+        raise NotImplementedError()
     results = None
 
     test_points = dataset_config.get_test_points(n_point=args.n)

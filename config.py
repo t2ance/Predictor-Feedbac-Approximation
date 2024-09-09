@@ -516,7 +516,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.deeponet_n_layer = 5
         elif model_name == 'GRU':
             train_config.n_epoch = 50
-            model_config.gru_n_layer = 3
+            model_config.gru_n_layer = 2
             model_config.gru_layer_width = 1
             model_config.batch_size = 2048
             train_config.weight_decay = 0
