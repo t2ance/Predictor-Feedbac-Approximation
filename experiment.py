@@ -97,9 +97,12 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, caption
     check_dir(f'./misc/plots')
     plt.savefig(f'./misc/plots/{plot_name}.png')
     plt.savefig(f'./misc/plots/{plot_name}.pdf')
-    wandb.save(f'./misc/plots/{plot_name}.png')
-    wandb.save(f'./misc/plots/{plot_name}.pdf')
-    wandb.log({f'comparison {plot_name}': wandb.Image(f"./misc/plots/{plot_name}.png")})
+    try:
+        wandb.save(f'./misc/plots/{plot_name}.png')
+        wandb.save(f'./misc/plots/{plot_name}.pdf')
+        wandb.log({f'comparison {plot_name}': wandb.Image(f"./misc/plots/{plot_name}.png")})
+    except:
+        print('Logging figures to wandb server failed.')
     results_dict = {k: v for k, v in zip(labels, results)}
     return results_dict
 
@@ -379,13 +382,16 @@ if __name__ == '__main__':
 
             dataset_config.random_test_lower_bound = 1
             dataset_config.random_test_upper_bound = 1.5
-            train_config.uq_alpha = 0.1
             train_config.uq_gamma = 0.01
+            train_config.uq_alpha = 0.1
         else:
             raise NotImplementedError()
     elif args.m == 'alpha':
         if args.s == 's8':
             model = deeponet_gru
+            dataset_config.random_test_lower_bound = 1
+            dataset_config.random_test_upper_bound = 1.5
+            train_config.uq_gamma = 0.01
             alphas = [0.01, 0.1, 0.5]
             metric_list = ['l2_p_z', 'rl2_p_z']
         else:
