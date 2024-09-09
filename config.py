@@ -516,8 +516,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         elif model_name == 'GRU':
             train_config.n_epoch = 50
             model_config.gru_n_layer = 3
-            model_config.gru_layer_width = 2
-            model_config.batch_size = 512
+            model_config.gru_layer_width = 1
+            model_config.batch_size = 2048
             train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-6
         elif model_name == 'LSTM':
@@ -525,8 +525,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             train_config.learning_rate = 1e-5
             train_config.scheduler_min_lr = 1e-6
             model_config.lstm_n_layer = 3
-            model_config.lstm_layer_width = 2
-            model_config.batch_size = 512
+            model_config.lstm_layer_width = 1
+            model_config.batch_size = 2048
         elif model_name == 'FNO-GRU':
             train_config.two_stage = False
             train_config.train_first_stage = False
