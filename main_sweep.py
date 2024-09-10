@@ -17,12 +17,11 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
     train_config.scheduler_min_lr = 0
     train_config.batch_size = 2048
-    train_config.n_epoch = 100
-
 
     train_config.learning_rate = config.learning_rate
     train_config.weight_decay = config.weight_decay
-    if  '-' in model_config.model_name:
+    if '-' in model_config.model_name:
+        train_config.n_epoch = 100
         ffn, rnn = model_config.model_name.split('-')
         if ffn == 'FNO':
             model_config.fno_n_layer = config.fno_n_layer
@@ -43,6 +42,7 @@ def set_config(config, dataset_config, model_config, train_config):
         else:
             raise NotImplementedError()
     else:
+        train_config.n_epoch = 50
         if model_config.model_name == 'FNO':
             model_config.fno_n_layer = config.fno_n_layer
             model_config.fno_n_modes_height = config.fno_n_modes_height
