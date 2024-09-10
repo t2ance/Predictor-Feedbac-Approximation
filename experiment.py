@@ -436,17 +436,17 @@ if __name__ == '__main__':
     elif args.m == 'alpha':
         if args.s == 's8':
             model = deeponet_gru
-            dataset_config.random_test_lower_bound = 1
+            dataset_config.random_test_lower_bound = -2
             dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
-            alphas = [0.02, 0.1, 0.5]
+            alphas = [0.02, 0.1, 0.4]
             # metric_list = ['l2_p_z', 'rl2_p_z']
         elif args.s == 's9':
             model = deeponet_gru
-            dataset_config.random_test_lower_bound = 1
-            dataset_config.random_test_upper_bound = 1.5
+            dataset_config.random_test_lower_bound = -2
+            dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
-            alphas = [0.02, 0.1, 0.5]
+            alphas = [0.02, 0.1, 0.4]
             # metric_list = ['l2_p_z', 'rl2_p_z']
         else:
             raise NotImplementedError()
