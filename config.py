@@ -277,6 +277,7 @@ class DatasetConfig:
             lower_bound = self.random_test_lower_bound
         if upper_bound is None:
             upper_bound = self.random_test_upper_bound
+        print(f'Getting test points from dataset config, with lower_bound = {lower_bound} and upper_bound = {upper_bound}')
         state = np.random.RandomState(seed=0)
         return [
             tuple((state.uniform(lower_bound, upper_bound, self.system.n_state)).tolist()) for _ in range(n_point)
