@@ -458,7 +458,7 @@ if __name__ == '__main__':
     for i, test_point in enumerate(test_points):
         plot_name = f'{args.s}-{args.m}-{i}'
         if args.m == 'alpha':
-            print(dataset_config.random_test_lower_bound, dataset_config.random_test_upper_bound)
+            print(alphas, dataset_config.random_test_lower_bound, dataset_config.random_test_upper_bound)
             result_dict = plot_alpha(test_point, plot_name, dataset_config, train_config, model=model, alphas=alphas,
                                      system=args.s, metric_list=metric_list)
         else:
