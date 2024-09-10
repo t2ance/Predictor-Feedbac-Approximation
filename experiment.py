@@ -458,7 +458,7 @@ if __name__ == '__main__':
     for i, test_point in enumerate(test_points):
         plot_name = f'{args.s}-{args.m}-{i}'
         if args.m == 'alpha':
-            result_dict = plot_alpha(test_points, plot_name, dataset_config, train_config, model=model, alphas=alphas,
+            result_dict = plot_alpha(test_point, plot_name, dataset_config, train_config, model=model, alphas=alphas,
                                      system=args.s)
         else:
             result_dict = plot_comparisons(
