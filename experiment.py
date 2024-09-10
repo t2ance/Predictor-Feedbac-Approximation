@@ -200,7 +200,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, captions, results)
 
 
-def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alphas, system):
+def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alphas, system, metric_list):
     Ps = []
     Zs = []
     Ds = []
@@ -459,7 +459,7 @@ if __name__ == '__main__':
         plot_name = f'{args.s}-{args.m}-{i}'
         if args.m == 'alpha':
             result_dict = plot_alpha(test_point, plot_name, dataset_config, train_config, model=model, alphas=alphas,
-                                     system=args.s)
+                                     system=args.s, metric_list=metric_list)
         else:
             result_dict = plot_comparisons(
                 test_point, plot_name, dataset_config, train_config, system=args.s, metric_list=metric_list,
