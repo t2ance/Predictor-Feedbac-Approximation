@@ -441,7 +441,7 @@ if __name__ == '__main__':
             dataset_config.random_test_lower_bound = 1
             dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
-            train_config.uq_alpha = 0.1
+            train_config.uq_alpha = 0.04
         else:
             raise NotImplementedError()
     elif args.m == 'alpha':
