@@ -26,7 +26,7 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, switching_indic
         Zs = [Z[:, 4:5] for Z in Zs]
         Ds = [D[:, 4:5] for D in Ds]
         Us = [U[:, 4:5] for U in Us]
-        switching_indicators = [switching_indicator[:, 4:5] for switching_indicator in switching_indicators]
+        # switching_indicators = [switching_indicator[:, 4:5] for switching_indicator in switching_indicators]
         n_row = 4
     elif system == 's9':
         n_row = 3
