@@ -82,7 +82,10 @@ def plot_control(ts, U, save_path, n_point_delay, ylim=None, ax=None, comment=Tr
             ...
     if comment:
         # ax.set_xlabel('Time t')
-        ax.legend(loc=legend_loc)
+        # ax.legend(loc=legend_loc)
+
+        ax.legend(handles=[Line2D([0], [0], color='black', linestyle='-')],
+                  labels=[f'$U(t)$'], loc=legend_loc)
 
     if figure is not None and save_path is not None:
         figure.savefig(save_path)
