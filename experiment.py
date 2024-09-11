@@ -262,33 +262,33 @@ if __name__ == '__main__':
     deeponet, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
     deeponet_cp, deeponet_gm = deeponet, deeponet
 
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='GRU')
-    gru, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
-    gru_cp, gru_gm = gru, gru
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='LSTM')
-    lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
-    lstm_cp, lstm_gm = lstm, lstm
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-GRU')
-    train_config.zero_init = False
-    fno_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-    fno_gru_cp, fno_gru_gm = fno_gru, fno_gru
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-LSTM')
-    train_config.zero_init = False
-    fno_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-    fno_lstm_cp, fno_lstm_gm = fno_lstm, fno_lstm
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-GRU')
-    train_config.zero_init = False
-    deeponet_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-    deeponet_gru_cp, deeponet_gru_gm = deeponet_gru, deeponet_gru
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-LSTM')
-    train_config.zero_init = False
-    deeponet_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-    deeponet_lstm_cp, deeponet_lstm_gm = deeponet_lstm, deeponet_lstm
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='GRU')
+    # gru, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
+    # gru_cp, gru_gm = gru, gru
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='LSTM')
+    # lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
+    # lstm_cp, lstm_gm = lstm, lstm
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-GRU')
+    # train_config.zero_init = False
+    # fno_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    # fno_gru_cp, fno_gru_gm = fno_gru, fno_gru
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-LSTM')
+    # train_config.zero_init = False
+    # fno_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    # fno_lstm_cp, fno_lstm_gm = fno_lstm, fno_lstm
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-GRU')
+    # train_config.zero_init = False
+    # deeponet_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    # deeponet_gru_cp, deeponet_gru_gm = deeponet_gru, deeponet_gru
+    #
+    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-LSTM')
+    # train_config.zero_init = False
+    # deeponet_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    # deeponet_lstm_cp, deeponet_lstm_gm = deeponet_lstm, deeponet_lstm
 
     if args.m == 'table':
         fno_cp = None
@@ -435,14 +435,14 @@ if __name__ == '__main__':
             raise NotImplementedError()
     elif args.m == 'alpha':
         if args.s == 's8':
-            model = deeponet_gru
+            # model = fno_lstm
             dataset_config.random_test_lower_bound = -2
             dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
             alphas = [0.02, 0.1, 0.4]
             # metric_list = ['l2_p_z', 'rl2_p_z']
         elif args.s == 's9':
-            model = deeponet_gru
+            # model = deeponet_gru
             dataset_config.random_test_lower_bound = -2
             dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
