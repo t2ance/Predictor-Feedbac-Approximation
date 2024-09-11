@@ -98,14 +98,14 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, caption
                 q = q_des - Z[:, :dataset_config.n_state // 2]
                 if system == 's8':
                     q = q[:, 4:5]
-                    q_des = q_des[:, 4:5]
+                    q_des_ = q_des[:, 4:5]
                 elif system == 's9':
                     ...
                 else:
                     raise NotImplementedError()
 
                 q = q[n_point_start:]
-                plot_q(ts[n_point_start:], [q], q_des[n_point_start:], None, ax=axes[3], comment=comment)
+                plot_q(ts[n_point_start:], [q], q_des_[n_point_start:], None, ax=axes[3], comment=comment)
         else:
             n_point_start = n_point_delay(0)
             for i, (result, axes, alpha) in enumerate(zip(results[1:], method_axes[1:], alphas)):
