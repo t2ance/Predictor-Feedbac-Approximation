@@ -185,10 +185,10 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
                 P_switching[t_i, :] = P_numerical[t_i, :]
                 p_numerical_count += 1
                 subsystem_history[t_i] = 1
-
-            U[t_i] = system.kappa(P_switching[t_i, :], t)
             end = time.time()
             runtime += end - begin
+
+            U[t_i] = system.kappa(P_switching[t_i, :], t)
         elif method == 'scheduled_sampling':
             solution = solve_integral(
                 Z_t=Z_t, P_D=P_no[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t, dataset_config=dataset_config,
