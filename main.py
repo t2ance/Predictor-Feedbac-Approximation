@@ -16,9 +16,10 @@ from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import sample_to_tensor
 from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral
 from model import GRUNet, LSTMNet, TimeAwareFFN
-from plot_utils import plot_result, set_size, difference
+from plot_utils import plot_result, difference
 from utils import pad_zeros, l2_p_phat, check_dir, predict_and_loss, load_lr_scheduler, set_everything, print_result, \
     load_model, load_optimizer, print_args, get_time_str, SimulationResult, TestResult, count_params, l2_p_z
+from uq import *
 
 warnings.filterwarnings('ignore')
 
@@ -53,6 +54,8 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
     q_ts = np.zeros(n_point)
     e_ts = np.zeros(n_point)
     P_switching = np.zeros((n_point, system.n_state))
+    qe = QuantileEstimator(alpha)
+    gqe = GaussianQuantileEstimator()
 
     p_numerical_count = 0
     p_no_count = 0
@@ -123,6 +126,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
                 # System switching
                 # (1) Get the uncertainty of no model
                 P_no_Ri[t_i] = np.linalg.norm(P_no[t_i - n_point_start, :] - Z_t)
+
                 if train_config.uq_adaptive:
                     quantile = (1 - min(1, max(alpha_t, 0))) * 100
                 else:
@@ -130,11 +134,16 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
 
                 Ris = P_no_Ri[start_point:t_i + 1]
                 if train_config.uq_type == 'conformal prediction':
-                    Q = np.percentile(Ris, quantile)
+                    # Q = np.percentile(Ris, quantile)
+                    qe.update(P_no_Ri[t_i])
+                    Q = qe.query(quantile / 100)
                 elif train_config.uq_type == 'gaussian process':
-                    Q = norm.ppf(quantile / 100, loc=np.mean(Ris), scale=np.std(Ris) + 1e-7)
+                    # Q = norm.ppf(quantile / 100, loc=np.mean(Ris), scale=np.std(Ris) + 1e-7)
+                    gqe.update(P_no_Ri[t_i])
+                    Q = gqe.query(quantile / 100)
                 else:
                     raise NotImplementedError()
+
                 e_t = 0 if P_no_Ri[t_i] <= Q else 1
                 # (2) Assign the indicator
                 if train_config.uq_switching_type == 'switching':
