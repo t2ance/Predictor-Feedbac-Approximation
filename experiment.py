@@ -100,7 +100,7 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, caption
                     q = q[:, 4:5]
                     q_des_ = q_des[:, 4:5]
                 elif system == 's9':
-                    ...
+                    q_des_ = q_des
                 else:
                     raise NotImplementedError()
 
