@@ -158,6 +158,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
             print(f'{model_name} succeeded')
             if prediction_method != 'no':
                 print(f'Numerical approximation iteration for {model_name}', result.P_numerical_n_iters.mean())
+
     Ps = []
     Zs = []
     Ds = []
@@ -441,23 +442,25 @@ if __name__ == '__main__':
             dataset_config.random_test_lower_bound = 1
             dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
-            train_config.uq_alpha = 0.04
+            train_config.uq_alpha = 0.05
         else:
             raise NotImplementedError()
     elif args.m == 'alpha':
         if args.s == 's8':
             model = fno_lstm
-            dataset_config.random_test_lower_bound = -2
+            train_config.uq_type = 'conformal prediction'
+            dataset_config.random_test_lower_bound = 1
             dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
-            alphas = [0.02, 0.1, 0.4]
+            alphas = [0.02, 1, 0.4]
             # metric_list = ['l2_p_z', 'rl2_p_z']
         elif args.s == 's9':
             model = deeponet_gru
-            dataset_config.random_test_lower_bound = -2
+            train_config.uq_type = 'conformal prediction'
+            dataset_config.random_test_lower_bound = 1
             dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
-            alphas = [0.02, 0.1, 0.4]
+            alphas = [0.02, 0.05, 0.1]
             # metric_list = ['l2_p_z', 'rl2_p_z']
         else:
             raise NotImplementedError()
