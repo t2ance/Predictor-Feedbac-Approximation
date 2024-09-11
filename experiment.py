@@ -316,7 +316,7 @@ if __name__ == '__main__':
     deeponet_lstm_cp, deeponet_lstm_gp = deeponet_lstm, deeponet_lstm
 
     if args.m == 'table':
-        if args.s == '':
+        if args.s == 's8':
             fno = None
             # deeponet = None
             gru = None

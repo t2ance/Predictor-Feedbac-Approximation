@@ -119,8 +119,8 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
             begin = time.time()
             P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
             # actuate the controller
-            # start_point = n_point_start
-            start_point = 0
+            start_point = n_point_start
+            # start_point = 0
             if t_i >= start_point:
                 # System switching
                 # (1) Get the uncertainty of no model
