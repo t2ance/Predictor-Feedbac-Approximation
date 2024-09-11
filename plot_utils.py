@@ -18,11 +18,10 @@ fig_width = 469.75502
 n_ticks = 5
 
 
-def plot_switched_control(ts, result: SimulationResult, n_point_delay, ylim=None, ax=None, comment=True):
+def plot_switched_control(ts, U, switching_indicator, n_point_delay, ylim=None, ax=None, comment=True):
     if ax is None:
         ax = plt.figure(figsize=set_size(width=fig_width)).gca()
     ax.yaxis.set_major_locator(MaxNLocator(nbins=n_ticks))
-    U, switching_indicator = result.U, result.switching_indicator
     ts = ts[n_point_delay:]
     U = U[n_point_delay:]
     n_input = U.shape[-1]

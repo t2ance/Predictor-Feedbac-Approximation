@@ -19,12 +19,14 @@ def interval(min_, max_):
     return new_min, new_max
 
 
-def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, captions, results, plot_alpha: bool = False):
+def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, switching_indicators, labels, captions, results,
+              plot_alpha: bool = False):
     if system == 's8':
         Ps = [P[:, 4:5] for P in Ps]
         Zs = [Z[:, 4:5] for Z in Zs]
         Ds = [D[:, 4:5] for D in Ds]
         Us = [U[:, 4:5] for U in Us]
+        switching_indicators = [switching_indicator[:, 4:5] for switching_indicator in switching_indicators]
         n_row = 4
     elif system == 's9':
         n_row = 3
@@ -77,10 +79,12 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, caption
         plot_difference(ts, [P], Z, n_point_delay, None, ylim=[min_d, max_d], ax=axes[1], comment=comment,
                         differences=[D], xlim=[0, dataset_config.duration])
 
-    for i, (axes, P, Z, D, U, result, label) in enumerate(zip(method_axes, Ps, Zs, Ds, Us, results, labels)):
+    for i, (axes, P, Z, D, U, switching_indicator, result, label) in enumerate(
+            zip(method_axes, Ps, Zs, Ds, Us, switching_indicators, results, labels)):
         comment = i == n_col - 1
         if 'CP' in label or 'GP' in label or 'alpha' in label:
-            plot_switched_control(ts, result, n_point_delay(0), ax=axes[2], comment=comment, ylim=[min_u, max_u])
+            plot_switched_control(ts, U, switching_indicator, n_point_delay(0), ax=axes[2], comment=comment,
+                                  ylim=[min_u, max_u])
         else:
             if 'Successive' in label and plot_alpha:
                 linestyle = ':'
@@ -150,6 +154,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         Zs.append(m_result.Z)
         Ds.append(m_result.D_no)
         Us.append(m_result.U)
+        switching_indicators.append(m_result.switching_indicator)
         labels.append(model_name)
         results.append(m_result)
         if not m_result.success:
@@ -163,6 +168,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     Zs = []
     Ds = []
     Us = []
+    switching_indicators = []
     labels = []
     results = []
 
@@ -174,6 +180,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     Zs.append(result.Z)
     Ds.append(result.D_numerical)
     Us.append(result.U)
+    switching_indicators.append(result.switching_indicator)
     labels.append('Successive \n Approximation')
     results.append(result)
     print('Numerical approximation iteration', result.P_numerical_n_iters.mean())
@@ -211,7 +218,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     print(f'End simulation {plot_name}')
     print(labels)
 
-    return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, captions, results)
+    return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, switching_indicators, labels, captions, results)
 
 
 def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alphas, system, metric_list):
@@ -221,6 +228,7 @@ def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alpha
     Us = []
     labels = []
     results = []
+    switching_indicators = []
     print('Begin simulation')
 
     result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, method='numerical',
@@ -229,6 +237,7 @@ def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alpha
     Zs.append(result.Z)
     Ds.append(result.D_numerical)
     Us.append(result.U)
+    switching_indicators.append(result.switching_indicator)
     labels.append('Successive \n Approximation')
     results.append(result)
     print('Numerical approximation iteration', result.P_numerical_n_iters.mean())
@@ -241,12 +250,14 @@ def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alpha
         Zs.append(m_result.Z)
         Ds.append(m_result.D_no)
         Us.append(m_result.U)
+        switching_indicators.append(m_result.switching_indicator)
         labels.append(rf'$\alpha = {alpha}$')
         results.append(m_result)
 
     print('End simulation')
 
-    return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, labels, results, plot_alpha=True)
+    return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, switching_indicators, labels, labels, results,
+                     plot_alpha=True)
 
 
 if __name__ == '__main__':
