@@ -165,7 +165,9 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     Us = []
     labels = []
     results = []
+
     print(f'Begin simulation {plot_name}, with initial point {test_point}')
+    print(f'Solving system with initial point {np.round(test_point, decimals=2)}.')
     result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, method='numerical',
                         silence=False, metric_list=metric_list)
     Ps.append(result.P_numerical)
