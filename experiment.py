@@ -24,6 +24,7 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, caption
         Ps = [P[:, 4:5] for P in Ps]
         Zs = [Z[:, 4:5] for Z in Zs]
         Ds = [D[:, 4:5] for D in Ds]
+        Us = [U[:, 4:5] for U in Us]
         n_row = 4
     elif system == 's9':
         n_row = 3
@@ -405,7 +406,7 @@ if __name__ == '__main__':
             deeponet_gru_gp = None
             deeponet_lstm_gp = None
 
-            dataset_config.random_test_lower_bound = -2
+            dataset_config.random_test_lower_bound = 1
             dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
             train_config.uq_alpha = 0.1
@@ -437,10 +438,8 @@ if __name__ == '__main__':
             # deeponet_gru_gp = None
             deeponet_lstm_gp = None
 
-            # dataset_config.random_test_lower_bound = -2
-            # dataset_config.random_test_upper_bound = 2
-            dataset_config.random_test_lower_bound = -5
-            dataset_config.random_test_upper_bound = 5
+            dataset_config.random_test_lower_bound = 1
+            dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
             train_config.uq_alpha = 0.1
         else:
