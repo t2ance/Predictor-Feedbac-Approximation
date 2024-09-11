@@ -97,6 +97,7 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, caption
                 q = q_des - Z[:, :dataset_config.n_state // 2]
                 if system == 's8':
                     q = q[:, 4:5]
+                    q_des = q_des[:, 4:5]
                 elif system == 's9':
                     ...
                 else:
