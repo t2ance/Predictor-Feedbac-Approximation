@@ -21,16 +21,14 @@ def interval(min_, max_):
 
 def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, captions, results, plot_alpha: bool = False):
     if system == 's8':
-        n_max_state = 5
+        Ps = [P[:, 4:5] for P in Ps]
+        Zs = [Z[:, 4:5] for Z in Zs]
+        Ds = [D[:, 4:5] for D in Ds]
         n_row = 4
     elif system == 's9':
-        n_max_state = 10000
         n_row = 3
     else:
         raise NotImplementedError()
-    Ps = [P[:, :n_max_state] for P in Ps]
-    Zs = [Z[:, :n_max_state] for Z in Zs]
-    Ds = [D[:, :n_max_state] for D in Ds]
 
     n_col = len(labels)
     ts = dataset_config.ts
@@ -96,7 +94,14 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, labels, caption
             n_point_start = n_point_delay(0)
             for i, (axes, P, Z, D, U) in enumerate(zip(method_axes, Ps, Zs, Ds, Us)):
                 comment = i == n_col - 1
-                q = q_des[:, :n_max_state] - Z[:, :dataset_config.n_state // 2][:, :n_max_state]
+                q = q_des - Z[:, :dataset_config.n_state // 2]
+                if system == 's8':
+                    q = q[:, 4:5]
+                elif system == 's9':
+                    ...
+                else:
+                    raise NotImplementedError()
+
                 q = q[n_point_start:]
                 plot_q(ts[n_point_start:], [q], q_des[n_point_start:], None, ax=axes[3], comment=comment)
         else:
@@ -262,33 +267,33 @@ if __name__ == '__main__':
     deeponet, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
     deeponet_cp, deeponet_gp = deeponet, deeponet
 
-    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='GRU')
-    # gru, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
-    # gru_cp, gru_gp = gru, gru
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='LSTM')
-    # lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
-    # lstm_cp, lstm_gp = lstm, lstm
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-GRU')
-    # train_config.zero_init = False
-    # fno_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-    # fno_gru_cp, fno_gru_gp = fno_gru, fno_gru
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-LSTM')
-    # train_config.zero_init = False
-    # fno_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-    # fno_lstm_cp, fno_lstm_gp = fno_lstm, fno_lstm
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-GRU')
-    # train_config.zero_init = False
-    # deeponet_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-    # deeponet_gru_cp, deeponet_gru_gp = deeponet_gru, deeponet_gru
-    #
-    # dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-LSTM')
-    # train_config.zero_init = False
-    # deeponet_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-    # deeponet_lstm_cp, deeponet_lstm_gp = deeponet_lstm, deeponet_lstm
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='GRU')
+    gru, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
+    gru_cp, gru_gp = gru, gru
+
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='LSTM')
+    lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
+    lstm_cp, lstm_gp = lstm, lstm
+
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-GRU')
+    train_config.zero_init = False
+    fno_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    fno_gru_cp, fno_gru_gp = fno_gru, fno_gru
+
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-LSTM')
+    train_config.zero_init = False
+    fno_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    fno_lstm_cp, fno_lstm_gp = fno_lstm, fno_lstm
+
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-GRU')
+    train_config.zero_init = False
+    deeponet_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    deeponet_gru_cp, deeponet_gru_gp = deeponet_gru, deeponet_gru
+
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-LSTM')
+    train_config.zero_init = False
+    deeponet_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
+    deeponet_lstm_cp, deeponet_lstm_gp = deeponet_lstm, deeponet_lstm
 
     if args.m == 'table':
         fno_cp = None

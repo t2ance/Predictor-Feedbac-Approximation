@@ -223,7 +223,7 @@ def plot_q(ts, qs, q_des, save_path, ylim=None, ax=None, comment=True, figure=No
         for j, q in enumerate(qs):
             ax.plot(ts[:], q[:, i], linestyle=styles[j], color=colors[i],
                     label=f'$q_{i + 1}(t)$')
-        ax.plot(ts, q_des[:, i], label=f'$q_{{des,{i + 1}}}(t)$', linestyle='-.',
+        ax.plot(ts, q_des[:, i], label=f'$q_{{des,{i + 1}}}(t)$', linestyle=':',
                 color=colors[i])
     if ylim is not None:
         try:
@@ -235,8 +235,8 @@ def plot_q(ts, qs, q_des, save_path, ylim=None, ax=None, comment=True, figure=No
         if n_state < display_threshold:
             ax.legend(loc=legend_loc)
         else:
-            ax.legend(handles=[Line2D([0], [0], color='black', linestyle='-.'),
-                               Line2D([0], [0], color='black', linestyle='-')],
+            ax.legend(handles=[Line2D([0], [0], color='black', linestyle='-'),
+                               Line2D([0], [0], color='black', linestyle=':')],
                       labels=[f'$q(t)$', f'$q_{{des}}(t)$'], loc=legend_loc)
     if figure is not None and save_path is not None:
         figure.savefig(save_path)
