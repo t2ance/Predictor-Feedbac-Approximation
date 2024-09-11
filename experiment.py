@@ -142,6 +142,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
             train_config.uq_type = 'gaussian process'
         else:
             prediction_method = 'no'
+        print(f'Simulating {model_name}')
         m_result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=model,
                               method=prediction_method, silence=False, metric_list=metric_list)
         Ps.append(m_result.P_no)
@@ -152,7 +153,10 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         results.append(m_result)
         if not m_result.success:
             print(f'{model_name} failed')
-
+        else:
+            print(f'{model_name} succeeded')
+            if prediction_method != 'no':
+                print(f'Numerical approximation iteration for {model_name}', result.P_numerical_n_iters.mean())
     Ps = []
     Zs = []
     Ds = []

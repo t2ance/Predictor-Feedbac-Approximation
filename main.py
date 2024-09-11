@@ -78,6 +78,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
             solution = solve_integral(Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
                                       dataset_config=dataset_config, delay=dataset_config.delay)
             P_numerical[t_i, :] = solution.solution
+            P_numerical_n_iters[t_i] = solution.n_iter
 
         if method == 'numerical':
             begin = time.time()
