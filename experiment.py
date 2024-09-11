@@ -482,7 +482,7 @@ if __name__ == '__main__':
             dataset_config.random_test_lower_bound = 1
             dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
-            alphas = [0.02, 0.05, 0.1]
+            alphas = [0.005, 0.05, 0.2]
             # metric_list = ['l2_p_z', 'rl2_p_z']
         else:
             raise NotImplementedError()
