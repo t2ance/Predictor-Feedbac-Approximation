@@ -54,7 +54,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
     q_ts = np.zeros(n_point)
     e_ts = np.zeros(n_point)
     P_switching = np.zeros((n_point, system.n_state))
-    qe = QuantileEstimator(alpha)
+    qe = QuantileEstimator()
     gqe = GaussianQuantileEstimator()
 
     p_numerical_count = 0
