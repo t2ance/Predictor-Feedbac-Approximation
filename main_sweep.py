@@ -120,9 +120,9 @@ def get_parameters(system: str, model_name: str):
                 },
                 'gru_layer_width': {
                     'distribution': 'q_log_uniform_values',
-                    'q': 4,
-                    'min': 4,
-                    'max': 32
+                    'q': 2,
+                    'min': 1,
+                    'max': 16
                 }
             })
         elif rnn == 'LSTM':
@@ -134,9 +134,9 @@ def get_parameters(system: str, model_name: str):
                 },
                 'lstm_layer_width': {
                     'distribution': 'q_log_uniform_values',
-                    'q': 4,
-                    'min': 4,
-                    'max': 32
+                    'q': 2,
+                    'min': 1,
+                    'max': 16
                 }
             })
         else:

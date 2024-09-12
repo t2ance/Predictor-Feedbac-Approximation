@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from dataset import PredictionDataset
 from model import FNOProjection, FFN, GRUNet, LSTMNet, FNOProjectionGRU, FNOProjectionLSTM, DeepONet, DeepONetGRU, \
-    DeepONetLSTM, TimeAwareFFN
+    DeepONetLSTM, TimeAwareFFN, FNOGRU, FNOLSTM, TimeAwareNeuralOperator
 
 from torch import nn
 from torch.nn import init
@@ -144,25 +144,33 @@ def load_model(train_config, model_config, dataset_config, ffn=None, n_param_out
         model = LSTMNet(input_size=n_state + n_point_start * n_input, layer_width=model_config.lstm_layer_width,
                         num_layers=model_config.lstm_n_layer, output_size=n_state)
     elif model_name == 'FNO-GRU':
-        model = FNOProjectionGRU(
-            n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
-            n_state=n_state, fno_n_layers=model_config.fno_n_layer, gru_n_layers=model_config.gru_n_layer,
-            gru_layer_width=model_config.gru_layer_width, ffn=ffn, residual=train_config.residual)
+        # model = FNOProjectionGRU(
+        #     n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
+        #     n_state=n_state, fno_n_layers=model_config.fno_n_layer, gru_n_layers=model_config.gru_n_layer,
+        #     gru_layer_width=model_config.gru_layer_width, ffn=ffn, residual=train_config.residual)
+        model = FNOGRU(n_input=n_input, n_modes_height=model_config.fno_n_modes_height,
+                       hidden_channels=model_config.fno_hidden_channels, n_state=n_state,
+                       fno_n_layers=model_config.fno_n_layer,
+                       gru_n_layers=model_config.gru_n_layer, gru_layer_width=model_config.gru_layer_width)
     elif model_name == 'FNO-LSTM':
-        model = FNOProjectionLSTM(
-            n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
-            n_state=n_state, fno_n_layers=model_config.fno_n_layer, lstm_n_layers=model_config.lstm_n_layer,
-            lstm_layer_width=model_config.lstm_layer_width, ffn=ffn, residual=train_config.residual)
+        # model = FNOProjectionLSTM(
+        #     n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
+        #     n_state=n_state, fno_n_layers=model_config.fno_n_layer, lstm_n_layers=model_config.lstm_n_layer,
+        #     lstm_layer_width=model_config.lstm_layer_width, ffn=ffn, residual=train_config.residual)
+        model = FNOLSTM(n_input=n_input, n_modes_height=model_config.fno_n_modes_height,
+                        hidden_channels=model_config.fno_hidden_channels, n_state=n_state,
+                        fno_n_layers=model_config.fno_n_layer, lstm_n_layers=model_config.lstm_n_layer,
+                        lstm_layer_width=model_config.lstm_layer_width)
     elif model_name == 'DeepONet-GRU':
         model = DeepONetGRU(n_state=n_state, gru_n_layers=model_config.gru_n_layer, n_point_start=n_point_start,
-                            n_input=n_input, gru_layer_width=model_config.gru_layer_width, ffn=ffn,
+                            n_input=n_input, gru_layer_width=model_config.gru_layer_width,
                             deeponet_hidden_size=model_config.deeponet_hidden_size,
-                            deeponet_n_layer=model_config.deeponet_n_layer, residual=train_config.residual)
+                            deeponet_n_layer=model_config.deeponet_n_layer)
     elif model_name == 'DeepONet-LSTM':
         model = DeepONetLSTM(n_state=n_state, lstm_n_layers=model_config.lstm_n_layer, n_point_start=n_point_start,
-                             n_input=n_input, lstm_layer_width=model_config.lstm_layer_width, ffn=ffn,
+                             n_input=n_input, lstm_layer_width=model_config.lstm_layer_width,
                              deeponet_hidden_size=model_config.deeponet_hidden_size,
-                             deeponet_n_layer=model_config.deeponet_n_layer, residual=train_config.residual)
+                             deeponet_n_layer=model_config.deeponet_n_layer)
     else:
         raise NotImplementedError()
     if isinstance(model, TimeAwareFFN) and train_config.zero_init:
@@ -172,8 +180,13 @@ def load_model(train_config, model_config, dataset_config, ffn=None, n_param_out
                 if module.bias is not None:
                     nn.init.constant_(module.bias, 0)
         print(model_name, 'initialized to zero for its RNN')
+
     n_params = count_params(model)
     print(f'Using {model_name} with {n_params} parameters. Xavier initializing.')
+    if isinstance(model, TimeAwareNeuralOperator):
+        print('ffn parameters:', count_params(model.ffn))
+        print('rnn parameters:', count_params(model.rnn))
+        print('projection parameters:', count_params(model.projection))
     initialize_weights(model)
     if n_param_out:
         return model.to(device), n_params

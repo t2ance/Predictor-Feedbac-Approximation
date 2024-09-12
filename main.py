@@ -18,7 +18,8 @@ from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral
 from model import GRUNet, LSTMNet, TimeAwareFFN
 from plot_utils import plot_result, difference
 from utils import pad_zeros, l2_p_phat, check_dir, predict_and_loss, load_lr_scheduler, set_everything, print_result, \
-    load_model, load_optimizer, print_args, get_time_str, SimulationResult, TestResult, count_params, l2_p_z
+    load_model, load_optimizer, print_args, get_time_str, SimulationResult, TestResult, count_params, l2_p_z, \
+    prediction_comparison
 
 warnings.filterwarnings('ignore')
 
@@ -262,12 +263,21 @@ def simulation_result_to_samples(result: SimulationResult, dataset_config):
     max_n_point_delay = dataset_config.max_n_point_delay()
     n_point_start = dataset_config.n_point_start()
     n_point_delay = dataset_config.n_point_delay
+    ts = dataset_config.ts
+    # Us = [pad_zeros(result.U[idx + n_point_start - n_point_delay(t): idx + n_point_start], max_n_point_delay,
+    #                 leading=True) for idx, t in enumerate(horizon)]
 
-    Ps = np.array(result.P_numerical[n_point_start:])
-    Zs = np.array(result.Z[n_point_start:])
+    # Zs = np.array(result.Z[n_point_start:])
+
     horizon = np.array(dataset_config.ts[n_point_start:])
-    Us = [pad_zeros(result.U[idx + n_point_start - n_point_delay(t): idx + n_point_start], max_n_point_delay,
-                    leading=True) for idx, t in enumerate(horizon)]
+    Zs = np.array(result.Z[n_point_start:])
+    Ps = np.zeros_like(result.P_numerical[n_point_start:])
+    Us = np.zeros_like(result.U[n_point_start:])
+    for ti, t in enumerate(ts[n_point_start:]):
+        Ps[ti] = result.P_numerical[ti]
+        Zs[ti] = result.Z[ti + n_point_delay(t)]
+        Us[ti] = pad_zeros(result.U[ti - n_point_delay(t): ti], max_n_point_delay, leading=True)
+
     samples = []
     for p, z, t, u in zip(Ps, Zs, horizon, Us):
         samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(p)))
@@ -585,7 +595,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', type=str, default='s9')
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='sequence')
-    parser.add_argument('-model_name', type=str, default='DeepONet')
+    parser.add_argument('-model_name', type=str, default='FNO-GRU')
     parser.add_argument('-tlb', type=float, default=0.)
     parser.add_argument('-tub', type=float, default=1.)
     parser.add_argument('-cp_gamma', type=float, default=0.01)
@@ -610,6 +620,7 @@ if __name__ == '__main__':
     print_args(dataset_config_)
     print_args(model_config_)
     print_args(train_config_)
+
     results_, model = main(dataset_config_, model_config_, train_config_, run)
     for method_, result_ in results_.items():
         print(method_)

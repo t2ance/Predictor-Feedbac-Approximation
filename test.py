@@ -4,7 +4,7 @@ import dynamic_systems
 from config import get_config
 from dynamic_systems import ConstantDelay, TimeVaryingDelay
 from main import simulation
-from utils import l2_p_phat
+from utils import l2_p_phat, load_model
 
 
 def baxter_test1dof():
@@ -29,10 +29,9 @@ def baxter_test2dof():
     dataset_config.duration = 10
     dataset_config.delay = ConstantDelay(0.5)
     dataset_config.dt = 0.02
-    dataset_config.successive_approximation_threshold = 1e-14
-    dataset_config.integral_method = 'rectangle'
-    result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
-                        img_save_path='./misc', silence=False)
+    model = load_model(train_config, model_config, dataset_config, model_name='DeepONet-LSTM')
+    result = simulation(method='no', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
+                        img_save_path='./misc', silence=False, model=model)
     print(result.runtime)
     return result
 
@@ -95,8 +94,8 @@ def baxter_test_unicycle():
 
 
 if __name__ == '__main__':
-    # result = baxter_test2dof()
-    result = baxter_test_unicycle()
+    result = baxter_test2dof()
+    # result = baxter_test_unicycle()
     # import wandb
     # from config import get_config
     #
