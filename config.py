@@ -22,9 +22,12 @@ class ModelConfig:
     fno_n_layer: Optional[int] = field(default=4)
     ffn_n_layer: Optional[int] = field(default=4)
     ffn_layer_width: Optional[int] = field(default=8)
+
     gru_n_layer: Optional[int] = field(default=4)
+    gru_hidden_size: Optional[int] = field(default=64)
     gru_layer_width: Optional[int] = field(default=8)
     lstm_n_layer: Optional[int] = field(default=4)
+    lstm_hidden_size: Optional[int] = field(default=64)
     lstm_layer_width: Optional[int] = field(default=8)
     model_name: Optional[Literal['FFN', 'FNO', 'DeepONet', 'GRU', 'LSTM']] = field(default='FNO')
     model_version: Optional[str] = field(default='latest')

@@ -127,44 +127,44 @@ class TimeAwareNeuralOperator(torch.nn.Module):
 
 class FNOGRU(TimeAwareNeuralOperator):
 
-    def __init__(self, n_input, n_modes_height: int, hidden_channels: int, fno_n_layers: int, gru_n_layers: int,
-                 gru_layer_width: int, n_state: int, *args, **kwargs):
+    def __init__(self, n_modes_height: int, hidden_channels: int, fno_n_layers: int, gru_n_layers: int,
+                 gru_hidden_size: int, n_state: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ffn = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
                                  n_layers=fno_n_layers, function_out=True)
-        self.rnn = nn.GRU(1, n_input * gru_layer_width, gru_n_layers, batch_first=True)
-        self.projection = nn.Linear(n_input * gru_layer_width, n_state)
+        self.rnn = nn.GRU(1, gru_hidden_size, gru_n_layers, batch_first=True)
+        self.projection = nn.Linear(gru_hidden_size, n_state)
 
 
 class FNOLSTM(TimeAwareNeuralOperator):
 
-    def __init__(self, n_input, n_modes_height: int, hidden_channels: int, fno_n_layers: int, lstm_n_layers: int,
-                 lstm_layer_width: int, n_state: int, *args, **kwargs):
+    def __init__(self, n_modes_height: int, hidden_channels: int, fno_n_layers: int, lstm_n_layers: int,
+                 lstm_hidden_size: int, n_state: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ffn = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
                                  n_layers=fno_n_layers, function_out=True)
-        self.rnn = nn.LSTM(1, n_input * lstm_layer_width, lstm_n_layers, batch_first=True)
-        self.projection = nn.Linear(n_input * lstm_layer_width, n_state)
+        self.rnn = nn.LSTM(1, lstm_hidden_size, lstm_n_layers, batch_first=True)
+        self.projection = nn.Linear(lstm_hidden_size, n_state)
 
 
 class DeepONetGRU(TimeAwareNeuralOperator):
     def __init__(self, n_point_start: int, n_input: int, deeponet_n_layer: int, deeponet_hidden_size: int,
-                 gru_n_layers: int, gru_layer_width: int, n_state: int, *args, **kwargs):
+                 gru_n_layers: int, gru_hidden_size: int, n_state: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ffn = DeepONet(n_input_branch=n_point_start * n_input + n_state, n_input_trunk=1, n_point=n_point_start,
                             layer_width=deeponet_hidden_size, n_layer=deeponet_n_layer, n_output=1, function_out=True)
-        self.rnn = nn.GRU(1, n_input * gru_layer_width, gru_n_layers, batch_first=True)
-        self.projection = nn.Linear(n_input * gru_layer_width, n_state)
+        self.rnn = nn.GRU(1, gru_hidden_size, gru_n_layers, batch_first=True)
+        self.projection = nn.Linear(gru_hidden_size, n_state)
 
 
 class DeepONetLSTM(TimeAwareNeuralOperator):
     def __init__(self, n_point_start: int, n_input: int, deeponet_n_layer: int, deeponet_hidden_size: int,
-                 lstm_n_layers: int, lstm_layer_width: int, n_state: int, *args, **kwargs):
+                 lstm_n_layers: int, lstm_hidden_size: int, n_state: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ffn = DeepONet(n_input_branch=n_point_start * n_input + n_state, n_input_trunk=1, n_point=n_point_start,
                             layer_width=deeponet_hidden_size, n_layer=deeponet_n_layer, n_output=1, function_out=True)
-        self.rnn = nn.LSTM(1, n_input * lstm_layer_width, lstm_n_layers, batch_first=True)
-        self.projection = nn.Linear(n_input * lstm_layer_width, n_state)
+        self.rnn = nn.LSTM(1, lstm_hidden_size, lstm_n_layers, batch_first=True)
+        self.projection = nn.Linear(lstm_hidden_size, n_state)
 
 
 ################################
@@ -233,58 +233,58 @@ class DeepONetLSTM(TimeAwareNeuralOperator):
 #         self.cell = None
 #
 
-class TimeAwareFFN(torch.nn.Module):
-    def __init__(self, residual, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.mse_loss = torch.nn.MSELoss()
-        self.residual = residual
-
-    def forward(self, x: torch.Tensor, label: torch.Tensor = None, ffn_out: bool = False):
-
-        ffn_x = self.ffn(x)
-        if self.residual:
-            rnn_x = self.rnn(ffn_x) + ffn_x
-        else:
-            rnn_x = self.rnn(ffn_x)
-        if ffn_out:
-            if label is None:
-                return rnn_x, ffn_x
-            return rnn_x, ffn_x, self.mse_loss(rnn_x, label), self.mse_loss(ffn_x, label)
-        else:
-            if label is None:
-                return rnn_x
-            return rnn_x, self.mse_loss(rnn_x, label)
-
-    def reset_state(self):
-        self.rnn.reset_state()
-
-
-class FNOProjectionGRU(TimeAwareFFN):
-    def __init__(self, n_modes_height: int, hidden_channels: int, fno_n_layers: int, gru_n_layers: int,
-                 gru_layer_width: int, n_state: int, ffn=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if ffn is None:
-            ffn = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
-                                n_layers=fno_n_layers)
-        else:
-            print('Pretrained FNO model loaded to FNO-GRU')
-        self.ffn = ffn
-        self.rnn = GRUNet(input_size=n_state, layer_width=gru_layer_width, num_layers=gru_n_layers,
-                          output_size=n_state)
-
-
-class FNOProjectionLSTM(TimeAwareFFN):
-    def __init__(self, n_modes_height: int, hidden_channels: int, fno_n_layers: int, lstm_n_layers: int,
-                 lstm_layer_width: int, n_state: int, ffn=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if ffn is None:
-            ffn = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
-                                n_layers=fno_n_layers)
-        else:
-            print('Pretrained FNO model loaded to FNO-LSTM')
-        self.ffn = ffn
-        self.rnn = LSTMNet(input_size=n_state, layer_width=lstm_layer_width, num_layers=lstm_n_layers,
-                           output_size=n_state)
+# class TimeAwareFFN(torch.nn.Module):
+#     def __init__(self, residual, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.mse_loss = torch.nn.MSELoss()
+#         self.residual = residual
+#
+#     def forward(self, x: torch.Tensor, label: torch.Tensor = None, ffn_out: bool = False):
+#
+#         ffn_x = self.ffn(x)
+#         if self.residual:
+#             rnn_x = self.rnn(ffn_x) + ffn_x
+#         else:
+#             rnn_x = self.rnn(ffn_x)
+#         if ffn_out:
+#             if label is None:
+#                 return rnn_x, ffn_x
+#             return rnn_x, ffn_x, self.mse_loss(rnn_x, label), self.mse_loss(ffn_x, label)
+#         else:
+#             if label is None:
+#                 return rnn_x
+#             return rnn_x, self.mse_loss(rnn_x, label)
+#
+#     def reset_state(self):
+#         self.rnn.reset_state()
+#
+#
+# class FNOProjectionGRU(TimeAwareFFN):
+#     def __init__(self, n_modes_height: int, hidden_channels: int, fno_n_layers: int, gru_n_layers: int,
+#                  gru_layer_width: int, n_state: int, ffn=None, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         if ffn is None:
+#             ffn = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
+#                                 n_layers=fno_n_layers)
+#         else:
+#             print('Pretrained FNO model loaded to FNO-GRU')
+#         self.ffn = ffn
+#         self.rnn = GRUNet(input_size=n_state, layer_width=gru_layer_width, num_layers=gru_n_layers,
+#                           output_size=n_state)
+#
+#
+# class FNOProjectionLSTM(TimeAwareFFN):
+#     def __init__(self, n_modes_height: int, hidden_channels: int, fno_n_layers: int, lstm_n_layers: int,
+#                  lstm_layer_width: int, n_state: int, ffn=None, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         if ffn is None:
+#             ffn = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
+#                                 n_layers=fno_n_layers)
+#         else:
+#             print('Pretrained FNO model loaded to FNO-LSTM')
+#         self.ffn = ffn
+#         self.rnn = LSTMNet(input_size=n_state, layer_width=lstm_layer_width, num_layers=lstm_n_layers,
+#                            output_size=n_state)
 
 
 # class DeepONetGRU(TimeAwareFFN):

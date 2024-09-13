@@ -8,16 +8,12 @@ from typing import List
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
-from torch.optim.lr_scheduler import LambdaLR
-from torch.utils.data import DataLoader
-from tqdm import tqdm
-
-from dataset import PredictionDataset
-from model import FNOProjection, FFN, GRUNet, LSTMNet, FNOProjectionGRU, FNOProjectionLSTM, DeepONet, DeepONetGRU, \
-    DeepONetLSTM, TimeAwareFFN, FNOGRU, FNOLSTM, TimeAwareNeuralOperator
-
 from torch import nn
 from torch.nn import init
+from torch.optim.lr_scheduler import LambdaLR
+
+from model import FNOProjection, FFN, GRUNet, LSTMNet, DeepONet, DeepONetGRU, \
+    DeepONetLSTM, FNOGRU, FNOLSTM, TimeAwareNeuralOperator
 
 
 @dataclass
@@ -118,7 +114,7 @@ def load_cp_hyperparameters(case: str):
         raise NotImplementedError()
 
 
-def load_model(train_config, model_config, dataset_config, ffn=None, n_param_out: bool = False, model_name: str = None):
+def load_model(train_config, model_config, dataset_config, n_param_out: bool = False, model_name: str = None):
     if model_name is None:
         model_name = model_config.model_name
     device = train_config.device
@@ -138,49 +134,40 @@ def load_model(train_config, model_config, dataset_config, ffn=None, n_param_out
         model = FFN(n_state=n_state, n_point_delay=n_point_start, n_input=n_input, n_layers=model_config.ffn_n_layer,
                     layer_width=model_config.ffn_layer_width)
     elif model_name == 'GRU':
-        model = GRUNet(input_size=n_state + n_point_start * n_input, layer_width=model_config.gru_layer_width,
-                       num_layers=model_config.gru_n_layer, output_size=n_state)
+        model = GRUNet(hidden_size=model_config.gru_hidden_size, num_layers=model_config.gru_n_layer,
+                       output_size=n_state)
     elif model_name == 'LSTM':
-        model = LSTMNet(input_size=n_state + n_point_start * n_input, layer_width=model_config.lstm_layer_width,
-                        num_layers=model_config.lstm_n_layer, output_size=n_state)
+        model = LSTMNet(hidden_size=model_config.lstm_hidden_size, num_layers=model_config.lstm_n_layer,
+                        output_size=n_state)
     elif model_name == 'FNO-GRU':
         # model = FNOProjectionGRU(
         #     n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
         #     n_state=n_state, fno_n_layers=model_config.fno_n_layer, gru_n_layers=model_config.gru_n_layer,
         #     gru_layer_width=model_config.gru_layer_width, ffn=ffn, residual=train_config.residual)
-        model = FNOGRU(n_input=n_input, n_modes_height=model_config.fno_n_modes_height,
-                       hidden_channels=model_config.fno_hidden_channels, n_state=n_state,
-                       fno_n_layers=model_config.fno_n_layer,
-                       gru_n_layers=model_config.gru_n_layer, gru_layer_width=model_config.gru_layer_width)
+        model = FNOGRU(n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
+                       n_state=n_state, fno_n_layers=model_config.fno_n_layer, gru_n_layers=model_config.gru_n_layer,
+                       gru_hidden_size=model_config.gru_hidden_size)
     elif model_name == 'FNO-LSTM':
         # model = FNOProjectionLSTM(
         #     n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
         #     n_state=n_state, fno_n_layers=model_config.fno_n_layer, lstm_n_layers=model_config.lstm_n_layer,
         #     lstm_layer_width=model_config.lstm_layer_width, ffn=ffn, residual=train_config.residual)
-        model = FNOLSTM(n_input=n_input, n_modes_height=model_config.fno_n_modes_height,
+        model = FNOLSTM(n_modes_height=model_config.fno_n_modes_height,
                         hidden_channels=model_config.fno_hidden_channels, n_state=n_state,
                         fno_n_layers=model_config.fno_n_layer, lstm_n_layers=model_config.lstm_n_layer,
-                        lstm_layer_width=model_config.lstm_layer_width)
+                        lstm_hidden_size=model_config.lstm_hidden_size)
     elif model_name == 'DeepONet-GRU':
         model = DeepONetGRU(n_state=n_state, gru_n_layers=model_config.gru_n_layer, n_point_start=n_point_start,
-                            n_input=n_input, gru_layer_width=model_config.gru_layer_width,
+                            n_input=n_input, gru_hidden_size=model_config.gru_hidden_size,
                             deeponet_hidden_size=model_config.deeponet_hidden_size,
                             deeponet_n_layer=model_config.deeponet_n_layer)
     elif model_name == 'DeepONet-LSTM':
         model = DeepONetLSTM(n_state=n_state, lstm_n_layers=model_config.lstm_n_layer, n_point_start=n_point_start,
-                             n_input=n_input, lstm_layer_width=model_config.lstm_layer_width,
+                             n_input=n_input, lstm_hidden_size=model_config.lstm_hidden_size,
                              deeponet_hidden_size=model_config.deeponet_hidden_size,
                              deeponet_n_layer=model_config.deeponet_n_layer)
     else:
         raise NotImplementedError()
-    if isinstance(model, TimeAwareFFN) and train_config.zero_init:
-        for module in model.rnn.modules():
-            if isinstance(module, nn.Linear):
-                nn.init.constant_(module.weight, 0)
-                if module.bias is not None:
-                    nn.init.constant_(module.bias, 0)
-        print(model_name, 'initialized to zero for its RNN')
-
     n_params = count_params(model)
     print(f'Using {model_name} with {n_params} parameters. Xavier initializing.')
     if isinstance(model, TimeAwareNeuralOperator):

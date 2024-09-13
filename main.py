@@ -15,11 +15,9 @@ import config
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import sample_to_tensor
 from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral
-from model import GRUNet, LSTMNet, TimeAwareFFN
 from plot_utils import plot_result, difference
 from utils import pad_zeros, l2_p_phat, check_dir, predict_and_loss, load_lr_scheduler, set_everything, print_result, \
-    load_model, load_optimizer, print_args, get_time_str, SimulationResult, TestResult, count_params, l2_p_z, \
-    prediction_comparison
+    load_model, load_optimizer, print_args, get_time_str, SimulationResult, TestResult, count_params, l2_p_z
 
 warnings.filterwarnings('ignore')
 
@@ -535,7 +533,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
                                     or model_config.model_name == 'DeepONet-GRU'
                                     or model_config.model_name == 'DeepONet-LSTM')):
         ffn = load_model(train_config, model_config, dataset_config, model_name=model_config.model_name.split('-')[0])
-        model = load_model(train_config, model_config, dataset_config, ffn=ffn)
+        model = load_model(train_config, model_config, dataset_config)
 
         first_stage_model = ffn.__class__.__name__ + '.RNN'
         if train_config.train_first_stage:
@@ -547,7 +545,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         else:
             model_config.load_model(run, ffn, model_name=first_stage_model)
     else:
-        model = load_model(train_config, model_config, dataset_config, ffn=None)
+        model = load_model(train_config, model_config, dataset_config)
 
     run_sequence_training(
         model_config=model_config, train_config=train_config, training_dataset=training_dataset,
