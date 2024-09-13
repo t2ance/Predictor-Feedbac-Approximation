@@ -35,10 +35,10 @@ def set_config(config, dataset_config, model_config, train_config):
 
         if rnn == 'GRU':
             model_config.gru_n_layer = config.gru_n_layer
-            model_config.gru_layer_width = config.gru_layer_width
+            model_config.gru_hidden_size = config.gru_hidden_size
         elif rnn == 'LSTM':
             model_config.lstm_n_layer = config.lstm_n_layer
-            model_config.lstm_layer_width = config.lstm_layer_width
+            model_config.lstm_hidden_size = config.lstm_hidden_size
         else:
             raise NotImplementedError()
     else:
@@ -118,11 +118,11 @@ def get_parameters(system: str, model_name: str):
                     'min': 1,
                     'max': 4
                 },
-                'gru_layer_width': {
+                'gru_hidden_size': {
                     'distribution': 'q_log_uniform_values',
-                    'q': 2,
-                    'min': 1,
-                    'max': 16
+                    'q': 4,
+                    'min': 4,
+                    'max': 64
                 }
             })
         elif rnn == 'LSTM':
@@ -132,11 +132,11 @@ def get_parameters(system: str, model_name: str):
                     'min': 1,
                     'max': 4
                 },
-                'lstm_layer_width': {
+                'lstm_hidden_size': {
                     'distribution': 'q_log_uniform_values',
-                    'q': 2,
-                    'min': 1,
-                    'max': 16
+                    'q': 4,
+                    'min': 4,
+                    'max': 64
                 }
             })
         else:
