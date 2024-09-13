@@ -3,7 +3,7 @@ import numpy as np
 import dynamic_systems
 from config import get_config
 from dynamic_systems import ConstantDelay, TimeVaryingDelay
-from main import simulation
+from main import simulation, simulation_result_to_samples
 from utils import l2_p_phat, load_model
 
 
@@ -22,7 +22,7 @@ def baxter_test1dof():
 
 def baxter_test2dof():
     dataset_config, model_config, train_config = get_config(system_='s5')
-    dataset_config.baxter_dof = 5
+    dataset_config.baxter_dof = 3
     Z0 = tuple(
         np.concatenate([np.random.uniform(0, 0.3, dataset_config.baxter_dof), np.zeros(dataset_config.baxter_dof)]))
     print('initial point', Z0)
@@ -30,9 +30,9 @@ def baxter_test2dof():
     dataset_config.delay = ConstantDelay(0.5)
     dataset_config.dt = 0.02
     model = load_model(train_config, model_config, dataset_config, model_name='DeepONet-LSTM')
-    result = simulation(method='no', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
+    result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
                         img_save_path='./misc', silence=False, model=model)
-    print(result.runtime)
+    simulation_result_to_samples(result, dataset_config)
     return result
 
 
