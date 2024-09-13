@@ -29,7 +29,7 @@ def baxter_test2dof():
     dataset_config.duration = 10
     dataset_config.delay = ConstantDelay(0.5)
     dataset_config.dt = 0.02
-    model = load_model(train_config, model_config, dataset_config, model_name='DeepONet-LSTM')
+    model = load_model(train_config, model_config, dataset_config, model_name='GRU')
     result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
                         img_save_path='./misc', silence=False, model=model)
     simulation_result_to_samples(result, dataset_config)
@@ -93,8 +93,8 @@ def baxter_test_unicycle():
 
 
 if __name__ == '__main__':
-    result = baxter_test_unicycle()
-    # result = baxter_test2dof()
+    # result = baxter_test_unicycle()
+    result = baxter_test2dof()
     # result = baxter_test_unicycle()
     # import wandb
     # from config import get_config
