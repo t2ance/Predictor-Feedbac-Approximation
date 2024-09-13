@@ -613,7 +613,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
             model_config.deeponet_n_layer = 1
     elif system_ == 's9':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
-                                       delay=TimeVaryingDelay(), duration=8, dt=0.004, n_training_dataset=4000,
+                                       delay=TimeVaryingDelay(), duration=8, dt=0.004, n_training_dataset=1600,
                                        n_validation_dataset=1, n_sample_per_dataset=-1, ic_lower_bound=-0.5,
                                        ic_upper_bound=0.5)
         model_config = ModelConfig(model_name='FFN')
