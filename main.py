@@ -529,28 +529,9 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     else:
         print('Dataset already set, skip loading dataset')
 
-    if (train_config.two_stage and (model_config.model_name == 'FNO-GRU' or model_config.model_name == 'FNO-LSTM'
-                                    or model_config.model_name == 'DeepONet-GRU'
-                                    or model_config.model_name == 'DeepONet-LSTM')):
-        ffn = load_model(train_config, model_config, dataset_config, model_name=model_config.model_name.split('-')[0])
-        model = load_model(train_config, model_config, dataset_config)
-
-        first_stage_model = ffn.__class__.__name__ + '.RNN'
-        if train_config.train_first_stage:
-            run_sequence_training(
-                model_config=model_config, train_config=train_config, training_dataset=training_dataset,
-                validation_dataset=validation_dataset, model=ffn
-            )
-            model_config.save_model(run, ffn, model_name=first_stage_model)
-        else:
-            model_config.load_model(run, ffn, model_name=first_stage_model)
-    else:
-        model = load_model(train_config, model_config, dataset_config)
-
-    run_sequence_training(
-        model_config=model_config, train_config=train_config, training_dataset=training_dataset,
-        validation_dataset=validation_dataset, model=model
-    )
+    model = load_model(train_config, model_config, dataset_config)
+    run_sequence_training(model_config=model_config, train_config=train_config, training_dataset=training_dataset,
+                          validation_dataset=validation_dataset, model=model)
     if save_model:
         model_config.save_model(run, model)
     test_results = run_tests(model, train_config, dataset_config, model_config, test_point_pairs, only_no_out)
