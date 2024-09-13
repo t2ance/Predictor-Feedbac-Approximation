@@ -61,8 +61,6 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
     p_no_count = 0
     Z[:n_point_start + 1, :] = Z0
     runtime = 0.
-    if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, TimeAwareFFN):
-        model.reset_state()
     if silence:
         bar = range(dataset_config.n_point)
     else:
@@ -317,12 +315,8 @@ def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, 
     device = train_config.device
     batch_size = train_config.batch_size
     img_save_path = model_config.base_path
-    if isinstance(model, TimeAwareFFN) and train_config.freeze_ffn:
-        print(f'Freeze FFN and only train RNN in {model.__class__.__name__}')
-        optimizer = load_optimizer(model.rnn.parameters(), train_config)
-    else:
-        print(f'Train all parameters in {model.__class__.__name__}')
-        optimizer = load_optimizer(model.parameters(), train_config)
+    print(f'Train all parameters in {model.__class__.__name__}')
+    optimizer = load_optimizer(model.parameters(), train_config)
     scheduler = load_lr_scheduler(optimizer, train_config)
     check_dir(img_save_path)
     model.train()
@@ -338,8 +332,6 @@ def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, 
         for dataset_idx in range(0, len(training_dataset), batch_size):
             sequences = training_dataset[dataset_idx:dataset_idx + batch_size]
             batch_len = len(sequences)
-            if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, TimeAwareFFN):
-                model.reset_state()
             losses = []
             losses_ffn = []
             losses_rnn = []
@@ -348,21 +340,12 @@ def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, 
                 inputs, labels = torch.vstack([batch[i][0] for i in range(batch_len)]), torch.vstack(
                     [batch[i][1] for i in range(batch_len)])
                 inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
-                if isinstance(model, TimeAwareFFN) and train_config.auxiliary_loss:
-                    _, _, loss_ffn, loss_rnn = predict_and_loss(inputs, labels, model, ffn_out=True)
-                    loss = loss_ffn + loss_rnn
-                    losses_ffn.append(loss_ffn.detach())
-                    losses_rnn.append(loss_rnn.detach())
-                else:
-                    _, loss = predict_and_loss(inputs, labels, model)
+                _, loss = predict_and_loss(inputs, labels, model)
                 losses.append(loss.detach())
                 loss.backward()
                 optimizer.step()
 
             training_loss += (sum(losses) / len(losses)).item()
-            if isinstance(model, TimeAwareFFN) and train_config.auxiliary_loss:
-                training_ffn_loss += (sum(losses_ffn) / len(losses_ffn)).item()
-                training_rnn_loss += (sum(losses_rnn) / len(losses_rnn)).item()
 
             n_epoch += 1
         training_loss /= n_epoch
@@ -377,8 +360,6 @@ def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, 
             for dataset_idx in range(0, len(validation_dataset), batch_size):
                 sequences = validation_dataset[dataset_idx:dataset_idx + batch_size]
                 batch_len = len(sequences)
-                if isinstance(model, GRUNet) or isinstance(model, LSTMNet) or isinstance(model, TimeAwareFFN):
-                    model.reset_state()
                 losses = []
                 losses_ffn = []
                 losses_rnn = []
@@ -387,18 +368,9 @@ def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, 
                         [batch[i][0] for i in range(batch_len)]), torch.vstack(
                         [batch[i][1] for i in range(batch_len)])
                     inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
-                    if isinstance(model, TimeAwareFFN) and train_config.auxiliary_loss:
-                        _, _, loss_ffn, loss_rnn = predict_and_loss(inputs, labels, model, ffn_out=True)
-                        loss = loss_ffn + loss_rnn
-                        losses_ffn.append(loss_ffn.detach())
-                        losses_rnn.append(loss_rnn.detach())
-                    else:
-                        _, loss = predict_and_loss(inputs, labels, model)
+                    _, loss = predict_and_loss(inputs, labels, model)
                     losses.append(loss.detach())
                 validating_loss += (sum(losses) / len(losses)).item()
-                if isinstance(model, TimeAwareFFN) and train_config.auxiliary_loss:
-                    validating_ffn_loss += (sum(losses_ffn) / len(losses_ffn)).item()
-                    validating_rnn_loss += (sum(losses_rnn) / len(losses_rnn)).item()
                 n_epoch += 1
             validating_loss /= n_epoch
             validating_ffn_loss /= n_epoch
@@ -413,13 +385,6 @@ def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, 
             f'learning rate': optimizer.param_groups[0]['lr'],
             f'epoch': epoch
         }
-        if isinstance(model, TimeAwareFFN) and train_config.auxiliary_loss:
-            log_dict.update({
-                f'training ffn loss': training_ffn_loss,
-                f'validating ffn loss': validating_ffn_loss,
-                f'training rnn loss': training_rnn_loss,
-                f'validating rnn loss': validating_rnn_loss,
-            })
         wandb.log(log_dict)
 
     return model

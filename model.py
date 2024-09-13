@@ -35,64 +35,33 @@ class FFN(torch.nn.Module):
 
 
 class GRUNet(nn.Module):
-    def __init__(self, input_size, layer_width, num_layers, output_size):
+    def __init__(self, hidden_size, num_layers, output_size):
         super(GRUNet, self).__init__()
-        self.hidden_size = layer_width * input_size
-        self.num_layers = num_layers
-
-        self.gru = nn.GRU(input_size, self.hidden_size, num_layers, batch_first=True)
-        self.fc = nn.Linear(self.hidden_size, output_size)
-        self.mse_loss = torch.nn.MSELoss()
-        self.hidden = None
+        self.rnn = nn.GRU(1, hidden_size, num_layers, batch_first=True)
+        self.projection = nn.Linear(hidden_size, output_size)
 
     def forward(self, x: torch.Tensor, labels: torch.Tensor = None):
-        if self.hidden is None:
-            self.hidden = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
-        if x.ndim == 2:
-            x = x[:, None, :]
+        output, (_) = self.rnn(x)
+        x = self.projection(output[:, -1, :])
 
-        out, hidden = self.gru(x, self.hidden)
-        self.hidden = hidden.detach()
-
-        out = self.fc(out[:, -1, :])
         if labels is None:
-            return out
-        return out, self.mse_loss(out, labels)
-
-    def reset_state(self):
-        self.hidden = None
+            return x
+        return x, self.mse_loss(x, labels)
 
 
 class LSTMNet(nn.Module):
-    def __init__(self, input_size, layer_width, num_layers, output_size):
+    def __init__(self, hidden_size, num_layers, output_size):
         super(LSTMNet, self).__init__()
-        self.hidden_size = layer_width * input_size
-        self.num_layers = num_layers
-
-        self.lstm = nn.LSTM(input_size, self.hidden_size, num_layers, batch_first=True)
-        self.fc = nn.Linear(self.hidden_size, output_size)
-        self.mse_loss = torch.nn.MSELoss()
-        self.hidden = None
-        self.cell = None
+        self.rnn = nn.LSTM(1, hidden_size, num_layers, batch_first=True)
+        self.projection = nn.Linear(hidden_size, output_size)
 
     def forward(self, x: torch.Tensor, labels: torch.Tensor = None):
-        if self.hidden is None or self.cell is None:
-            self.hidden = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
-            self.cell = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
-        if x.ndim == 2:
-            x = x[:, None, :]
-        out, (hidden, cell) = self.lstm(x, (self.hidden, self.cell))
-        self.hidden = hidden.detach()
-        self.cell = cell.detach()
+        output, (_, _) = self.rnn(x)
+        x = self.projection(output[:, -1, :])
 
-        out = self.fc(out[:, -1, :])
         if labels is None:
-            return out
-        return out, self.mse_loss(out, labels)
-
-    def reset_state(self):
-        self.hidden = None
-        self.cell = None
+            return x
+        return x, self.mse_loss(x, labels)
 
 
 def fft_transform(input_tensor, target_length):
@@ -155,9 +124,6 @@ class TimeAwareNeuralOperator(torch.nn.Module):
             return x
         return x, self.mse_loss(x, label)
 
-    def reset_state(self):
-        self.rnn.reset_state()
-
 
 class FNOGRU(TimeAwareNeuralOperator):
 
@@ -200,6 +166,72 @@ class DeepONetLSTM(TimeAwareNeuralOperator):
         self.rnn = nn.LSTM(1, n_input * lstm_layer_width, lstm_n_layers, batch_first=True)
         self.projection = nn.Linear(n_input * lstm_layer_width, n_state)
 
+
+################################
+# Old models, not used anymore #
+################################
+
+#
+# class GRUNet(nn.Module):
+#     def __init__(self, input_size, layer_width, num_layers, output_size):
+#         super(GRUNet, self).__init__()
+#         self.hidden_size = layer_width * input_size
+#         self.num_layers = num_layers
+#
+#         self.gru = nn.GRU(input_size, self.hidden_size, num_layers, batch_first=True)
+#         self.fc = nn.Linear(self.hidden_size, output_size)
+#         self.mse_loss = torch.nn.MSELoss()
+#         self.hidden = None
+#
+#     def forward(self, x: torch.Tensor, labels: torch.Tensor = None):
+#         if self.hidden is None:
+#             self.hidden = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+#         if x.ndim == 2:
+#             x = x[:, None, :]
+#
+#         out, hidden = self.gru(x, self.hidden)
+#         self.hidden = hidden.detach()
+#
+#         out = self.fc(out[:, -1, :])
+#         if labels is None:
+#             return out
+#         return out, self.mse_loss(out, labels)
+#
+#     def reset_state(self):
+#         self.hidden = None
+#
+#
+# class LSTMNet(nn.Module):
+#     def __init__(self, input_size, layer_width, num_layers, output_size):
+#         super(LSTMNet, self).__init__()
+#         self.hidden_size = layer_width * input_size
+#         self.num_layers = num_layers
+#
+#         self.lstm = nn.LSTM(input_size, self.hidden_size, num_layers, batch_first=True)
+#         self.fc = nn.Linear(self.hidden_size, output_size)
+#         self.mse_loss = torch.nn.MSELoss()
+#         self.hidden = None
+#         self.cell = None
+#
+#     def forward(self, x: torch.Tensor, labels: torch.Tensor = None):
+#         if self.hidden is None or self.cell is None:
+#             self.hidden = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+#             self.cell = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+#         if x.ndim == 2:
+#             x = x[:, None, :]
+#         out, (hidden, cell) = self.lstm(x, (self.hidden, self.cell))
+#         self.hidden = hidden.detach()
+#         self.cell = cell.detach()
+#
+#         out = self.fc(out[:, -1, :])
+#         if labels is None:
+#             return out
+#         return out, self.mse_loss(out, labels)
+#
+#     def reset_state(self):
+#         self.hidden = None
+#         self.cell = None
+#
 
 class TimeAwareFFN(torch.nn.Module):
     def __init__(self, residual, *args, **kwargs):
