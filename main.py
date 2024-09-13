@@ -515,10 +515,14 @@ def load_dataset(dataset_config, train_config, test_points, run):
         validation_results = create_sequence_simulation_result(
             dataset_config, train_config, n_dataset=dataset_config.n_validation_dataset)
         print(f'{len(training_results)} generated')
-        training_results_, validation_results_ = dataset_config.load_dataset(run, resize=False)
-        print(f'{len(training_results_)} loaded')
-        training_results += training_results_
-        validation_results += validation_results_
+        try:
+            training_results_, validation_results_ = dataset_config.load_dataset(run, resize=False)
+            print(f'{len(training_results_)} loaded')
+            training_results += training_results_
+            validation_results += validation_results_
+        except Exception as e:
+            print(f'Running results of system {dataset_config.system} do not exist. Create for the first time')
+
         print(f'{len(training_results)} saved')
         dataset_config.save_dataset(run, training_results, validation_results)
         print(f'Dataset created and saved')
