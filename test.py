@@ -3,7 +3,7 @@ import numpy as np
 import dynamic_systems
 from config import get_config
 from dynamic_systems import ConstantDelay, TimeVaryingDelay
-from main import simulation, simulation_result_to_samples
+from main import simulation, simulation_result_to_samples, load_dataset, run_sequence_training
 from utils import load_model
 
 
@@ -21,7 +21,7 @@ def baxter_test1dof():
 
 
 def baxter_test2dof():
-    dataset_config, model_config, train_config = get_config(system_='s5')
+    dataset_config, model_config, train_config = get_config(system_='s9')
     dataset_config.baxter_dof = 3
     Z0 = tuple(
         np.concatenate([np.random.uniform(0, 0.3, dataset_config.baxter_dof), np.zeros(dataset_config.baxter_dof)]))
@@ -92,9 +92,28 @@ def baxter_test_unicycle():
     print(result.runtime)
 
 
+def mini_train():
+    import wandb
+    from config import get_config
+
+    wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
+    run = wandb.init(
+        project="no",
+        name=f'test'
+    )
+    dataset_config, model_config, train_config = get_config(system_='s9', model_name='GRU')
+    dataset_config.dataset_version = 'v0'
+    training_dataset, validation_dataset = load_dataset(dataset_config, train_config, [], run)
+
+    model = load_model(train_config, model_config, dataset_config)
+    run_sequence_training(model_config=model_config, train_config=train_config, training_dataset=training_dataset,
+                          validation_dataset=validation_dataset, model=model)
+
+
 if __name__ == '__main__':
+    mini_train()
     # result = baxter_test_unicycle()
-    result = baxter_test2dof()
+    # result = baxter_test2dof()
     # result = baxter_test_unicycle()
     # import wandb
     # from config import get_config

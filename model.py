@@ -39,8 +39,11 @@ class GRUNet(nn.Module):
         super(GRUNet, self).__init__()
         self.rnn = nn.GRU(1, hidden_size, num_layers, batch_first=True)
         self.projection = nn.Linear(hidden_size, output_size)
+        self.mse_loss = torch.nn.MSELoss()
 
     def forward(self, x: torch.Tensor, labels: torch.Tensor = None):
+        if x.ndim == 2:
+            x = x[:, :, None]
         output, (_) = self.rnn(x)
         x = self.projection(output[:, -1, :])
 
@@ -54,8 +57,11 @@ class LSTMNet(nn.Module):
         super(LSTMNet, self).__init__()
         self.rnn = nn.LSTM(1, hidden_size, num_layers, batch_first=True)
         self.projection = nn.Linear(hidden_size, output_size)
+        self.mse_loss = torch.nn.MSELoss()
 
     def forward(self, x: torch.Tensor, labels: torch.Tensor = None):
+        if x.ndim == 2:
+            x = x[:, :, None]
         output, (_, _) = self.rnn(x)
         x = self.projection(output[:, -1, :])
 

@@ -485,7 +485,7 @@ def load_dataset(dataset_config, train_config, test_points, run):
             print(f'{len(training_results_)} loaded')
             training_results += training_results_
             validation_results += validation_results_
-        except Exception as e:
+        except Exception:
             print(f'Running results of system {dataset_config.system} do not exist. Create for the first time')
 
         print(f'{len(training_results)} saved')

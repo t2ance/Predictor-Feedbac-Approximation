@@ -271,6 +271,8 @@ class DatasetConfig:
     random_test_upper_bound: Optional[float] = field(default=1.)
     random_test_lower_bound: Optional[float] = field(default=0.)
 
+    dataset_version: Optional[str] = field(default='latest')
+
     @property
     def base_path(self):
         return f'./{self.system_}/datasets'
@@ -280,7 +282,8 @@ class DatasetConfig:
             lower_bound = self.random_test_lower_bound
         if upper_bound is None:
             upper_bound = self.random_test_upper_bound
-        print(f'Getting test points from dataset config, with lower_bound = {lower_bound} and upper_bound = {upper_bound}')
+        print(
+            f'Getting test points from dataset config, with lower_bound = {lower_bound} and upper_bound = {upper_bound}')
         state = np.random.RandomState(seed=0)
         return [
             tuple((state.uniform(lower_bound, upper_bound, self.system.n_state)).tolist()) for _ in range(n_point)
@@ -387,12 +390,15 @@ class DatasetConfig:
             return 0
         return np.random.randn() * self.noise_epsilon
 
-    def load_dataset(self, run, resize: bool = True):
+    def load_dataset(self, run, resize: bool = True, version=None):
+        if version is None:
+            version = self.dataset_version
+
         def read(dataset_dir, split):
             with open(os.path.join(dataset_dir, split + ".pkl"), mode="rb") as file:
                 return pickle.load(file)
 
-        data = run.use_artifact(f'{self.system_}:latest')
+        data = run.use_artifact(f'{self.system_}:{version}')
         dataset = data.download()
 
         training_dataset = read(dataset, "training")
