@@ -3,26 +3,13 @@ import numpy as np
 import dynamic_systems
 from config import get_config
 from dynamic_systems import ConstantDelay, TimeVaryingDelay
-from main import simulation, simulation_result_to_samples, load_dataset, run_sequence_training
+from main import simulation, simulation_result_to_samples, load_dataset, run_training
 from utils import load_model
 
 
-def baxter_test1dof():
-    dataset_config, model_config, train_config = get_config(system_='s5')
-    Z0 = tuple([1, 1])
-    print('initial point', Z0)
-    dataset_config.duration = 20
-    dataset_config.delay = 1
-    dataset_config.dt = 0.05
-    dataset_config.baxter_dof = 1
-    result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
-                        img_save_path='./misc', silence=False)
-    print(result.runtime)
-
-
-def baxter_test2dof():
-    dataset_config, model_config, train_config = get_config(system_='s9')
-    dataset_config.baxter_dof = 3
+def baxter_test_n_dof():
+    dataset_config, model_config, train_config = get_config(system_='s8')
+    dataset_config.baxter_dof = 5
     Z0 = tuple(
         np.concatenate([np.random.uniform(0, 0.3, dataset_config.baxter_dof), np.zeros(dataset_config.baxter_dof)]))
     print('initial point', Z0)
@@ -30,52 +17,11 @@ def baxter_test2dof():
     dataset_config.delay = ConstantDelay(0.5)
     dataset_config.dt = 0.02
     model = load_model(train_config, model_config, dataset_config, model_name='GRU')
-    result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
+    result = simulation(method='no', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
                         img_save_path='./misc', silence=False, model=model)
-    simulation_result_to_samples(result, dataset_config)
+    print(result.runtime)
+    # simulation_result_to_samples(result, dataset_config)
     return result
-
-
-def baxter_test_n_dof(n):
-    dataset_config, model_config, train_config = get_config(system_='s5')
-    Z0 = tuple([0.2] * (n * 2))
-    print('initial point', Z0)
-    dataset_config.duration = 10
-    dataset_config.delay = dynamic_systems.ConstantDelay(0.2)
-    dataset_config.successive_approximation_threshold = 1e-10
-    dataset_config.dt = 0.005
-    dataset_config.baxter_dof = n
-    result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
-                        img_save_path='./misc', silence=False)
-    print(result.P_numerical_n_iters.mean())
-    print(result.runtime)
-
-
-def baxter_test7dof():
-    dataset_config, model_config, train_config = get_config(system_='s5')
-    Z0 = tuple([0.1, 0.1] + [0] * 12)
-    # Z0 = tuple((np.random.random(14) * 0.3).tolist())
-    # Z0 = tuple(np.zeros(14).tolist())
-    print('initial point', Z0)
-    dataset_config.duration = 10
-    dataset_config.delay = ConstantDelay(0)
-    dataset_config.dt = 0.01
-    dataset_config.baxter_dof = 7
-    result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
-                        img_save_path='./misc', silence=False)
-    print(result.runtime)
-
-
-def baxter_test_s6():
-    dataset_config, model_config, train_config = get_config(system_='s6')
-    Z0 = tuple([0.5, 0.5, 0.5])
-    print('initial point', Z0)
-    dataset_config.duration = 50
-    dataset_config.delay = 0.1
-    dataset_config.dt = 0.05
-    result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
-                        img_save_path='./misc', silence=False)
-    print(result.runtime)
 
 
 def baxter_test_unicycle():
@@ -101,20 +47,21 @@ def mini_train():
         project="no",
         name=f'test'
     )
+    # dataset_config, model_config, train_config = get_config(system_='s9', model_name='FNO-GRU')
+    # dataset_config, model_config, train_config = get_config(system_='s9', model_name='FNO-GRU')
     dataset_config, model_config, train_config = get_config(system_='s9', model_name='GRU')
     dataset_config.dataset_version = 'v0'
     training_dataset, validation_dataset = load_dataset(dataset_config, train_config, [], run)
 
     model = load_model(train_config, model_config, dataset_config)
-    run_sequence_training(model_config=model_config, train_config=train_config, training_dataset=training_dataset,
-                          validation_dataset=validation_dataset, model=model)
+    run_training(model_config=model_config, train_config=train_config, training_dataset=training_dataset,
+                 validation_dataset=validation_dataset, model=model)
 
 
 if __name__ == '__main__':
     mini_train()
     # result = baxter_test_unicycle()
-    # result = baxter_test2dof()
-    # result = baxter_test_unicycle()
+    # result = baxter_test_n_dof()
     # import wandb
     # from config import get_config
     #

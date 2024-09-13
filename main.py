@@ -308,8 +308,7 @@ def create_sequence_simulation_result(dataset_config: DatasetConfig, train_confi
     return results
 
 
-def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, training_dataset, validation_dataset,
-                          model):
+def run_training(model_config: ModelConfig, train_config: TrainConfig, training_dataset, validation_dataset, model):
     device = train_config.device
     batch_size = train_config.batch_size
     img_save_path = model_config.base_path
@@ -320,23 +319,19 @@ def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, 
     model.train()
     print('Begin Training...')
     print(f'Training size: {len(training_dataset)}, Validating size: {len(validation_dataset)}')
-    for epoch in tqdm(range(train_config.n_epoch)):
+    for epoch in range(train_config.n_epoch):
         np.random.shuffle(training_dataset)
         # seq index; time index; input-output pair; data
         n_epoch = 0
         training_loss = 0.0
-        training_ffn_loss = 0.0
-        training_rnn_loss = 0.0
         for dataset_idx in range(0, len(training_dataset), batch_size):
             sequences = training_dataset[dataset_idx:dataset_idx + batch_size]
-            batch_len = len(sequences)
+            current_batch_size = len(sequences)
             losses = []
-            losses_ffn = []
-            losses_rnn = []
-            for batch in zip(*sequences):
+            for batch in tqdm(list(zip(*sequences))):
                 optimizer.zero_grad()
-                inputs, labels = torch.vstack([batch[i][0] for i in range(batch_len)]), torch.vstack(
-                    [batch[i][1] for i in range(batch_len)])
+                inputs, labels = torch.vstack([batch[i][0] for i in range(current_batch_size)]), torch.vstack(
+                    [batch[i][1] for i in range(current_batch_size)])
                 inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
                 _, loss = predict_and_loss(inputs, labels, model)
                 losses.append(loss.detach())
@@ -347,43 +342,32 @@ def run_sequence_training(model_config: ModelConfig, train_config: TrainConfig, 
 
             n_epoch += 1
         training_loss /= n_epoch
-        training_ffn_loss /= n_epoch
-        training_rnn_loss /= n_epoch
-
         with torch.no_grad():
             n_epoch = 0
             validating_loss = 0.0
-            validating_ffn_loss = 0.0
-            validating_rnn_loss = 0.0
             for dataset_idx in range(0, len(validation_dataset), batch_size):
                 sequences = validation_dataset[dataset_idx:dataset_idx + batch_size]
-                batch_len = len(sequences)
+                current_batch_size = len(sequences)
                 losses = []
-                losses_ffn = []
-                losses_rnn = []
-                for batch in zip(*sequences):
-                    inputs, labels = torch.vstack(
-                        [batch[i][0] for i in range(batch_len)]), torch.vstack(
-                        [batch[i][1] for i in range(batch_len)])
+                for batch in tqdm(list(zip(*sequences))):
+                    inputs, labels = torch.vstack([batch[i][0] for i in range(current_batch_size)]), torch.vstack(
+                        [batch[i][1] for i in range(current_batch_size)])
                     inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
                     _, loss = predict_and_loss(inputs, labels, model)
                     losses.append(loss.detach())
                 validating_loss += (sum(losses) / len(losses)).item()
                 n_epoch += 1
             validating_loss /= n_epoch
-            validating_ffn_loss /= n_epoch
-            validating_rnn_loss /= n_epoch
         scheduler.step()
         for param_group in optimizer.param_groups:
             param_group['lr'] = max(param_group['lr'], train_config.scheduler_min_lr)
 
-        log_dict = {
+        wandb.log({
             f'training loss': training_loss,
             f'validating loss': validating_loss,
             f'learning rate': optimizer.param_groups[0]['lr'],
             f'epoch': epoch
-        }
-        wandb.log(log_dict)
+        })
 
     return model
 
@@ -530,13 +514,14 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         print('Dataset already set, skip loading dataset')
 
     model = load_model(train_config, model_config, dataset_config)
-    run_sequence_training(model_config=model_config, train_config=train_config, training_dataset=training_dataset,
-                          validation_dataset=validation_dataset, model=model)
+    wandb.log({'n params': count_params(model)})
+
+    run_training(model_config=model_config, train_config=train_config, training_dataset=training_dataset,
+                 validation_dataset=validation_dataset, model=model)
     if save_model:
         model_config.save_model(run, model)
     test_results = run_tests(model, train_config, dataset_config, model_config, test_point_pairs, only_no_out)
     wandb.log({'l2': test_results['no'].l2})
-    wandb.log({'n params': count_params(model)})
     return test_results, model
 
 
