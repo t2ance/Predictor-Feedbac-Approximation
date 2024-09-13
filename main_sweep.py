@@ -9,20 +9,16 @@ import numpy as np
 def set_config(config, dataset_config, model_config, train_config):
     print('Setting configuration')
     print(config)
-    train_config.two_stage = False
-    train_config.train_first_stage = False
-    train_config.residual = True
-    train_config.zero_init = True
-    train_config.auxiliary_loss = False
     train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
     train_config.scheduler_min_lr = 0
     train_config.batch_size = 2048
 
     train_config.learning_rate = config.learning_rate
     train_config.weight_decay = config.weight_decay
-    if '-' in model_config.model_name:
+    model_name = model_config.model_name
+    if '-' in model_name:
         train_config.n_epoch = 100
-        ffn, rnn = model_config.model_name.split('-')
+        ffn, rnn = model_name.split('-')
         if ffn == 'FNO':
             model_config.fno_n_layer = config.fno_n_layer
             model_config.fno_n_modes_height = config.fno_n_modes_height
@@ -43,13 +39,19 @@ def set_config(config, dataset_config, model_config, train_config):
             raise NotImplementedError()
     else:
         train_config.n_epoch = 50
-        if model_config.model_name == 'FNO':
+        if model_name == 'FNO':
             model_config.fno_n_layer = config.fno_n_layer
             model_config.fno_n_modes_height = config.fno_n_modes_height
             model_config.fno_hidden_channels = config.fno_hidden_channels
-        elif model_config.model_name == 'DeepONet':
+        elif model_name == 'DeepONet':
             model_config.deeponet_hidden_size = config.deeponet_hidden_size
             model_config.deeponet_n_layer = config.deeponet_n_layer
+        elif model_name == 'GRU':
+            model_config.gru_n_layer = config.gru_n_layer
+            model_config.gru_hidden_size = config.gru_hidden_size
+        elif model_name == 'LSTM':
+            model_config.lstm_n_layer = config.lstm_n_layer
+            model_config.lstm_hidden_size = config.lstm_hidden_size
         else:
             raise NotImplementedError()
 
@@ -72,111 +74,89 @@ def get_parameters(system: str, model_name: str):
         }
     }
 
+    fno_params = {
+        'fno_n_layer': {
+            'distribution': 'int_uniform',
+            'min': 1,
+            'max': 4
+        },
+        'fno_n_modes_height': {
+            'distribution': 'q_log_uniform_values',
+            'q': 4,
+            'min': 4,
+            'max': 64
+        },
+        'fno_hidden_channels': {
+            'distribution': 'q_log_uniform_values',
+            'q': 4,
+            'min': 4,
+            'max': 64
+        }
+    }
+    deeponet_params = {
+        'deeponet_n_layer': {
+            'distribution': 'int_uniform',
+            'min': 1,
+            'max': 4
+        },
+        'deeponet_hidden_size': {
+            'distribution': 'q_log_uniform_values',
+            'q': 4,
+            'min': 4,
+            'max': 64
+        },
+    }
+    gru_params = {
+        'gru_n_layer': {
+            'distribution': 'int_uniform',
+            'min': 1,
+            'max': 4
+        },
+        'gru_hidden_size': {
+            'distribution': 'q_log_uniform_values',
+            'q': 4,
+            'min': 4,
+            'max': 64
+        }
+    }
+    lstm_params = {
+        'lstm_n_layer': {
+            'distribution': 'int_uniform',
+            'min': 1,
+            'max': 4
+        },
+        'lstm_hidden_size': {
+            'distribution': 'q_log_uniform_values',
+            'q': 4,
+            'min': 4,
+            'max': 64
+        }
+    }
+
     if '-' in model_name:
         ffn, rnn = model_name.split('-')
         if ffn == 'FNO':
-            parameters.update({
-                'fno_n_layer': {
-                    'distribution': 'int_uniform',
-                    'min': 1,
-                    'max': 4
-                },
-                'fno_n_modes_height': {
-                    'distribution': 'q_log_uniform_values',
-                    'q': 4,
-                    'min': 4,
-                    'max': 64
-                },
-                'fno_hidden_channels': {
-                    'distribution': 'q_log_uniform_values',
-                    'q': 4,
-                    'min': 4,
-                    'max': 64
-                }
-            })
+            parameters.update(fno_params)
         elif ffn == 'DeepONet':
-            parameters.update({
-                'deeponet_n_layer': {
-                    'distribution': 'int_uniform',
-                    'min': 1,
-                    'max': 4
-                },
-                'deeponet_hidden_size': {
-                    'distribution': 'q_log_uniform_values',
-                    'q': 4,
-                    'min': 4,
-                    'max': 64
-                },
-            })
+            parameters.update(deeponet_params)
         else:
             raise NotImplementedError()
-
         if rnn == 'GRU':
-            parameters.update({
-                'gru_n_layer': {
-                    'distribution': 'int_uniform',
-                    'min': 1,
-                    'max': 4
-                },
-                'gru_hidden_size': {
-                    'distribution': 'q_log_uniform_values',
-                    'q': 4,
-                    'min': 4,
-                    'max': 64
-                }
-            })
+            parameters.update(gru_params)
         elif rnn == 'LSTM':
-            parameters.update({
-                'lstm_n_layer': {
-                    'distribution': 'int_uniform',
-                    'min': 1,
-                    'max': 4
-                },
-                'lstm_hidden_size': {
-                    'distribution': 'q_log_uniform_values',
-                    'q': 4,
-                    'min': 4,
-                    'max': 64
-                }
-            })
+            parameters.update(lstm_params)
         else:
             raise NotImplementedError()
         print(f'Getting parameters from {ffn}-{rnn}')
     else:
         if model_name == 'FNO':
-            parameters.update({
-                'fno_n_layer': {
-                    'distribution': 'int_uniform',
-                    'min': 2,
-                    'max': 4
-                },
-                'fno_n_modes_height': {
-                    'distribution': 'q_log_uniform_values',
-                    'q': 4,
-                    'min': 4,
-                    'max': 64
-                },
-                'fno_hidden_channels': {
-                    'distribution': 'q_log_uniform_values',
-                    'q': 4,
-                    'min': 16,
-                    'max': 128
-                }
-            })
+            parameters.update(fno_params)
         elif model_name == 'DeepONet':
-            parameters.update({
-                'deeponet_n_layer': {
-                    'distribution': 'int_uniform',
-                    'min': 2,
-                    'max': 4
-                },
-                'deeponet_hidden_size': {
-                    'distribution': 'q_log_uniform_values',
-                    'q': 4,
-                    'min': 16,
-                    'max': 128
-                },
-            })
+            parameters.update(deeponet_params)
+        elif model_name == 'GRU':
+            parameters.update(gru_params)
+        elif model_name == 'LSTM':
+            parameters.update(lstm_params)
         else:
             raise NotImplementedError()
     print(parameters)
