@@ -3,7 +3,7 @@ import numpy as np
 import dynamic_systems
 from config import get_config
 from dynamic_systems import ConstantDelay, TimeVaryingDelay
-from main import simulation, simulation_result_to_samples, load_dataset, run_training
+from main import simulation, result_to_samples, load_dataset, run_training
 from utils import load_model
 
 
@@ -13,14 +13,14 @@ def baxter_test_n_dof():
     Z0 = tuple(
         np.concatenate([np.random.uniform(0, 0.3, dataset_config.baxter_dof), np.zeros(dataset_config.baxter_dof)]))
     print('initial point', Z0)
-    dataset_config.duration = 10
+    dataset_config.duration = 5
     dataset_config.delay = ConstantDelay(0.5)
-    dataset_config.dt = 0.02
+    dataset_config.dt = 0.05
     model = load_model(train_config, model_config, dataset_config, model_name='GRU')
-    result = simulation(method='no', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
+    result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
                         img_save_path='./misc', silence=False, model=model)
     print(result.runtime)
-    # simulation_result_to_samples(result, dataset_config)
+    result_to_samples(result, dataset_config)
     return result
 
 
@@ -34,7 +34,7 @@ def baxter_test_unicycle():
     result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
                         img_save_path='./misc', silence=False,
                         metric_list=['l2_p_z', 'rl2_p_z', 'l2_p_phat', 'rl2_p_phat'])
-    samples = simulation_result_to_samples(result, dataset_config)
+    samples = result_to_samples(result, dataset_config)
     print(result.runtime)
 
 
@@ -59,9 +59,9 @@ def mini_train():
 
 
 if __name__ == '__main__':
-    mini_train()
+    # mini_train()
     # result = baxter_test_unicycle()
-    # result = baxter_test_n_dof()
+    result = baxter_test_n_dof()
     # import wandb
     # from config import get_config
     #

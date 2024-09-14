@@ -84,13 +84,13 @@ def get_parameters(system: str, model_name: str):
             'distribution': 'q_log_uniform_values',
             'q': 4,
             'min': 4,
-            'max': 64
+            'max': 256
         },
         'fno_hidden_channels': {
             'distribution': 'q_log_uniform_values',
             'q': 4,
             'min': 4,
-            'max': 64
+            'max': 256
         }
     }
     deeponet_params = {
@@ -110,26 +110,26 @@ def get_parameters(system: str, model_name: str):
         'gru_n_layer': {
             'distribution': 'int_uniform',
             'min': 1,
-            'max': 4
+            'max': 8
         },
         'gru_hidden_size': {
             'distribution': 'q_log_uniform_values',
             'q': 4,
-            'min': 4,
-            'max': 64
+            'min': 16,
+            'max': 256
         }
     }
     lstm_params = {
         'lstm_n_layer': {
             'distribution': 'int_uniform',
             'min': 1,
-            'max': 4
+            'max': 8
         },
         'lstm_hidden_size': {
             'distribution': 'q_log_uniform_values',
             'q': 4,
-            'min': 4,
-            'max': 64
+            'min': 16,
+            'max': 256
         }
     }
 

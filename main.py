@@ -255,11 +255,10 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
         n_parameter=count_params(model) if model is not None else 'N/A')
 
 
-def simulation_result_to_samples(result: SimulationResult, dataset_config):
+def result_to_samples(result: SimulationResult, dataset_config):
     max_n_point_delay = dataset_config.max_n_point_delay()
     n_point_start = dataset_config.n_point_start()
     n_point_delay = dataset_config.n_point_delay
-    ts = dataset_config.ts
     # Us = [pad_zeros(result.U[idx + n_point_start - n_point_delay(t): idx + n_point_start], max_n_point_delay,
     #                 leading=True) for idx, t in enumerate(horizon)]
 
@@ -267,23 +266,25 @@ def simulation_result_to_samples(result: SimulationResult, dataset_config):
 
     horizon = np.array(dataset_config.ts[n_point_start:-n_point_start])
     Zs = np.array(result.Z[n_point_start:-n_point_start])
-    Ps = np.zeros_like(result.P_numerical[n_point_start:-n_point_start])
+    # Ps = np.zeros_like(result.P_numerical[n_point_start:-n_point_start])
+    Zs_prediction = np.zeros_like(result.Z[n_point_start:-n_point_start])
     # Us = np.zeros_like(result.U[n_point_start:])
     Us = []
     for ti, t in enumerate(horizon):
-        Ps[ti] = result.P_numerical[ti + n_point_start]
-        Zs[ti] = result.Z[ti + n_point_delay(t) + n_point_start]
-        Us.append(pad_zeros(result.U[ti - n_point_delay(t) + n_point_start: ti + n_point_start], max_n_point_delay,
+        ti_n_point_start = ti + n_point_start
+        Zs[ti] = result.Z[ti_n_point_start]
+        Zs_prediction[ti] = result.Z[n_point_delay(t) + ti_n_point_start]
+        Us.append(pad_zeros(result.U[ti_n_point_start - n_point_delay(t): ti_n_point_start], max_n_point_delay,
                             leading=True))
 
     samples = []
-    for p, z, t, u in zip(Ps, Zs, horizon, Us):
-        samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(p)))
+    for z_pred, z, t, u in zip(Zs_prediction, Zs, horizon, Us):
+        samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(z_pred)))
     return samples
 
 
-def create_sequence_simulation_result(dataset_config: DatasetConfig, train_config: TrainConfig, n_dataset: int = None,
-                                      test_points=None):
+def create_simulation_result(dataset_config: DatasetConfig, train_config: TrainConfig, n_dataset: int = None,
+                             test_points=None):
     assert not (n_dataset is None and test_points is None)
     results = []
     state = np.random.RandomState()
@@ -459,9 +460,9 @@ def run_tests(model, train_config, dataset_config, model_config, test_points, on
 def load_dataset(dataset_config, train_config, test_points, run):
     if dataset_config.recreate_dataset:
         print('Begin generating dataset...')
-        training_results = create_sequence_simulation_result(
+        training_results = create_simulation_result(
             dataset_config, train_config, n_dataset=dataset_config.n_training_dataset)
-        validation_results = create_sequence_simulation_result(
+        validation_results = create_simulation_result(
             dataset_config, train_config, n_dataset=dataset_config.n_validation_dataset)
         print(f'{len(training_results)} generated')
         try:
@@ -480,15 +481,15 @@ def load_dataset(dataset_config, train_config, test_points, run):
         print(f'Dataset loaded')
 
     # the sample to visualize
-    validation_results = create_sequence_simulation_result(
+    validation_results = create_simulation_result(
         dataset_config, train_config, test_points=test_points)
 
     training_dataset = []
     for result in training_results:
-        training_dataset.append(simulation_result_to_samples(result, dataset_config))
+        training_dataset.append(result_to_samples(result, dataset_config))
     validation_dataset = []
     for result in validation_results:
-        validation_dataset.append(simulation_result_to_samples(result, dataset_config))
+        validation_dataset.append(result_to_samples(result, dataset_config))
 
     return training_dataset, validation_dataset
 
