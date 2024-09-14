@@ -537,13 +537,16 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     model = load_model(train_config, model_config, dataset_config)
     wandb.log({'n params': count_params(model)})
 
+    begin = time.time()
     run_training(model_config=model_config, train_config=train_config, training_dataset=training_dataset,
                  validation_dataset=validation_dataset, model=model)
+    end = time.time()
     if save_model:
         model_config.save_model(run, model)
     test_results = run_tests(model, train_config, dataset_config, model_config, test_point_pairs, only_no_out)
     wandb.log({'l2': test_results['no'].l2})
-    wandb.log({'l2': test_results['no'].runtime})
+    wandb.log({'runtime': test_results['no'].runtime})
+    wandb.log({'training time': end - begin})
     return test_results, model
 
 
