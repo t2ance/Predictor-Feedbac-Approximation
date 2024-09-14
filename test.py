@@ -25,15 +25,14 @@ def baxter_test_n_dof():
 
 
 def baxter_test_unicycle():
-    dataset_config, model_config, train_config = get_config(system_='s7')
+    dataset_config, model_config, train_config = get_config(system_='s9')
     Z0 = tuple([1, 1, 1])
     print('initial point', Z0)
     dataset_config.duration = 10
     dataset_config.delay = TimeVaryingDelay()
-    dataset_config.dt = 0.05
+    dataset_config.dt = 0.1
     result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
-                        img_save_path='./misc', silence=False,
-                        metric_list=['l2_p_z', 'rl2_p_z', 'l2_p_phat', 'rl2_p_phat'])
+                        img_save_path='./misc', silence=False)
     samples = result_to_samples(result, dataset_config)
     print(result.runtime)
 
@@ -60,8 +59,8 @@ def mini_train():
 
 if __name__ == '__main__':
     # mini_train()
-    # result = baxter_test_unicycle()
-    result = baxter_test_n_dof()
+    result = baxter_test_unicycle()
+    # result = baxter_test_n_dof()
     # import wandb
     # from config import get_config
     #

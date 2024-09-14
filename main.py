@@ -52,8 +52,6 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
     q_ts = np.zeros(n_point)
     e_ts = np.zeros(n_point)
     P_switching = np.zeros((n_point, system.n_state))
-    # qe = QuantileEstimator()
-    # gqe = GaussianQuantileEstimator()
 
     p_numerical_count = 0
     p_no_count = 0
@@ -255,30 +253,52 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
         n_parameter=count_params(model) if model is not None else 'N/A')
 
 
+# def result_to_samples(result: SimulationResult, dataset_config):
+#     max_n_point_delay = dataset_config.max_n_point_delay()
+#     n_point_start = dataset_config.n_point_start()
+#     n_point_delay = dataset_config.n_point_delay
+#
+#     horizon = np.array(dataset_config.ts[n_point_start:-n_point_start])
+#     Zs = np.array(result.Z[n_point_start:-n_point_start])
+#     Zs_prediction = np.zeros_like(result.Z[n_point_start:-n_point_start])
+#     Us = []
+#     for ti, t in enumerate(horizon):
+#         ti_n_point_start = ti + n_point_start
+#         Zs[ti] = result.Z[ti_n_point_start]
+#         Zs_prediction[ti] = result.Z[n_point_delay(t) + ti_n_point_start]
+#         Us.append(pad_zeros(result.U[ti_n_point_start - n_point_delay(t): ti_n_point_start], max_n_point_delay,
+#                             leading=True))
+#
+#     samples = []
+#     for z_pred, z, t, u in zip(Zs_prediction, Zs, horizon, Us):
+#         samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(z_pred)))
+#     return samples
 def result_to_samples(result: SimulationResult, dataset_config):
     max_n_point_delay = dataset_config.max_n_point_delay()
-    n_point_start = dataset_config.n_point_start()
+
     n_point_delay = dataset_config.n_point_delay
-    # Us = [pad_zeros(result.U[idx + n_point_start - n_point_delay(t): idx + n_point_start], max_n_point_delay,
-    #                 leading=True) for idx, t in enumerate(horizon)]
+    n_point_start = n_point_delay(0)
 
-    # Zs = np.array(result.Z[n_point_start:])
-
-    horizon = np.array(dataset_config.ts[n_point_start:-n_point_start])
-    Zs = np.array(result.Z[n_point_start:-n_point_start])
-    # Ps = np.zeros_like(result.P_numerical[n_point_start:-n_point_start])
-    Zs_prediction = np.zeros_like(result.Z[n_point_start:-n_point_start])
-    # Us = np.zeros_like(result.U[n_point_start:])
     Us = []
-    for ti, t in enumerate(horizon):
-        ti_n_point_start = ti + n_point_start
-        Zs[ti] = result.Z[ti_n_point_start]
-        Zs_prediction[ti] = result.Z[n_point_delay(t) + ti_n_point_start]
-        Us.append(pad_zeros(result.U[ti_n_point_start - n_point_delay(t): ti_n_point_start], max_n_point_delay,
-                            leading=True))
+    Zs = []
+    Zs_prediction = []
+    ts = []
+    for t_z_pred_i, (t_z_pred, z) in enumerate(zip(dataset_config.ts, result.Z)):
+        if t_z_pred_i < n_point_start:
+            continue
+        t_z_i = t_z_pred_i - n_point_delay(t_z_pred)
+        t_z = dataset_config.ts[t_z_i]
+        if t_z_i < n_point_start:
+            continue
+        t_u_i = t_z_i - n_point_delay(t_z)
+
+        Zs.append(result.Z[t_z_i])
+        Zs_prediction.append(result.Z[t_z_pred_i])
+        Us.append(pad_zeros(result.U[t_u_i:t_z_i], max_n_point_delay, leading=True))
+        ts.append(t_z)
 
     samples = []
-    for z_pred, z, t, u in zip(Zs_prediction, Zs, horizon, Us):
+    for z_pred, z, t, u in zip(Zs_prediction, Zs, ts, Us):
         samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(z_pred)))
     return samples
 

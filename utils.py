@@ -140,18 +140,10 @@ def load_model(train_config, model_config, dataset_config, n_param_out: bool = F
         model = LSTMNet(hidden_size=model_config.lstm_hidden_size, num_layers=model_config.lstm_n_layer,
                         output_size=n_state)
     elif model_name == 'FNO-GRU':
-        # model = FNOProjectionGRU(
-        #     n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
-        #     n_state=n_state, fno_n_layers=model_config.fno_n_layer, gru_n_layers=model_config.gru_n_layer,
-        #     gru_layer_width=model_config.gru_layer_width, ffn=ffn, residual=train_config.residual)
         model = FNOGRU(n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
                        n_state=n_state, fno_n_layers=model_config.fno_n_layer, gru_n_layers=model_config.gru_n_layer,
                        gru_hidden_size=model_config.gru_hidden_size)
     elif model_name == 'FNO-LSTM':
-        # model = FNOProjectionLSTM(
-        #     n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
-        #     n_state=n_state, fno_n_layers=model_config.fno_n_layer, lstm_n_layers=model_config.lstm_n_layer,
-        #     lstm_layer_width=model_config.lstm_layer_width, ffn=ffn, residual=train_config.residual)
         model = FNOLSTM(n_modes_height=model_config.fno_n_modes_height,
                         hidden_channels=model_config.fno_hidden_channels, n_state=n_state,
                         fno_n_layers=model_config.fno_n_layer, lstm_n_layers=model_config.lstm_n_layer,

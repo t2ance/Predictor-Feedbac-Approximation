@@ -16,8 +16,8 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.learning_rate = config.learning_rate
     train_config.weight_decay = config.weight_decay
     model_name = model_config.model_name
+    train_config.n_epoch = 50
     if '-' in model_name:
-        train_config.n_epoch = 100
         ffn, rnn = model_name.split('-')
         if ffn == 'FNO':
             model_config.fno_n_layer = config.fno_n_layer
@@ -38,7 +38,6 @@ def set_config(config, dataset_config, model_config, train_config):
         else:
             raise NotImplementedError()
     else:
-        train_config.n_epoch = 50
         if model_name == 'FNO':
             model_config.fno_n_layer = config.fno_n_layer
             model_config.fno_n_modes_height = config.fno_n_modes_height
