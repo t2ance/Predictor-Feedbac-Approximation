@@ -16,7 +16,7 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.learning_rate = config.learning_rate
     train_config.weight_decay = config.weight_decay
     model_name = model_config.model_name
-    train_config.n_epoch = 50
+    train_config.n_epoch = 100
     if '-' in model_name:
         ffn, rnn = model_name.split('-')
         if ffn == 'FNO':
@@ -64,7 +64,7 @@ def get_parameters(system: str, model_name: str):
         'learning_rate': {
             'distribution': 'log_uniform_values',
             'min': 1e-6,
-            'max': 1e-3
+            'max': 1e-2
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
@@ -158,6 +158,13 @@ def get_parameters(system: str, model_name: str):
             parameters.update(lstm_params)
         else:
             raise NotImplementedError()
+
+    if 'GRU' in model_name or 'LSTM' in model_name:
+        parameters['learning_rate'] = {
+            'distribution': 'log_uniform_values',
+            'min': 1e-5,
+            'max': 1e-2
+        }
     print(parameters)
     return parameters
 
