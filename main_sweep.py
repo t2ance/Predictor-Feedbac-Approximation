@@ -175,7 +175,7 @@ def do_sweep(system, model_name):
         "name": 'Sweep ' + system + ' ' + model_name + ' ' + get_time_str(),
         'method': 'bayes',
         'metric': {
-            'name': 'l2',
+            'name': 'validating loss',
             'goal': 'minimize'
         },
         'parameters': get_parameters(system, model_name)
