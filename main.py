@@ -546,7 +546,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     test_results = run_tests(model, train_config, dataset_config, model_config, test_point_pairs, only_no_out)
     wandb.log({'l2': test_results['no'].l2})
     wandb.log({'runtime': test_results['no'].runtime})
-    wandb.log({'training time': end - begin})
+    wandb.log({'training time': (end - begin) / 60})
     return test_results, model
 
 
