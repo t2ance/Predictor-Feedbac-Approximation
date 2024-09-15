@@ -109,26 +109,26 @@ def get_parameters(system: str, model_name: str):
         'gru_n_layer': {
             'distribution': 'int_uniform',
             'min': 2,
-            'max': 8
+            'max': 6
         },
         'gru_hidden_size': {
             'distribution': 'q_log_uniform_values',
             'q': 16,
             'min': 64,
-            'max': 512
+            'max': 256
         }
     }
     lstm_params = {
         'lstm_n_layer': {
             'distribution': 'int_uniform',
             'min': 2,
-            'max': 8
+            'max': 6
         },
         'lstm_hidden_size': {
             'distribution': 'q_log_uniform_values',
             'q': 16,
             'min': 64,
-            'max': 512
+            'max': 256
         }
     }
 
