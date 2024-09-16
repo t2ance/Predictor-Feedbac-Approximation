@@ -259,7 +259,10 @@ def do_sweep(system, model_name):
 
 if __name__ == '__main__':
     import argparse
-
+    # successful:
+    # s8:
+    #
+    # s9: all can work, except some combined method
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', type=str)
     parser.add_argument('-model_name', type=str)
