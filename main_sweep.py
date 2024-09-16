@@ -13,7 +13,7 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.scheduler_min_lr = 0
     train_config.batch_size = 2048
     if dataset_config.system_ == 's8':
-        dataset_config.n_training_dataset = 50
+        dataset_config.n_training_dataset = 1000
     elif dataset_config.system_ == 's9':
         dataset_config.n_training_dataset = 250
     else:
