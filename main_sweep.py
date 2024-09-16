@@ -12,6 +12,12 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
     train_config.scheduler_min_lr = 0
     train_config.batch_size = 2048
+    if dataset_config.system_ == 's8':
+        dataset_config.n_training_dataset = 50
+    elif dataset_config.system_ == 's9':
+        dataset_config.n_training_dataset = 250
+    else:
+        raise NotImplementedError()
 
     train_config.learning_rate = config.learning_rate
     train_config.weight_decay = config.weight_decay
@@ -105,33 +111,63 @@ def get_parameters(system: str, model_name: str):
             'max': 64
         },
     }
-    gru_params = {
-        'gru_n_layer': {
-            'distribution': 'int_uniform',
-            'min': 2,
-            'max': 6
-        },
-        'gru_hidden_size': {
-            'distribution': 'q_log_uniform_values',
-            'q': 16,
-            'min': 64,
-            'max': 256
-        }
-    }
-    lstm_params = {
-        'lstm_n_layer': {
-            'distribution': 'int_uniform',
-            'min': 2,
-            'max': 6
-        },
-        'lstm_hidden_size': {
-            'distribution': 'q_log_uniform_values',
-            'q': 16,
-            'min': 64,
-            'max': 256
-        }
-    }
 
+    if system == 's8':
+        gru_params = {
+            'gru_n_layer': {
+                'distribution': 'int_uniform',
+                'min': 2,
+                'max': 6
+            },
+            'gru_hidden_size': {
+                'distribution': 'q_log_uniform_values',
+                'q': 16,
+                'min': 64,
+                'max': 256
+            }
+        }
+        lstm_params = {
+            'lstm_n_layer': {
+                'distribution': 'int_uniform',
+                'min': 2,
+                'max': 6
+            },
+            'lstm_hidden_size': {
+                'distribution': 'q_log_uniform_values',
+                'q': 16,
+                'min': 64,
+                'max': 256
+            }
+        }
+    elif system == 's9':
+        gru_params = {
+            'gru_n_layer': {
+                'distribution': 'int_uniform',
+                'min': 1,
+                'max': 4
+            },
+            'gru_hidden_size': {
+                'distribution': 'q_log_uniform_values',
+                'q': 4,
+                'min': 16,
+                'max': 64
+            }
+        }
+        lstm_params = {
+            'lstm_n_layer': {
+                'distribution': 'int_uniform',
+                'min': 1,
+                'max': 4
+            },
+            'lstm_hidden_size': {
+                'distribution': 'q_log_uniform_values',
+                'q': 4,
+                'min': 16,
+                'max': 64
+            }
+        }
+    else:
+        raise NotImplementedError()
     if '-' in model_name:
         ffn, rnn = model_name.split('-')
         if ffn == 'FNO':
