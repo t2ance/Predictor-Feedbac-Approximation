@@ -58,8 +58,8 @@ def mini_train():
 
 
 if __name__ == '__main__':
-    # mini_train()
-    result = baxter_test_unicycle()
+    mini_train()
+    # result = baxter_test_unicycle()
     # result = baxter_test_n_dof()
     # import wandb
     # from config import get_config

@@ -288,13 +288,13 @@ def result_to_samples(result: SimulationResult, dataset_config):
             continue
         t_z_i = t_z_pred_i - n_point_delay(t_z_pred)
         t_z = dataset_config.ts[t_z_i]
-        if t_z_i < n_point_start:
-            continue
+        # if t_z_i < n_point_start:
+        #     continue
         t_u_i = t_z_i - n_point_delay(t_z)
 
         Zs.append(result.Z[t_z_i])
         Zs_prediction.append(result.Z[t_z_pred_i])
-        Us.append(pad_zeros(result.U[t_u_i:t_z_i], max_n_point_delay, leading=True))
+        Us.append(pad_zeros(result.U[t_u_i:t_z_i], max_n_point_delay))
         ts.append(t_z)
 
     samples = []

@@ -462,18 +462,26 @@ class ConstantDelay(Delay):
 class TimeVaryingDelay(Delay):
 
     def __call__(self, t):
+        if t < 0:
+            t = 0
         return (1 + t) / (1 + 2 * t)
 
     def max_delay(self):
         return 1
 
     def phi(self, t):
+        if t < 0:
+            t = 0
         return t - (1 + t) / (1 + 2 * t)
 
     def phi_prime(self, t):
+        if t < 0:
+            t = 0
         return 1 + 1 / (1 + 2 * t) ** 2
 
     def phi_inverse(self, t):
+        if t < 0:
+            t = 0
         if t == -1:
             return 2
         return t + (1 + t) / (((1 + t) ** 2 + 1) ** 0.5 + t)
@@ -483,7 +491,7 @@ def solve_integral_nn(model, U_D, Z_t, t):
     device = next(model.parameters()).device
     u_tensor = torch.tensor(U_D, dtype=torch.float32, device=device).view(1, -1)
     z_tensor = torch.tensor(Z_t, dtype=torch.float32, device=device).view(1, -1)
-    t_tensor = torch.tensor(t, dtype=torch.float32, device=device).view(1, -1)
+    # t_tensor = torch.tensor(t, dtype=torch.float32, device=device).view(1, -1)
     # outputs = model(torch.cat([z_tensor, u_tensor], dim=1))
     # outputs = model(torch.cat([t_tensor, z_tensor, u_tensor], dim=1))
     outputs = model(torch.cat([z_tensor, u_tensor], dim=1))
