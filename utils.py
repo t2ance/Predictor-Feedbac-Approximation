@@ -57,9 +57,14 @@ class TestResult:
     no_pred_ratio: List = None
 
 
-def initialize_weights(m):
+def initialize_weights(m, init_type):
     if isinstance(m, nn.Linear):
-        init.xavier_normal_(m.weight)
+        if init_type == 'xavier':
+            init.xavier_normal_(m.weight)
+        elif init_type == 'kaiming':
+            init.kaiming_normal_(m.weight)
+        else:
+            raise NotImplementedError()
         if m.bias is not None:
             init.zeros_(m.bias)
 
@@ -161,12 +166,12 @@ def load_model(train_config, model_config, dataset_config, n_param_out: bool = F
     else:
         raise NotImplementedError()
     n_params = count_params(model)
-    print(f'Using {model_name} with {n_params} parameters. Xavier initializing.')
     if isinstance(model, TimeAwareNeuralOperator):
         print('ffn parameters:', count_params(model.ffn))
         print('rnn parameters:', count_params(model.rnn))
         print('projection parameters:', count_params(model.projection))
-    initialize_weights(model)
+    print(f'Using {model_name} with {n_params} parameters. Xavier initializing.')
+    initialize_weights(model, model_config.init_type)
     if n_param_out:
         return model.to(device), n_params
     else:

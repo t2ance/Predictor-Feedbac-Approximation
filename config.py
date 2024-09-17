@@ -31,6 +31,7 @@ class ModelConfig:
     lstm_layer_width: Optional[int] = field(default=8)
     model_name: Optional[Literal['FFN', 'FNO', 'DeepONet', 'GRU', 'LSTM']] = field(default='FNO')
     model_version: Optional[str] = field(default='latest')
+    init_type: Optional[str] = field(default='xavier')
 
     system: Optional[str] = field(default='s1')
 

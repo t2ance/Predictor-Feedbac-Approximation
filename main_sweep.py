@@ -15,6 +15,7 @@ def set_config(config, dataset_config, model_config, train_config):
     if dataset_config.system_ == 's8':
         dataset_config.n_training_dataset = 1400
         train_config.n_epoch = 200
+        model_config.init_type = 'kaiming'
     elif dataset_config.system_ == 's9':
         dataset_config.n_training_dataset = 250
         train_config.n_epoch = 100
@@ -272,6 +273,7 @@ def do_sweep(system, model_name):
 
 if __name__ == '__main__':
     import argparse
+
     # successful:
     # s8:
     #
