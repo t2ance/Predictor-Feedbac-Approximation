@@ -14,15 +14,16 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.batch_size = 2048
     if dataset_config.system_ == 's8':
         dataset_config.n_training_dataset = 1000
+        train_config.n_epoch = 100
     elif dataset_config.system_ == 's9':
         dataset_config.n_training_dataset = 250
+        train_config.n_epoch = 250
     else:
         raise NotImplementedError()
 
     train_config.learning_rate = config.learning_rate
     train_config.weight_decay = config.weight_decay
     model_name = model_config.model_name
-    train_config.n_epoch = 100
     if '-' in model_name:
         ffn, rnn = model_name.split('-')
         if ffn == 'FNO':
