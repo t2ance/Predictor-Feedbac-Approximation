@@ -116,27 +116,39 @@ def get_parameters(system: str, model_name: str):
         gru_params = {
             'gru_n_layer': {
                 'distribution': 'int_uniform',
-                'min': 2,
+                'min': 1,
                 'max': 6
             },
             'gru_hidden_size': {
                 'distribution': 'q_log_uniform_values',
                 'q': 16,
-                'min': 64,
+                'min': 1,
                 'max': 256
             }
         }
         lstm_params = {
             'lstm_n_layer': {
                 'distribution': 'int_uniform',
-                'min': 2,
+                'min': 1,
                 'max': 6
             },
             'lstm_hidden_size': {
                 'distribution': 'q_log_uniform_values',
-                'q': 16,
+                'q': 1,
                 'min': 64,
                 'max': 256
+            }
+        }
+        parameters = {
+            'learning_rate': {
+                'distribution': 'log_uniform_values',
+                'min': 1e-8,
+                'max': 1e-2
+            },
+            'weight_decay': {
+                'distribution': 'log_uniform_values',
+                'min': 1e-7,
+                'max': 1e-1
             }
         }
     elif system == 's9':
@@ -209,7 +221,7 @@ def do_sweep(system, model_name):
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     sweep_config = {
         "name": 'Sweep ' + system + ' ' + model_name + ' ' + get_time_str(),
-        'method': 'bayes',
+        'method': 'random',
         'metric': {
             'name': 'validating loss',
             'goal': 'minimize'
