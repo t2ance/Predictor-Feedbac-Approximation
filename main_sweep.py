@@ -14,10 +14,10 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.batch_size = 2048
     if dataset_config.system_ == 's8':
         dataset_config.n_training_dataset = 1000
-        train_config.n_epoch = 100
+        train_config.n_epoch = 200
     elif dataset_config.system_ == 's9':
         dataset_config.n_training_dataset = 250
-        train_config.n_epoch = 250
+        train_config.n_epoch = 100
     else:
         raise NotImplementedError()
 

@@ -349,7 +349,9 @@ def run_training(model_config: ModelConfig, train_config: TrainConfig, training_
             sequences = training_dataset[dataset_idx:dataset_idx + batch_size]
             current_batch_size = len(sequences)
             losses = []
-            for batch in tqdm(list(zip(*sequences))):
+            subset = list(zip(*sequences))
+            np.random.shuffle(subset)
+            for batch in tqdm(subset):
                 optimizer.zero_grad()
                 inputs, labels = torch.vstack([batch[i][0] for i in range(current_batch_size)]), torch.vstack(
                     [batch[i][1] for i in range(current_batch_size)])
