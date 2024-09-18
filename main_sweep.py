@@ -13,7 +13,7 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.scheduler_min_lr = 0
     train_config.batch_size = 2048
     if dataset_config.system_ == 's8':
-        dataset_config.n_training_dataset = 1400
+        dataset_config.n_training_dataset = 20
         train_config.n_epoch = 200
         model_config.init_type = 'kaiming'
     elif dataset_config.system_ == 's9':

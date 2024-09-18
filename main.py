@@ -242,37 +242,17 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
     else:
         l2_p_phat_value, rl2_p_phat_value = None, None
     success = not (np.any(np.isnan(Z)) or np.any(np.isinf(Z)))
-    return SimulationResult(
-        U=U, Z=Z, D_explicit=D_explicit, D_no=D_no, D_numerical=D_numerical, D_switching=D_switching,
-        P_explicit=P_explicit, P_no=P_no, P_no_ci=P_no_ci, P_numerical=P_numerical,
-        P_switching=P_switching, runtime=runtime, P_numerical_n_iters=P_numerical_n_iters,
-        p_numerical_count=p_numerical_count, p_no_count=p_no_count, P_no_Ri=P_no_Ri, alpha_ts=alpha_ts, q_ts=q_ts,
-        e_ts=e_ts, switching_indicator=subsystem_history, avg_prediction_time=runtime / n_point,
-        l2_p_z=l2_p_z_value, rl2_p_z=rl2_p_z_value, l2_p_phat=l2_p_phat_value,
-        rl2_p_phat=rl2_p_phat_value, success=success,
-        n_parameter=count_params(model) if model is not None else 'N/A')
+    return SimulationResult(Z0=Z0, U=U, Z=Z, D_explicit=D_explicit, D_no=D_no, D_numerical=D_numerical,
+                            D_switching=D_switching, P_explicit=P_explicit, P_no=P_no, P_no_ci=P_no_ci,
+                            P_numerical=P_numerical, P_switching=P_switching, runtime=runtime,
+                            P_numerical_n_iters=P_numerical_n_iters, p_numerical_count=p_numerical_count,
+                            p_no_count=p_no_count, P_no_Ri=P_no_Ri, alpha_ts=alpha_ts, q_ts=q_ts, e_ts=e_ts,
+                            switching_indicator=subsystem_history, avg_prediction_time=runtime / n_point,
+                            l2_p_z=l2_p_z_value, rl2_p_z=rl2_p_z_value, l2_p_phat=l2_p_phat_value,
+                            rl2_p_phat=rl2_p_phat_value, success=success,
+                            n_parameter=count_params(model) if model is not None else 'N/A')
 
 
-# def result_to_samples(result: SimulationResult, dataset_config):
-#     max_n_point_delay = dataset_config.max_n_point_delay()
-#     n_point_start = dataset_config.n_point_start()
-#     n_point_delay = dataset_config.n_point_delay
-#
-#     horizon = np.array(dataset_config.ts[n_point_start:-n_point_start])
-#     Zs = np.array(result.Z[n_point_start:-n_point_start])
-#     Zs_prediction = np.zeros_like(result.Z[n_point_start:-n_point_start])
-#     Us = []
-#     for ti, t in enumerate(horizon):
-#         ti_n_point_start = ti + n_point_start
-#         Zs[ti] = result.Z[ti_n_point_start]
-#         Zs_prediction[ti] = result.Z[n_point_delay(t) + ti_n_point_start]
-#         Us.append(pad_zeros(result.U[ti_n_point_start - n_point_delay(t): ti_n_point_start], max_n_point_delay,
-#                             leading=True))
-#
-#     samples = []
-#     for z_pred, z, t, u in zip(Zs_prediction, Zs, horizon, Us):
-#         samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(z_pred)))
-#     return samples
 def result_to_samples(result: SimulationResult, dataset_config):
     max_n_point_delay = dataset_config.max_n_point_delay()
 

@@ -3,7 +3,7 @@ import os
 import random
 import time
 from dataclasses import dataclass
-from typing import List
+from typing import List, Any
 
 import numpy as np
 import torch
@@ -18,6 +18,7 @@ from model import FNOProjection, FFN, GRUNet, LSTMNet, DeepONet, DeepONetGRU, \
 
 @dataclass
 class SimulationResult:
+    Z0: Any = None
     U: np.ndarray = None
     Z: np.ndarray = None
     D_explicit: np.ndarray = None

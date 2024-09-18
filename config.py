@@ -102,9 +102,11 @@ class ModelConfig:
         if 'GRU' in model_name:
             self.gru_n_layer = metadata['gru_n_layer']
             self.gru_layer_width = metadata['gru_layer_width']
+            self.gru_hidden_size = metadata['gru_hidden_size']
         if 'LSTM' in model_name:
             self.lstm_n_layer = metadata['lstm_n_layer']
             self.lstm_layer_width = metadata['lstm_layer_width']
+            self.lstm_hidden_size = metadata['lstm_hidden_size']
 
         model, n_params = load_model(train_config, self, dataset_config, model_name=self.model_name, n_param_out=True)
         model.load_state_dict(state_dict)
@@ -293,7 +295,6 @@ class DatasetConfig:
     @property
     def test_points(self) -> List[Tuple]:
         if self.random_test:
-            state = np.random.RandomState(seed=0)
             if self.random_test_points is None:
                 self.random_test_points = self.get_test_points(5)
             return self.random_test_points

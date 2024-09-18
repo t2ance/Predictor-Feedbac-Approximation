@@ -8,19 +8,26 @@ from utils import load_model
 
 
 def baxter_test_n_dof():
-    dataset_config, model_config, train_config = get_config(system_='s8')
-    dataset_config.baxter_dof = 5
-    Z0 = tuple(
-        np.concatenate([np.random.uniform(0, 0.3, dataset_config.baxter_dof), np.zeros(dataset_config.baxter_dof)]))
+    import wandb
+    wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
+    run = wandb.init(
+        project="no",
+        name=f'test'
+    )
+    dataset_config, model_config, train_config = get_config(system_='s8', model_name='LSTM')
+    model = load_model(train_config, model_config, dataset_config)
+    model_config.get_model(run, train_config, dataset_config, version='v168')
+    Z0 = dataset_config.test_points[0]
     print('initial point', Z0)
-    dataset_config.duration = 5
-    dataset_config.delay = ConstantDelay(0.5)
-    dataset_config.dt = 0.05
-    model = load_model(train_config, model_config, dataset_config, model_name='GRU')
-    result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
+    dataset_config.dataset_version = 'v0'
+    # training_dataset, validation_dataset = load_dataset(dataset_config, train_config, [], run)
+    # training_dataset
+    Z0 = [0.07407145, 0.11798713, 0.06306392, 0.24340997, 0.27855349, 0.11211986, 0.1920229, 0.19603325, 0.00758645,
+          0.23880707]
+    result = simulation(method='no', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
                         img_save_path='./misc', silence=False, model=model)
     print(result.runtime)
-    result_to_samples(result, dataset_config)
+    # result_to_samples(result, dataset_config)
     return result
 
 
@@ -58,9 +65,9 @@ def mini_train():
 
 
 if __name__ == '__main__':
-    mini_train()
+    # mini_train()
     # result = baxter_test_unicycle()
-    # result = baxter_test_n_dof()
+    result = baxter_test_n_dof()
     # import wandb
     # from config import get_config
     #
