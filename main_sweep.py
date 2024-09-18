@@ -223,7 +223,7 @@ def do_sweep(system, model_name):
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     sweep_config = {
         "name": 'Sweep ' + system + ' ' + model_name + ' ' + get_time_str(),
-        'method': 'random',
+        'method': 'bayes',
         'metric': {
             'name': 'validating loss',
             'goal': 'minimize'
