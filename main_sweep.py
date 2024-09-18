@@ -144,13 +144,13 @@ def get_parameters(system: str, model_name: str):
         parameters = {
             'learning_rate': {
                 'distribution': 'log_uniform_values',
-                'min': 1e-8,
+                'min': 1e-4,
                 'max': 1e-2
             },
             'weight_decay': {
                 'distribution': 'log_uniform_values',
                 'min': 1e-7,
-                'max': 1e-1
+                'max': 1e-2
             }
         }
     elif system == 's9':

@@ -170,7 +170,7 @@ def load_model(train_config, model_config, dataset_config, n_param_out: bool = F
         print('ffn parameters:', count_params(model.ffn))
         print('rnn parameters:', count_params(model.rnn))
         print('projection parameters:', count_params(model.projection))
-    print(f'Using {model_name} with {n_params} parameters. Xavier initializing.')
+    print(f'Using {model_name} with {n_params} parameters. {model_config.init_type} initializing.')
     initialize_weights(model, model_config.init_type)
     if n_param_out:
         return model.to(device), n_params
