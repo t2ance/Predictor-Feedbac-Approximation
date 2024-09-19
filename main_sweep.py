@@ -13,9 +13,9 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.scheduler_min_lr = 0
     train_config.batch_size = 2048
     if dataset_config.system_ == 's8':
-        dataset_config.n_training_dataset = 250
+        dataset_config.n_training_dataset = 1400
         train_config.n_epoch = 100
-        model_config.init_type = 'kaiming'
+        # model_config.init_type = 'kaiming'
     elif dataset_config.system_ == 's9':
         dataset_config.n_training_dataset = 250
         train_config.n_epoch = 100
@@ -144,13 +144,13 @@ def get_parameters(system: str, model_name: str):
         parameters = {
             'learning_rate': {
                 'distribution': 'log_uniform_values',
-                'min': 1e-4,
-                'max': 1e-2
+                'min': 1e-3,
+                'max': 1e0
             },
             'weight_decay': {
                 'distribution': 'log_uniform_values',
-                'min': 1e-2,
-                'max': 1e1
+                'min': 1e-5,
+                'max': 1e-1
             }
         }
     elif system == 's9':
