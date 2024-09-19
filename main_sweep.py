@@ -13,8 +13,8 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.scheduler_min_lr = 0
     train_config.batch_size = 2048
     if dataset_config.system_ == 's8':
-        dataset_config.n_training_dataset = 20
-        train_config.n_epoch = 200
+        dataset_config.n_training_dataset = 250
+        train_config.n_epoch = 100
         model_config.init_type = 'kaiming'
     elif dataset_config.system_ == 's9':
         dataset_config.n_training_dataset = 250
@@ -124,7 +124,7 @@ def get_parameters(system: str, model_name: str):
             'gru_hidden_size': {
                 'distribution': 'q_log_uniform_values',
                 'q': 16,
-                'min': 1,
+                'min': 64,
                 'max': 256
             }
         }
@@ -136,7 +136,7 @@ def get_parameters(system: str, model_name: str):
             },
             'lstm_hidden_size': {
                 'distribution': 'q_log_uniform_values',
-                'q': 1,
+                'q': 16,
                 'min': 64,
                 'max': 256
             }
@@ -149,8 +149,8 @@ def get_parameters(system: str, model_name: str):
             },
             'weight_decay': {
                 'distribution': 'log_uniform_values',
-                'min': 1e-7,
-                'max': 1e-2
+                'min': 1e-2,
+                'max': 1e1
             }
         }
     elif system == 's9':
