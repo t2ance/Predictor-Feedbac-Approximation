@@ -209,12 +209,6 @@ def get_parameters(system: str, model_name: str):
         else:
             raise NotImplementedError()
 
-    if 'GRU' in model_name or 'LSTM' in model_name:
-        parameters['learning_rate'] = {
-            'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 1e-2
-        }
     print(parameters)
     return parameters
 
