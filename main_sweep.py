@@ -85,7 +85,19 @@ def get_parameters(system: str, model_name: str):
             'min': 10,
             'max': 100
         }
+        parameters['learning_rate'] = {
+            'distribution': 'log_uniform_values',
+            'min': 1e-3,
+            'max': 1e0
+        }
+        parameters['weight_decay'] = {
+            'distribution': 'log_uniform_values',
+            'min': 1e-5,
+            'max': 1e-1
+        }
         # model_config.init_type = 'kaiming'
+        print('system 8', parameters)
+        print(parameters)
     elif system == 's9':
         parameters['n_training_dataset'] = 250
         parameters['n_epoch'] = 100
@@ -152,18 +164,6 @@ def get_parameters(system: str, model_name: str):
                 'max': 256
             }
         }
-        parameters = {
-            'learning_rate': {
-                'distribution': 'log_uniform_values',
-                'min': 1e-3,
-                'max': 1e0
-            },
-            'weight_decay': {
-                'distribution': 'log_uniform_values',
-                'min': 1e-5,
-                'max': 1e-1
-            }
-        }
     elif system == 's9':
         gru_params = {
             'gru_n_layer': {
@@ -193,6 +193,7 @@ def get_parameters(system: str, model_name: str):
         }
     else:
         raise NotImplementedError()
+
     if '-' in model_name:
         ffn, rnn = model_name.split('-')
         if ffn == 'FNO':
