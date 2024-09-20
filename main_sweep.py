@@ -12,15 +12,9 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
     train_config.scheduler_min_lr = 0
     train_config.batch_size = 2048
-    if dataset_config.system_ == 's8':
-        dataset_config.n_training_dataset = 1400
-        train_config.n_epoch = 100
-        # model_config.init_type = 'kaiming'
-    elif dataset_config.system_ == 's9':
-        dataset_config.n_training_dataset = 250
-        train_config.n_epoch = 100
-    else:
-        raise NotImplementedError()
+
+    dataset_config.n_training_dataset = config.n_training_dataset
+    train_config.n_epoch = config.n_epoch
 
     train_config.learning_rate = config.learning_rate
     train_config.weight_decay = config.weight_decay
@@ -80,6 +74,23 @@ def get_parameters(system: str, model_name: str):
             'max': 1e-1
         }
     }
+    if system == 's8':
+        parameters['n_training_dataset'] = {
+            'distribution': 'int_uniform',
+            'min': 10,
+            'max': 1000
+        }
+        parameters['n_epoch'] = {
+            'distribution': 'int_uniform',
+            'min': 10,
+            'max': 100
+        }
+        # model_config.init_type = 'kaiming'
+    elif system == 's9':
+        parameters['n_training_dataset'] = 250
+        parameters['n_epoch'] = 100
+    else:
+        raise NotImplementedError()
 
     fno_params = {
         'fno_n_layer': {
