@@ -13,8 +13,8 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.scheduler_min_lr = 0
     train_config.batch_size = 2048
 
-    dataset_config.n_training_dataset = config.n_training_dataset
-    train_config.n_epoch = config.n_epoch
+    dataset_config.n_training_dataset = 250
+    train_config.n_epoch = 100
 
     train_config.learning_rate = config.learning_rate
     train_config.weight_decay = config.weight_decay
@@ -62,15 +62,18 @@ def set_config(config, dataset_config, model_config, train_config):
 
 
 def get_parameters(system: str, model_name: str):
-    parameters = {'learning_rate': {
-        'distribution': 'log_uniform_values',
-        'min': 1e-6,
-        'max': 1e-2
-    }, 'weight_decay': {
-        'distribution': 'log_uniform_values',
-        'min': 1e-5,
-        'max': 1e-1
-    }, 'n_training_dataset': 250, 'n_epoch': 100}
+    parameters = {
+        'learning_rate': {
+            'distribution': 'log_uniform_values',
+            'min': 1e-6,
+            'max': 1e-2
+        },
+        'weight_decay': {
+            'distribution': 'log_uniform_values',
+            'min': 1e-5,
+            'max': 1e-1
+        }
+    }
 
     fno_params = {
         'fno_n_layer': {
