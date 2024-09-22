@@ -62,47 +62,15 @@ def set_config(config, dataset_config, model_config, train_config):
 
 
 def get_parameters(system: str, model_name: str):
-    parameters = {
-        'learning_rate': {
-            'distribution': 'log_uniform_values',
-            'min': 1e-6,
-            'max': 1e-2
-        },
-        'weight_decay': {
-            'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 1e-1
-        }
-    }
-    if system == 's8':
-        parameters['n_training_dataset'] = {
-            'distribution': 'int_uniform',
-            'min': 10,
-            'max': 1000
-        }
-        parameters['n_epoch'] = {
-            'distribution': 'int_uniform',
-            'min': 10,
-            'max': 100
-        }
-        parameters['learning_rate'] = {
-            'distribution': 'log_uniform_values',
-            'min': 1e-3,
-            'max': 1e0
-        }
-        parameters['weight_decay'] = {
-            'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 1e-1
-        }
-        # model_config.init_type = 'kaiming'
-        print('system 8', parameters)
-        print(parameters)
-    elif system == 's9':
-        parameters['n_training_dataset'] = 250
-        parameters['n_epoch'] = 100
-    else:
-        raise NotImplementedError()
+    parameters = {'learning_rate': {
+        'distribution': 'log_uniform_values',
+        'min': 1e-6,
+        'max': 1e-2
+    }, 'weight_decay': {
+        'distribution': 'log_uniform_values',
+        'min': 1e-5,
+        'max': 1e-1
+    }, 'n_training_dataset': 250, 'n_epoch': 100}
 
     fno_params = {
         'fno_n_layer': {
