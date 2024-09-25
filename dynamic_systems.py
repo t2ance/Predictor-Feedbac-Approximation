@@ -489,12 +489,17 @@ class TimeVaryingDelay(Delay):
 
 def solve_integral_nn(model, U_D, Z_t, t):
     device = next(model.parameters()).device
-    u_tensor = torch.tensor(U_D, dtype=torch.float32, device=device).view(1, -1)
-    z_tensor = torch.tensor(Z_t, dtype=torch.float32, device=device).view(1, -1)
-    # t_tensor = torch.tensor(t, dtype=torch.float32, device=device).view(1, -1)
-    # outputs = model(torch.cat([z_tensor, u_tensor], dim=1))
-    # outputs = model(torch.cat([t_tensor, z_tensor, u_tensor], dim=1))
-    outputs = model(torch.cat([z_tensor, u_tensor], dim=1))
+    u_tensor = torch.tensor(U_D, dtype=torch.float32, device=device).unsqueeze(0)
+    z_tensor = torch.tensor(Z_t, dtype=torch.float32, device=device).unsqueeze(0)
+    outputs = model(
+        **{
+            't': torch.tensor(t),
+            'z': z_tensor,
+            'u': u_tensor,
+            'label': None,
+            'input': None
+        }
+    )
     return outputs.to('cpu').detach().numpy()[0]
 
 

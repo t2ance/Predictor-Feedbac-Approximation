@@ -56,7 +56,7 @@ class GRUNet(LearningBasedPredictor):
         self.projection = nn.Linear(hidden_size, output_size)
 
     def compute(self, u: torch.Tensor, z: torch.Tensor, t: torch.Tensor):
-        repeated_z = z.tile(250).reshape(z.shape[0], -1, z.shape[1])
+        repeated_z = z.tile(u.shape[1]).reshape(z.shape[0], -1, z.shape[1])
         x = torch.concatenate([u, repeated_z], -1)
         output, (_) = self.rnn(x)
         x = self.projection(output)
@@ -70,7 +70,7 @@ class LSTMNet(LearningBasedPredictor):
         self.projection = nn.Linear(hidden_size, output_size)
 
     def compute(self, u: torch.Tensor, z: torch.Tensor, t: torch.Tensor):
-        repeated_z = z.tile(250).reshape(z.shape[0], -1, z.shape[1])
+        repeated_z = z.tile(u.shape[1]).reshape(z.shape[0], -1, z.shape[1])
         x = torch.concatenate([u, repeated_z], -1)
         output, (_) = self.rnn(x)
         x = self.projection(output)
