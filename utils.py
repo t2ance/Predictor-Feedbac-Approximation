@@ -126,48 +126,47 @@ def load_model(train_config, model_config, dataset_config, n_param_out: bool = F
     device = train_config.device
     n_state = dataset_config.system.n_state
     n_input = dataset_config.system.n_input
-    n_point_start = dataset_config.n_point_start()
+    seq_len = dataset_config.max_n_point_delay()
     if model_name == 'DeepONet':
-        model = DeepONet(n_input_branch=n_point_start * n_input, n_input_trunk=n_state,
-                         layer_width=model_config.deeponet_hidden_size, n_layer=model_config.deeponet_n_layer,
-                         n_output=n_state)
+        model = DeepONet(n_output=n_state, n_input=n_input, n_state=n_state, seq_len=seq_len)
     elif model_name == 'FNO':
         n_modes_height = model_config.fno_n_modes_height
         hidden_channels = model_config.fno_hidden_channels
-        model = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_state=n_state,
-                              n_layers=model_config.fno_n_layer)
+        model = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels,
+                              n_layers=model_config.fno_n_layer, n_input=n_input, n_state=n_state, seq_len=seq_len)
     elif model_name == 'FFN':
-        model = FFN(n_state=n_state, n_point_delay=n_point_start, n_input=n_input, n_layers=model_config.ffn_n_layer,
-                    layer_width=model_config.ffn_layer_width)
+        model = FFN(n_layers=model_config.ffn_n_layer, layer_width=model_config.ffn_layer_width, n_input=n_input,
+                    n_state=n_state, seq_len=seq_len)
     elif model_name == 'GRU':
         model = GRUNet(hidden_size=model_config.gru_hidden_size, num_layers=model_config.gru_n_layer,
-                       output_size=n_state)
+                       output_size=n_state, n_input=n_input, n_state=n_state, seq_len=seq_len)
     elif model_name == 'LSTM':
         model = LSTMNet(hidden_size=model_config.lstm_hidden_size, num_layers=model_config.lstm_n_layer,
-                        output_size=n_state)
+                        output_size=n_state, n_input=n_input, n_state=n_state, seq_len=seq_len)
     elif model_name == 'FNO-GRU':
         model = FNOGRU(n_modes_height=model_config.fno_n_modes_height, hidden_channels=model_config.fno_hidden_channels,
-                       n_state=n_state, fno_n_layers=model_config.fno_n_layer, gru_n_layers=model_config.gru_n_layer,
-                       gru_hidden_size=model_config.gru_hidden_size)
+                       fno_n_layers=model_config.fno_n_layer, gru_n_layers=model_config.gru_n_layer,
+                       gru_hidden_size=model_config.gru_hidden_size, n_input=n_input, n_state=n_state, seq_len=seq_len)
     elif model_name == 'FNO-LSTM':
         model = FNOLSTM(n_modes_height=model_config.fno_n_modes_height,
-                        hidden_channels=model_config.fno_hidden_channels, n_state=n_state,
-                        fno_n_layers=model_config.fno_n_layer, lstm_n_layers=model_config.lstm_n_layer,
-                        lstm_hidden_size=model_config.lstm_hidden_size)
+                        hidden_channels=model_config.fno_hidden_channels, fno_n_layers=model_config.fno_n_layer,
+                        lstm_n_layers=model_config.lstm_n_layer, lstm_hidden_size=model_config.lstm_hidden_size,
+                        n_input=n_input, n_state=n_state, seq_len=seq_len)
     elif model_name == 'DeepONet-GRU':
-        model = DeepONetGRU(n_state=n_state, gru_n_layers=model_config.gru_n_layer, n_point_start=n_point_start,
-                            n_input=n_input, gru_hidden_size=model_config.gru_hidden_size,
+        model = DeepONetGRU(gru_n_layers=model_config.gru_n_layer, gru_hidden_size=model_config.gru_hidden_size,
                             deeponet_hidden_size=model_config.deeponet_hidden_size,
-                            deeponet_n_layer=model_config.deeponet_n_layer)
+                            deeponet_n_layer=model_config.deeponet_n_layer, n_input=n_input, n_state=n_state,
+                            seq_len=seq_len)
     elif model_name == 'DeepONet-LSTM':
-        model = DeepONetLSTM(n_state=n_state, lstm_n_layers=model_config.lstm_n_layer, n_point_start=n_point_start,
-                             n_input=n_input, lstm_hidden_size=model_config.lstm_hidden_size,
+        model = DeepONetLSTM(lstm_n_layers=model_config.lstm_n_layer, lstm_hidden_size=model_config.lstm_hidden_size,
                              deeponet_hidden_size=model_config.deeponet_hidden_size,
-                             deeponet_n_layer=model_config.deeponet_n_layer)
+                             deeponet_n_layer=model_config.deeponet_n_layer, n_input=n_input, n_state=n_state,
+                             seq_len=seq_len)
     else:
         raise NotImplementedError()
     n_params = count_params(model)
     if isinstance(model, TimeAwareNeuralOperator):
+        model.full_supervision = dataset_config.full_supervision
         print('ffn parameters:', count_params(model.ffn))
         print('rnn parameters:', count_params(model.rnn))
         print('projection parameters:', count_params(model.projection))

@@ -210,7 +210,6 @@ class TrainConfig:
 class DatasetConfig:
     append_training_dataset: Optional[bool] = field(default=False)
     append_testing_dataset: Optional[bool] = field(default=False)
-    # delay: Optional[float] = field(default=3.)
     delay: dynamic_systems.Delay = field(default=dynamic_systems.ConstantDelay(3))
     duration: Optional[int] = field(default=8)
     dt: Optional[float] = field(default=0.125)
@@ -229,43 +228,19 @@ class DatasetConfig:
     recreate_dataset: Optional[bool] = field(default=True)
 
     data_generation_strategy: Optional[Literal['trajectory', 'random', 'nn']] = field(default='trajectory')
-    z_u_p_pair: Optional[bool] = field(default=True)
     noise_epsilon: Optional[float] = field(default=0.)
     ood_sample_bound: Optional[float] = field(default=0.1)
     system_c: Optional[float] = field(default=1.)
     system_n: Optional[float] = field(default=2.)
     baxter_dof: Optional[int] = field(default=2)
-    postprocess: Optional[bool] = field(default=False)
-    n_plot_sample: Optional[int] = field(default=0)
-    filter_ood_sample: Optional[bool] = field(default=False)
-    random_u_type: Optional[Literal['line', 'sin', 'exp', 'spline', 'poly', 'sinexp', 'chebyshev', 'sparse']] = field(
-        default='spline')
-    n_sample_sparse: Optional[int] = field(default=0)
-    epsilon: Optional[float] = field(default=0)
-    n_augment: Optional[int] = field(default=0)
-
-    net_dataset_size: Optional[int] = field(default=1000)
-    net_batch_size: Optional[int] = field(default=64)
-    net_lr: Optional[float] = field(default=1e-3)
-    net_weight_decay: Optional[int] = field(default=0)
-    net_n_epoch: Optional[int] = field(default=5000)
-    net_type: Optional[Literal['fc', 'fourier', 'chebyshev', 'bspline']] = field(default='fc')
-    load_net: Optional[bool] = field(default=False)
-
-    lamda: Optional[float] = field(default=1.)
-    regularization_type: Optional[str] = field(default='total variation')
-
-    fourier_n_mode: Optional[int] = field(default=4)
-
-    chebyshev_n_term: Optional[int] = field(default=4)
-    bspline_n_knot: Optional[int] = field(default=4)
-    bspline_degree: Optional[int] = field(default=1)
 
     scheduler_step_size: Optional[int] = field(default=1)
     scheduler_gamma: Optional[float] = field(default=1.)
     scheduler_min_lr: Optional[float] = field(default=0.)
     scheduler_ratio_warmup: Optional[float] = field(default=0.1)
     lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential']] = field(default='linear_with_warmup')
+
+    full_supervision: Optional[bool] = field(default=True)
 
     system_: Optional[str] = field(default='s1')
 
@@ -294,58 +269,13 @@ class DatasetConfig:
 
     @property
     def test_points(self) -> List[Tuple]:
-        if self.random_test:
-            if self.random_test_points is None:
-                self.random_test_points = self.get_test_points(5)
-            return self.random_test_points
-        else:
-            if self.system_ == 's1':
-                return [(x, y) for x, y in itertools.product(
-                    np.linspace(-1, 1, 6),
-                    np.linspace(-1, 1, 6)
-                )]
-            elif self.system_ == 's2':
-                return [(x, y, z) for x, y, z in itertools.product(
-                    np.linspace(-0.3, 0.3, 3),
-                    np.linspace(-0.3, 0.3, 3),
-                    np.linspace(-0.3, 0.3, 3)
-                )]
-            elif self.system_ == 's4':
-                return [(x, y) for x, y in itertools.product(
-                    np.linspace(-1, 1, 6),
-                    np.linspace(-1, 1, 6),
-                )]
-            else:
-                raise NotImplementedError(f'No test points have been assigned to system {self.system_} instead,'
-                                          f' please use random test points instead.')
+        if self.random_test_points is None:
+            self.random_test_points = self.get_test_points(5)
+        return self.random_test_points
 
     @property
     def n_state(self):
         return self.system.n_state
-
-    @property
-    def dataset_base_path(self):
-        base_path = f'{self.base_path}/{self.data_generation_strategy}'
-        if self.data_generation_strategy == 'nn':
-            return f'{base_path}/{self.net_type}'
-        else:
-            return base_path
-
-    @property
-    def training_dataset_file(self):
-        return f'{self.dataset_base_path}/train.pt'
-
-    @property
-    def validating_dataset_file(self):
-        return f'{self.dataset_base_path}/validate.pt'
-
-    @property
-    def testing_dataset_file(self):
-        return f'{self.dataset_base_path}/test.pt'
-
-    @property
-    def n_epoch(self):
-        return self.net_n_epoch
 
     @property
     def system(self):

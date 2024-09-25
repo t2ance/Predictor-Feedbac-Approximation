@@ -268,19 +268,38 @@ def result_to_samples(result: SimulationResult, dataset_config):
             continue
         t_z_i = t_z_pred_i - n_point_delay(t_z_pred)
         t_z = dataset_config.ts[t_z_i]
-        # if t_z_i < n_point_start:
-        #     continue
         t_u_i = t_z_i - n_point_delay(t_z)
 
         Zs.append(result.Z[t_z_i])
-        Zs_prediction.append(result.Z[t_z_pred_i])
+        if dataset_config.full_supervision:
+            if t_z_pred_i - max_n_point_delay < 0:
+                continue
+            Zs_prediction.append(result.Z[t_z_pred_i - max_n_point_delay: t_z_pred_i])
+        else:
+            Zs_prediction.append(result.Z[t_z_pred_i])
         Us.append(pad_zeros(result.U[t_u_i:t_z_i], max_n_point_delay))
         ts.append(t_z)
 
     samples = []
     for z_pred, z, t, u in zip(Zs_prediction, Zs, ts, Us):
-        samples.append((sample_to_tensor(z, u, t.reshape(-1)), torch.from_numpy(z_pred)))
+        samples.append({
+            't': torch.tensor(t),
+            'z': torch.from_numpy(z),
+            'u': torch.from_numpy(u),
+            'label': torch.from_numpy(z_pred),
+            'input': sample_to_tensor(z, u, t.reshape(-1)),
+        })
     return samples
+
+
+def to_batched_data(batch, device='cuda'):
+    return {
+        't': torch.stack([sample['t'] for sample in batch]).to(dtype=torch.float32, device=device),
+        'z': torch.stack([sample['z'] for sample in batch]).to(dtype=torch.float32, device=device),
+        'u': torch.stack([sample['u'] for sample in batch]).to(dtype=torch.float32, device=device),
+        'label': torch.stack([sample['label'] for sample in batch]).to(dtype=torch.float32, device=device),
+        'input': torch.stack([sample['input'] for sample in batch]).to(dtype=torch.float32, device=device)
+    }
 
 
 def create_simulation_result(dataset_config: DatasetConfig, train_config: TrainConfig, n_dataset: int = None,
@@ -327,16 +346,12 @@ def run_training(model_config: ModelConfig, train_config: TrainConfig, training_
         training_loss = 0.0
         for dataset_idx in range(0, len(training_dataset), batch_size):
             sequences = training_dataset[dataset_idx:dataset_idx + batch_size]
-            current_batch_size = len(sequences)
             losses = []
             subset = list(zip(*sequences))
             np.random.shuffle(subset)
             for batch in tqdm(subset):
                 optimizer.zero_grad()
-                inputs, labels = torch.vstack([batch[i][0] for i in range(current_batch_size)]), torch.vstack(
-                    [batch[i][1] for i in range(current_batch_size)])
-                inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
-                _, loss = predict_and_loss(inputs, labels, model)
+                _, loss = model(**to_batched_data(batch, device))
                 losses.append(loss.detach())
                 loss.backward()
                 optimizer.step()
@@ -350,13 +365,9 @@ def run_training(model_config: ModelConfig, train_config: TrainConfig, training_
             validating_loss = 0.0
             for dataset_idx in range(0, len(validation_dataset), batch_size):
                 sequences = validation_dataset[dataset_idx:dataset_idx + batch_size]
-                current_batch_size = len(sequences)
                 losses = []
                 for batch in tqdm(list(zip(*sequences))):
-                    inputs, labels = torch.vstack([batch[i][0] for i in range(current_batch_size)]), torch.vstack(
-                        [batch[i][1] for i in range(current_batch_size)])
-                    inputs, labels = inputs.to(device, dtype=torch.float32), labels.to(device, dtype=torch.float32)
-                    _, loss = predict_and_loss(inputs, labels, model)
+                    _, loss = model(**to_batched_data(batch, device))
                     losses.append(loss.detach())
                 validating_loss += (sum(losses) / len(losses)).item()
                 n_epoch += 1

@@ -54,8 +54,10 @@ def mini_train():
         name=f'test'
     )
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='FNO-GRU')
-    # dataset_config, model_config, train_config = get_config(system_='s9', model_name='FNO-GRU')
-    dataset_config, model_config, train_config = get_config(system_='s9', model_name='GRU')
+    dataset_config, model_config, train_config = get_config(system_='s9', model_name='DeepONet-GRU')
+    # dataset_config, model_config, train_config = get_config(system_='s9', model_name='GRU')
+    # dataset_config, model_config, train_config = get_config(system_='s9', model_name='FNO')
+    # dataset_config, model_config, train_config = get_config(system_='s9', model_name='DeepONet')
     dataset_config.dataset_version = 'v0'
     training_dataset, validation_dataset = load_dataset(dataset_config, train_config, [], run)
 
@@ -65,9 +67,9 @@ def mini_train():
 
 
 if __name__ == '__main__':
-    # mini_train()
+    mini_train()
     # result = baxter_test_unicycle()
-    result = baxter_test_n_dof()
+    # result = baxter_test_n_dof()
     # import wandb
     # from config import get_config
     #
