@@ -128,7 +128,8 @@ def load_model(train_config, model_config, dataset_config, n_param_out: bool = F
     n_input = dataset_config.system.n_input
     seq_len = dataset_config.max_n_point_delay()
     if model_name == 'DeepONet':
-        model = DeepONet(n_output=n_state, n_input=n_input, n_state=n_state, seq_len=seq_len)
+        model = DeepONet(hidden_size=model_config.deeponet_hidden_size, n_layer=model_config.deeponet_n_layer,
+                         n_output=n_state, n_input=n_input, n_state=n_state, seq_len=seq_len)
     elif model_name == 'FNO':
         n_modes_height = model_config.fno_n_modes_height
         hidden_channels = model_config.fno_hidden_channels

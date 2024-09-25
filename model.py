@@ -161,7 +161,7 @@ class DeepONetGRU(TimeAwareNeuralOperator):
     def __init__(self, deeponet_n_layer: int, deeponet_hidden_size: int, gru_n_layers: int, gru_hidden_size: int,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.ffn = DeepONet(layer_width=deeponet_hidden_size, n_layer=deeponet_n_layer, **kwargs)
+        self.ffn = DeepONet(hidden_size=deeponet_hidden_size, n_layer=deeponet_n_layer, **kwargs)
         self.rnn = nn.GRU(self.n_state, gru_hidden_size, gru_n_layers, batch_first=True)
         self.projection = nn.Linear(gru_hidden_size, self.n_state)
 
@@ -170,7 +170,7 @@ class DeepONetLSTM(TimeAwareNeuralOperator):
     def __init__(self, deeponet_n_layer: int, deeponet_hidden_size: int, lstm_n_layers: int, lstm_hidden_size: int,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.ffn = DeepONet(layer_width=deeponet_hidden_size, n_layer=deeponet_n_layer, **kwargs)
+        self.ffn = DeepONet(hidden_size=deeponet_hidden_size, n_layer=deeponet_n_layer, **kwargs)
         self.rnn = nn.LSTM(self.n_state, lstm_hidden_size, lstm_n_layers, batch_first=True)
         self.projection = nn.Linear(lstm_hidden_size, self.n_state)
 
@@ -269,10 +269,10 @@ class LinearFunctional(nn.Module):
 
 class DeepONet(LearningBasedPredictor):
 
-    def __init__(self, layer_width: int, n_layer: int, **kwargs):
+    def __init__(self, hidden_size: int, n_layer: int, **kwargs):
         super(DeepONet, self).__init__(**kwargs)
         # creating the branch network#
-        self.branch_net = MLP(n_input=self.seq_len * self.n_input + self.n_state, hidden_size=layer_width,
+        self.branch_net = MLP(n_input=self.seq_len * self.n_input + self.n_state, hidden_size=hidden_size,
                               depth=n_layer)
         self.branch_net.float()
 
@@ -280,7 +280,7 @@ class DeepONet(LearningBasedPredictor):
         self.trunk_nets = nn.ParameterList()
         self.biases = nn.ParameterList()
         for _ in range(self.n_state):
-            trunk_net = MLP(n_input=1, hidden_size=layer_width, depth=n_layer).float()
+            trunk_net = MLP(n_input=1, hidden_size=hidden_size, depth=n_layer).float()
             bias = nn.Parameter(torch.ones((1,)), requires_grad=True)
 
             self.trunk_nets.append(trunk_net)
