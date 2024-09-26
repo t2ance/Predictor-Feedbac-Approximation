@@ -316,15 +316,21 @@ def create_simulation_result(dataset_config: DatasetConfig, train_config: TrainC
     else:
         n_dataset = len(test_points)
 
+    times = []
     for dataset_idx, Z0 in enumerate(test_points):
         result = simulation(dataset_config, train_config, Z0, 'numerical')
         results.append(result)
+        times.append(result.avg_prediction_time)
         wandb.log(
             {
                 'dataset progress': dataset_idx / n_dataset
             }
         )
-
+    wandb.log(
+        {
+            'numerical runtime': sum(times) / len(times) * 1000
+        }
+    )
     return results
 
 
@@ -394,6 +400,7 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
 
     bar = test_points if silence else tqdm(test_points)
     l2_list = []
+    rl2_list = []
     prediction_time = []
     n_iter_list = []
     results = []
@@ -432,14 +439,15 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
             if not silence:
                 print(f'[WARNING] Running with initial condition Z = {test_point} with method [{method}] failed.')
             continue
-    # l2 = np.nanmean(l2_list).item()
     l2 = np.mean(l2_list).item()
+    rl2 = np.mean(rl2_list).item()
     runtime = np.nanmean(prediction_time).item()
     if method == 'numerical':
         n_iter = np.concatenate(n_iter_list).mean()
         print(f'Numerical method uses {n_iter} iterations on average.')
 
-    return TestResult(runtime=runtime, l2=l2, success_cases=len(l2_list), results=results, no_pred_ratio=no_pred_ratio)
+    return TestResult(runtime=runtime, rl2=rl2, l2=l2, success_cases=len(l2_list), results=results,
+                      no_pred_ratio=no_pred_ratio)
 
 
 def run_tests(model, train_config, dataset_config, model_config, test_points, only_no_out: bool = False):
@@ -538,7 +546,8 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
         model_config.save_model(run, model)
     test_results = run_tests(model, train_config, dataset_config, model_config, test_point_pairs, only_no_out)
     wandb.log({'l2': test_results['no'].l2})
-    wandb.log({'runtime': test_results['no'].runtime})
+    wandb.log({'rl2': test_results['no'].rl2})
+    wandb.log({'runtime': test_results['no'].runtime * 1000})
     wandb.log({'training time': (end - begin) / 60})
     return test_results, model
 

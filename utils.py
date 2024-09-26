@@ -53,6 +53,7 @@ class SimulationResult:
 class TestResult:
     runtime: float = None
     l2: float = None
+    rl2: float = None
     success_cases: int = None
     results: List = None
     no_pred_ratio: List = None
