@@ -22,7 +22,6 @@ class LearningBasedPredictor(torch.nn.Module):
                 return out, self.mse_loss(x_ffn, label) + self.mse_loss(x_no, label)
             else:
                 return out
-
         else:
             x = self.compute(u, z, t)
             out = x[:, -1, :]
