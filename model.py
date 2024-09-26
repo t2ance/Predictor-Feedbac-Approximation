@@ -15,12 +15,21 @@ class LearningBasedPredictor(torch.nn.Module):
         raise NotImplementedError()
 
     def forward(self, u: torch.Tensor, z: torch.Tensor, t: torch.Tensor, label: torch.Tensor = None, **kwargs):
-        x = self.compute(u, z, t)
-        out = x[:, -1, :]
-        if label is not None:
-            return out, self.mse_loss(x, label)
+        if isinstance(self, TimeAwareNeuralOperator):
+            x_ffn, x_no = self.compute(u, z, t, ffn_output=True)
+            out = x_no[:, -1, :]
+            if label is not None:
+                return out, self.mse_loss(x_ffn, label) + self.mse_loss(x_no, label)
+            else:
+                return out
+
         else:
-            return out
+            x = self.compute(u, z, t)
+            out = x[:, -1, :]
+            if label is not None:
+                return out, self.mse_loss(x, label)
+            else:
+                return out
 
 
 class FFN(LearningBasedPredictor):
@@ -128,10 +137,12 @@ class TimeAwareNeuralOperator(LearningBasedPredictor):
         super().__init__(*args, **kwargs)
         self.full_supervision = False
 
-    def compute(self, u: torch.Tensor, z: torch.Tensor, t: torch.Tensor):
+    def compute(self, u: torch.Tensor, z: torch.Tensor, t: torch.Tensor, ffn_output: bool = False):
         ffn_out = self.ffn.compute(u, z, t)
         output, hidden = self.rnn(ffn_out)
         no_out = self.projection(output)
+        if ffn_output:
+            return ffn_out, no_out
         return no_out
 
 
