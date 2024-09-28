@@ -14,8 +14,8 @@ def baxter_test_n_dof():
     #     project="no",
     #     name=f'test'
     # )
-    dataset_config, model_config, train_config = get_config(system_='s10', model_name='FNO')
-    # model = load_model(train_config, model_config, dataset_config)
+    dataset_config, model_config, train_config = get_config(system_='s10', model_name='Inverted-FNO-GRU')
+    model = load_model(train_config, model_config, dataset_config)
     # model_config.get_model(run, train_config, dataset_config, version='v168')
     Z0 = dataset_config.test_points[0]
     print('initial point', Z0)
@@ -24,8 +24,8 @@ def baxter_test_n_dof():
     # training_dataset
     Z0 = [0.07407145, 0.11798713, 0.06306392, 0.24340997, 0.27855349, 0.11211986, 0.1920229, 0.19603325, 0.00758645,
           0.23880707]
-    result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
-                        img_save_path='./misc', silence=False)
+    result = simulation(method='no', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
+                        img_save_path='./misc', silence=False, model=model)
     print(result.runtime)
     # result_to_samples(result, dataset_config)
     return result
@@ -53,11 +53,12 @@ def mini_train():
         project="no",
         name=f'test'
     )
-    dataset_config, model_config, train_config = get_config(system_='s9', model_name='FNO-GRU')
+    # dataset_config, model_config, train_config = get_config(system_='s9', model_name='FNO-GRU')
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='DeepONet-GRU')
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='GRU')
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='FNO')
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='DeepONet')
+    dataset_config, model_config, train_config = get_config(system_='s10', model_name='Inverted-FNO-GRU')
     dataset_config.dataset_version = 'v0'
     training_dataset, validation_dataset = load_dataset(dataset_config, train_config, [], run)
 

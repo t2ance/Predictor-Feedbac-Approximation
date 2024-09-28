@@ -16,11 +16,17 @@ class LearningBasedPredictor(torch.nn.Module):
 
     def forward(self, u: torch.Tensor, z: torch.Tensor, t: torch.Tensor, label: torch.Tensor = None, **kwargs):
         if isinstance(self, TimeAwareNeuralOperator):
-            x_ffn, x_rnn = self.compute(u, z, t, ffn_output=True)
-            x_rnn = x_rnn + x_ffn
-            out = x_rnn[:, -1, :]
+            # x_ffn, x_rnn = self.compute(u, z, t, ffn_output=True)
+            # x_rnn = x_rnn + x_ffn
+            # out = x_rnn[:, -1, :]
+            # if label is not None:
+            #     return out, self.mse_loss(x_ffn, label) + self.mse_loss(x_rnn, label)
+            # else:
+            #     return out
+            outs = self.compute(u, z, t)
+            out = outs[:, -1, :]
             if label is not None:
-                return out, self.mse_loss(x_ffn, label) + self.mse_loss(x_rnn, label)
+                return out, self.mse_loss(outs, label)
             else:
                 return out
         else:
@@ -133,73 +139,88 @@ def resize_rfft(ar, s):
 
 
 class TimeAwareNeuralOperator(LearningBasedPredictor):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.full_supervision = False
+    def __init__(self, ffn: str, rnn: str, invert: bool, params, **kwargs):
+        super().__init__(**kwargs)
+        self.invert = invert
+        if invert:
+            if rnn == 'GRU':
+                self.rnn = nn.GRU(self.n_state+self.n_input, params['gru_hidden_size'], params['gru_n_layers'], batch_first=True)
+                hidden_size = params['gru_hidden_size']
+                # self.projection = nn.Linear(params['gru_hidden_size'], self.n_state)
+            elif rnn == 'LSTM':
+                self.rnn = nn.LSTM(self.n_state+self.n_input, params['lstm_hidden_size'], params['lstm_n_layers'], batch_first=True)
+                hidden_size = params['lstm_hidden_size']
+                # self.projection = nn.Linear(params['lstm_hidden_size'], self.n_state)
+            else:
+                raise NotImplementedError()
+
+            if ffn == 'FNO':
+                self.ffn = FNO1d(n_modes_height=params['n_modes_height'], n_layers=params['fno_n_layers'],
+                                 hidden_channels=params['hidden_channels'], in_channels=hidden_size,
+                                 out_channels=self.n_state)
+            elif ffn == 'DeepONet':
+                ...
+            else:
+                raise NotImplementedError()
+        else:
+            if ffn == 'FNO':
+                self.ffn = FNOProjection(n_modes_height=params['n_modes_height'], n_layers=params['fno_n_layers'],
+                                         hidden_channels=params['hidden_channels'], **kwargs)
+            elif ffn == 'DeepONet':
+                self.ffn = DeepONet(hidden_size=params['deeponet_hidden_size'], n_layer=params['deeponet_n_layer'],
+                                    **kwargs)
+            else:
+                raise NotImplementedError()
+
+            if rnn == 'GRU':
+                self.rnn = nn.GRU(self.n_state, params['gru_hidden_size'], params['gru_n_layers'], batch_first=True)
+                self.projection = nn.Linear(params['gru_hidden_size'], self.n_state)
+            elif rnn == 'LSTM':
+                self.rnn = nn.LSTM(self.n_state, params['lstm_hidden_size'], params['lstm_n_layers'], batch_first=True)
+                self.projection = nn.Linear(params['lstm_hidden_size'], self.n_state)
+            else:
+                raise NotImplementedError()
 
     def compute(self, u: torch.Tensor, z: torch.Tensor, t: torch.Tensor, ffn_output: bool = False):
-        ffn_out = self.ffn.compute(u, z, t)
-        output, hidden = self.rnn(ffn_out)
-        rnn_out = self.projection(output)
-        if ffn_output:
-            return ffn_out, rnn_out
-        return rnn_out
-
-
-class FNOGRU(TimeAwareNeuralOperator):
-
-    def __init__(self, n_modes_height: int, hidden_channels: int, fno_n_layers: int, gru_n_layers: int,
-                 gru_hidden_size: int, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.ffn = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_layers=fno_n_layers,
-                                 **kwargs)
-        self.rnn = nn.GRU(self.n_state, gru_hidden_size, gru_n_layers, batch_first=True)
-        self.projection = nn.Linear(gru_hidden_size, self.n_state)
-
-
-class FNOLSTM(TimeAwareNeuralOperator):
-
-    def __init__(self, n_modes_height: int, hidden_channels: int, fno_n_layers: int, lstm_n_layers: int,
-                 lstm_hidden_size: int, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.ffn = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels, n_layers=fno_n_layers,
-                                 **kwargs)
-        self.rnn = nn.LSTM(self.n_state, lstm_hidden_size, lstm_n_layers, batch_first=True)
-        self.projection = nn.Linear(lstm_hidden_size, self.n_state)
-
-
-class DeepONetGRU(TimeAwareNeuralOperator):
-    def __init__(self, deeponet_n_layer: int, deeponet_hidden_size: int, gru_n_layers: int, gru_hidden_size: int,
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.ffn = DeepONet(hidden_size=deeponet_hidden_size, n_layer=deeponet_n_layer, **kwargs)
-        self.rnn = nn.GRU(self.n_state, gru_hidden_size, gru_n_layers, batch_first=True)
-        self.projection = nn.Linear(gru_hidden_size, self.n_state)
-
-
-class DeepONetLSTM(TimeAwareNeuralOperator):
-    def __init__(self, deeponet_n_layer: int, deeponet_hidden_size: int, lstm_n_layers: int, lstm_hidden_size: int,
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.ffn = DeepONet(hidden_size=deeponet_hidden_size, n_layer=deeponet_n_layer, **kwargs)
-        self.rnn = nn.LSTM(self.n_state, lstm_hidden_size, lstm_n_layers, batch_first=True)
-        self.projection = nn.Linear(lstm_hidden_size, self.n_state)
+        if self.invert:
+            repeated_z = z.tile(u.shape[1]).reshape(z.shape[0], -1, z.shape[1])
+            x = torch.concatenate([u, repeated_z], -1)
+            rnn_out, _ = self.rnn(x)
+            ffn_out = self.ffn(rnn_out.transpose(1, 2)).transpose(1, 2)
+            # if ffn_output:
+            #     return ffn_out, rnn_out
+            return ffn_out
+        else:
+            ffn_out = self.ffn.compute(u, z, t)
+            output, _ = self.rnn(ffn_out)
+            rnn_out = self.projection(output)
+            if ffn_output:
+                return ffn_out, rnn_out
+            return rnn_out
 
 
 class FNOProjection(LearningBasedPredictor):
-    def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, *args, **kwargs):
+    def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, in_channels=None, out_channels=None,
+                 *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.n_modes_height = n_modes_height
+        if in_channels is None:
+            in_channels = self.n_input + self.n_state
+        # in_channels += 1
+        if out_channels is None:
+            out_channels = self.n_state
         self.fno = FNO1d(n_modes_height=n_modes_height, n_layers=n_layers, hidden_channels=hidden_channels,
-                         in_channels=self.n_input + 1, out_channels=self.n_state)
-        self.linear_decoder = LinearDecoder(self.n_state, 1, n_modes_height)
+                         in_channels=in_channels, out_channels=out_channels)
+        # self.linear_decoder = LinearDecoder(self.n_state, 1, n_modes_height)
 
     def compute(self, u: torch.Tensor, z: torch.Tensor, t: torch.Tensor):
-        u = u.transpose(1, 2)
-        seq_len = u.shape[-1]
-        z = self.linear_decoder(z, seq_len)
-        x = torch.concatenate([u, z], 1)
-        x = self.fno(x)
+        repeated_z = z.tile(u.shape[1]).reshape(z.shape[0], -1, z.shape[1])
+        x = torch.concatenate([u, repeated_z], -1)
+        # u = u.transpose(1, 2)
+        # seq_len = u.shape[-1]
+        # z = self.linear_decoder(z, seq_len)
+        # x = torch.concatenate([u, z], 1)
+        x = self.fno(x.transpose(1, 2))
         return x.transpose(1, 2)
 
 
@@ -283,8 +304,7 @@ class DeepONet(LearningBasedPredictor):
     def __init__(self, hidden_size: int, n_layer: int, **kwargs):
         super(DeepONet, self).__init__(**kwargs)
         # creating the branch network#
-        self.branch_net = MLP(n_input=self.seq_len * self.n_input + self.n_state, hidden_size=hidden_size,
-                              depth=n_layer)
+        self.branch_net = MLP(n_input=self.seq_len, hidden_size=hidden_size, depth=n_layer)
         self.branch_net.float()
 
         # creating the trunk network#
@@ -298,22 +318,59 @@ class DeepONet(LearningBasedPredictor):
             self.biases.append(bias)
 
     def compute(self, u: torch.Tensor, z: torch.Tensor, t: torch.Tensor):
-        batch_size = u.shape[0]
-        x = torch.hstack([u.reshape(batch_size, -1), z.reshape(batch_size, -1)])
-        out = []
-        for i in range(self.seq_len):
-            x_i = self.forward_(x, i * torch.ones(x.shape[0], 1, device=x.device))
-            out.append(x_i.unsqueeze(1))
-        return torch.concatenate(out, dim=1)
+        repeated_z = z.tile(u.shape[1]).reshape(z.shape[0], -1, z.shape[1])
+        x = torch.concatenate([u, repeated_z], -1)
+        batch_size = x.shape[0]
+        x = x.permute(0, 2, 1).reshape(-1, self.seq_len)
+        new_batch_size = x.shape[0]
+
+        x_trunk = torch.arange(self.seq_len, device=x.device, dtype=torch.float32).tile(new_batch_size).reshape(
+            new_batch_size, -1, 1)
+
+        x_i = self.forward_(x, x_trunk)
+
+        return x_i.reshape(batch_size, self.seq_len, -1)
 
     def forward_(self, x_branch, x_trunk):
         branch_out = self.branch_net(x_branch)
-        outputs = []
-        for trunk_net, bias in zip(self.trunk_nets, self.biases):
-            trunk_out = trunk_net(x_trunk, final_act=True)
-            output = torch.einsum('ij,ij->i', branch_out, trunk_out) + bias
-            outputs.append(output)
-        return torch.vstack(outputs).T
+
+        # trunk网络的输出（批量计算）
+        trunk_outputs = []
+        for trunk_net in self.trunk_nets:
+            trunk_output = trunk_net(x_trunk)
+            trunk_outputs.append(trunk_output)
+
+        trunk_outputs = torch.stack(trunk_outputs, dim=-1)  # 形状: [batch_size, seq_len, n_state]
+
+        # 广播branch_out，以便与trunk_outputs进行批量计算
+        branch_out_expanded = branch_out.unsqueeze(1).repeat(1, self.seq_len, 1)
+
+        # 批量点积计算
+        output = torch.einsum('bsi,bsi->bs', branch_out_expanded, trunk_outputs)
+
+        # 添加biases
+        biases = torch.stack(self.biases).unsqueeze(0).unsqueeze(0)  # 形状: [1, 1, n_state]
+        output += biases  # 形状: [batch_size, seq_len, n_state]
+
+        return output
+
+    # def compute(self, u: torch.Tensor, z: torch.Tensor, t: torch.Tensor):
+    #     batch_size = u.shape[0]
+    #     x = torch.hstack([u.reshape(batch_size, -1), z.reshape(batch_size, -1)])
+    #     out = []
+    #     for i in range(self.seq_len):
+    #         x_i = self.forward_(x, i * torch.ones(x.shape[0], 1, device=x.device))
+    #         out.append(x_i.unsqueeze(1))
+    #     return torch.concatenate(out, dim=1)
+    #
+    # def forward_(self, x_branch, x_trunk):
+    #     branch_out = self.branch_net(x_branch)
+    #     outputs = []
+    #     for trunk_net, bias in zip(self.trunk_nets, self.biases):
+    #         trunk_out = trunk_net(x_trunk, final_act=True)
+    #         output = torch.einsum('ij,ij->i', branch_out, trunk_out) + bias
+    #         outputs.append(output)
+    #     return torch.vstack(outputs).T
 
 
 class MLP(nn.Module):
