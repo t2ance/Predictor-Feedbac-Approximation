@@ -233,6 +233,8 @@ class DatasetConfig:
     system_c: Optional[float] = field(default=1.)
     system_n: Optional[float] = field(default=2.)
     baxter_dof: Optional[int] = field(default=2)
+    baxter_f: Optional[float] = field(default=0.1)
+    baxter_magnitude: Optional[float] = field(default=0.2)
 
     scheduler_step_size: Optional[int] = field(default=1)
     scheduler_gamma: Optional[float] = field(default=1.)
@@ -287,8 +289,8 @@ class DatasetConfig:
             return dynamic_systems.InvertedPendulum()
         elif self.system_ == 's4':
             return dynamic_systems.VanDerPolOscillator()
-        elif self.system_ == 's5' or self.system_ == 's8':
-            return dynamic_systems.Baxter(dof=self.baxter_dof)
+        elif self.system_ == 's5' or self.system_ == 's8' or self.system_ == 's10':
+            return dynamic_systems.Baxter(dof=self.baxter_dof, f=self.baxter_f, magnitude=self.baxter_magnitude)
         elif self.system_ == 's6':
             return dynamic_systems.DynamicSystem3()
         elif self.system_ == 's7' or self.system_ == 's9':
@@ -449,6 +451,17 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
                                    scheduler_min_lr=1e-5)
+    elif system_ == 's10':
+        dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory',
+                                       delay=ConstantDelay(.5), duration=8, dt=0.02, n_training_dataset=100,
+                                       n_validation_dataset=1, n_sample_per_dataset=-1, baxter_dof=5, baxter_f=0.5,
+                                       baxter_magnitude=0.1, ic_lower_bound=0, ic_upper_bound=1,
+                                       random_test_lower_bound=0, random_test_upper_bound=1)
+        model_config = ModelConfig(model_name='FNO')
+        train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
+                                   weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', uq_alpha=0.01,
+                                   scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
+                                   scheduled_sampling_k=1e-2, scheduler_min_lr=1e-5)
     else:
         raise NotImplementedError()
     if n_iteration is not None:

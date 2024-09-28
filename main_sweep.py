@@ -13,6 +13,7 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.scheduler_min_lr = 0
     train_config.batch_size = 2048
 
+    dataset_config.recreate_dataset = False
     dataset_config.n_training_dataset = 250
     train_config.n_epoch = 100
 
@@ -108,7 +109,7 @@ def get_parameters(system: str, model_name: str):
         },
     }
 
-    if system == 's8':
+    if system == 's8' or system == 's10':
         gru_params = {
             'gru_n_layer': {
                 'distribution': 'int_uniform',
