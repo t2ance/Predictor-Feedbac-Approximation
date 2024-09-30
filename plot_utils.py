@@ -266,10 +266,10 @@ def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, ylim=None, Ps_la
     Ps = Ps_
 
     delay_label = str(delay(0)) if isinstance(delay, ConstantDelay) else 'D(t)'
-
+    linesytles = ['--', ':']
     for i in range(n_state):
         for j, (P, label) in enumerate(zip(Ps, Ps_labels)):
-            ax.plot(ts[2 * n_point_start:], P[n_point_start:, i], linestyle='--', color=colors[i],
+            ax.plot(ts[2 * n_point_start:], P[n_point_start:, i], linestyle=linesytles[i], color=colors[i],
                     label=f'$P^{{{label}}}_{i + 1}(t-{delay_label})$')
         ax.plot(ts[n_point_start:], Z[n_point_start:, i], label=f'$Z_{i + 1}(t)$', linestyle='-', color=colors[i])
     if ylim is not None:
@@ -283,9 +283,16 @@ def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, ylim=None, Ps_la
         if n_state < display_threshold:
             ax.legend(loc=legend_loc)
         else:
-            ax.legend(handles=[Line2D([0], [0], color='black', linestyle='--'),
-                               Line2D([0], [0], color='black', linestyle='-')],
-                      labels=[f'$P(t-{delay_label})$', f'$Z(t)$'], loc=legend_loc)
+            handles = [
+                Line2D([0], [0], color='black', linestyle='--'),
+                Line2D([0], [0], color='black', linestyle='-')
+            ]
+            labels = [f'$P(t-{delay_label})$', f'$Z(t)$']
+            if len(Ps) == 2:
+                handles.append(Line2D([0], [0], color='black', linestyle='-'))
+                labels.append(rf'$P^\prime(t)$')
+            ax.legend(handles=handles,
+                      labels=labels, loc=legend_loc)
     if figure is not None and save_path is not None:
         figure.savefig(save_path)
         figure.clear()
