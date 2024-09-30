@@ -120,7 +120,7 @@ class Baxter(DynamicSystem):
             [self.f * np.cos(self.f * t), -self.f * np.sin(self.f * t), self.f * np.cos(self.f * t),
              -self.f * np.sin(self.f * t),
              self.f * np.cos(self.f * t), 0, 0])[
-                     :self.dof]
+                                :self.dof]
 
     @lru_cache(maxsize=None)
     def qdd_des(self, t):
@@ -474,21 +474,31 @@ class TimeVaryingDelay(Delay):
         return 1
 
     def phi(self, t):
-        if t < 0:
-            t = 0
+        if isinstance(t, np.ndarray):
+            t[t < 0] = 0
+        else:
+            t = max(t, 0)
         return t - (1 + t) / (1 + 2 * t)
 
     def phi_prime(self, t):
-        if t < 0:
-            t = 0
+        if isinstance(t, np.ndarray):
+            t[t < 0] = 0
+        else:
+            t = max(t, 0)
         return 1 + 1 / (1 + 2 * t) ** 2
 
     def phi_inverse(self, t):
-        if t < 0:
-            t = 0
-        if t == -1:
-            return 2
-        return t + (1 + t) / (((1 + t) ** 2 + 1) ** 0.5 + t)
+        # if t < 0:
+        #     t = 0
+        if isinstance(t, np.ndarray):
+            t[t < 0] = 0
+            t[t == -1] = 2
+            return t + (1 + t) / (((1 + t) ** 2 + 1) ** 0.5 + t)
+        else:
+            t = max(0, t)
+            if t == -1:
+                return 2
+            return t + (1 + t) / (((1 + t) ** 2 + 1) ** 0.5 + t)
 
 
 def solve_integral_nn(model, U_D, Z_t, t):
@@ -513,7 +523,11 @@ def solve_integral(Z_t, P_D, U_D, t: float, dataset_config, delay: Delay):
     dt = dataset_config.dt
 
     def f(p, t, u):
-        return system.dynamic(p, t, u) / delay.phi_prime(delay.phi_inverse(t))
+        phi_prime = delay.phi_prime(delay.phi_inverse(t))
+        dynamic = system.dynamic(p, t, u)
+        if isinstance(phi_prime, np.ndarray):
+            phi_prime = phi_prime[..., None]
+        return dynamic / phi_prime
 
     n_state = system.n_state
     n_points = len(P_D)
@@ -597,48 +611,6 @@ def solve_integral_successive(Z_t, n_points: int, n_state: int, dt: float, U_D: 
         return P_D[-1, -1, :]
 
 
-def solve_integral_successive_batched(Z_t, n_points: int, dt: float, U_D: np.ndarray, f, ts: np.ndarray,
-                                      n_iterations: int = 1, threshold: float = 1e-5, adaptive: bool = False):
-    assert n_iterations >= 0
-    assert isinstance(Z_t, np.ndarray)
-    batch_size, n_state = Z_t.shape
-
-    if adaptive:
-        # iteration, batch, time, state
-        P_D = np.zeros((2, batch_size, n_points + 1, n_state))
-        P_D[0, :, :, :] = Z_t[:, np.newaxis, :]
-
-        n_iterations = 0
-        while True:
-            n_iterations += 1
-            for j in range(n_points):
-                if j == 0:
-                    P_D[1, :, j + 1, :] = Z_t + dt * f(P_D[0, :, 0, :], ts[:, 0], U_D[:, 0])
-                else:
-                    P_D[1, :, j + 1, :] = P_D[1, :, j, :] + dt * f(P_D[0, :, j, :], ts[:, j], U_D[:, j])
-
-            # Check for convergence
-            if np.all(np.abs(P_D[1] - P_D[0]) < threshold):
-                break
-
-            # Update P_D for the next iteration
-            P_D[0, :, :, :] = P_D[1, :, :, :]
-
-        return P_D[1, :, -1, :], n_iterations
-    else:
-        P_D = np.zeros((n_iterations + 1, batch_size, n_points + 1, n_state))
-        P_D[0, :, :, :] = Z_t[:, np.newaxis, :]
-
-        for n in range(n_iterations):
-            for j, t in enumerate(ts):
-                if j == 0:
-                    P_D[n + 1, :, j + 1, :] = Z_t + dt * f(P_D[n, :, 0, :], t, U_D[:, 0])
-                else:
-                    P_D[n + 1, :, j + 1, :] = P_D[n + 1, :, j, :] + dt * f(P_D[n, :, j, :], t, U_D[:, j])
-
-        return P_D[-1, :, -1, :]
-
-
 def solve_integral_rectangle(f, Z_t, P_D, U_D, ts, dt: float):
     assert len(P_D) == len(U_D)
     if len(P_D) == 0:
@@ -654,7 +626,7 @@ def solve_integral_trapezoidal(f, Z_t, P_D, U_D, ts, dt: float):
         return 0
     integrand_values = f(np.array(P_D), np.array(ts), np.array(U_D))
     t_values = np.arange(0, len(integrand_values)) * dt
-    integral = np.trapz(integrand_values, t_values)
+    integral = np.trapz(integrand_values, t_values, axis=0)
     return integral + Z_t
 
 
@@ -664,21 +636,8 @@ def solve_integral_simpson(f, Z_t, P_D, U_D, ts, dt: float):
         return 0
     integrand_values = f(np.array(P_D), np.array(ts), np.array(U_D))
     t_values = np.arange(0, len(integrand_values)) * dt
-    integral = simps(integrand_values, t_values)
+    integral = simps(integrand_values, t_values, axis=0)
     return integral + Z_t
-
-
-def ode_forward(Z_t, Z_t_dot, dt):
-    return Z_t + Z_t_dot * dt
-
-
-def solve_integral_equation_explicit(t, delay, Z1_t, Z2_t, U_D, ts_D, dt):
-    assert len(ts_D) == len(U_D)
-    term1 = sum(U_D) * dt
-    term2 = sum([(t - theta) * u * dt for u, theta in zip(U_D, ts_D)])
-    P1_t = Z1_t + delay * Z2_t + term2 - Z2_t ** 2 * term1 - Z2_t * term1 ** 2
-    P2_t = Z2_t + term1
-    return P1_t, P2_t
 
 
 if __name__ == '__main__':

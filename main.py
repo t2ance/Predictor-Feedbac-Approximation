@@ -16,8 +16,8 @@ from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import sample_to_tensor
 from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral
 from plot_utils import plot_result, difference
-from utils import pad_zeros, l2_p_phat, check_dir, predict_and_loss, load_lr_scheduler, set_everything, print_result, \
-    load_model, load_optimizer, print_args, get_time_str, SimulationResult, TestResult, count_params, l2_p_z
+from utils import pad_zeros, l2_p_phat, check_dir, load_lr_scheduler, set_everything, print_result, load_model, \
+    load_optimizer, print_args, get_time_str, SimulationResult, TestResult, count_params, l2_p_z
 
 warnings.filterwarnings('ignore')
 

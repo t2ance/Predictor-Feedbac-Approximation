@@ -1,8 +1,5 @@
-import numpy as np
-
-import dynamic_systems
 from config import get_config
-from dynamic_systems import ConstantDelay, TimeVaryingDelay
+from dynamic_systems import TimeVaryingDelay
 from main import simulation, result_to_samples, load_dataset, run_training
 from utils import load_model
 
@@ -14,17 +11,19 @@ def baxter_test_n_dof():
     #     project="no",
     #     name=f'test'
     # )
-    dataset_config, model_config, train_config = get_config(system_='s10', model_name='Inverted-FNO-GRU')
-    model = load_model(train_config, model_config, dataset_config)
+    # dataset_config, model_config, train_config = get_config(system_='s11', model_name='Inverted-FNO-GRU')
+    dataset_config, model_config, train_config = get_config(system_='s11', model_name='FNO')
+    # method = 'no'
+    # model = load_model(train_config, model_config, dataset_config)
+    method = 'numerical'
+    model = None
     # model_config.get_model(run, train_config, dataset_config, version='v168')
     Z0 = dataset_config.test_points[0]
     print('initial point', Z0)
     # dataset_config.dataset_version = 'v0'
     # training_dataset, validation_dataset = load_dataset(dataset_config, train_config, [], run)
     # training_dataset
-    Z0 = [0.07407145, 0.11798713, 0.06306392, 0.24340997, 0.27855349, 0.11211986, 0.1920229, 0.19603325, 0.00758645,
-          0.23880707]
-    result = simulation(method='no', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
+    result = simulation(method=method, Z0=Z0, train_config=train_config, dataset_config=dataset_config,
                         img_save_path='./misc', silence=False, model=model)
     print(result.runtime)
     # result_to_samples(result, dataset_config)
@@ -32,16 +31,29 @@ def baxter_test_n_dof():
 
 
 def baxter_test_unicycle():
-    dataset_config, model_config, train_config = get_config(system_='s9')
-    Z0 = tuple([1, 1, 1])
+    # dataset_config, model_config, train_config = get_config(system_='s9')
+    from config import DatasetConfig, TrainConfig
+    dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
+                                   delay=TimeVaryingDelay(), duration=8, dt=0.004, n_training_dataset=100,
+                                   n_validation_dataset=1, n_sample_per_dataset=-1, ic_lower_bound=0,
+                                   # integral_method='rectangle',
+                                   # integral_method='simpson',
+                                   integral_method='successive adaptive',
+                                   successive_approximation_threshold=1,
+                                   ic_upper_bound=1, random_test_lower_bound=0, random_test_upper_bound=5)
+    train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
+                               weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
+                               scheduler_min_lr=1e-5)
+    Z0 = dataset_config.test_points[0]
     print('initial point', Z0)
-    dataset_config.duration = 10
+    dataset_config.duration = 6
     dataset_config.delay = TimeVaryingDelay()
-    dataset_config.dt = 0.1
+    dataset_config.dt = 0.02
     result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
                         img_save_path='./misc', silence=False)
     samples = result_to_samples(result, dataset_config)
     print(result.runtime)
+    return result
 
 
 def mini_train():
@@ -56,9 +68,9 @@ def mini_train():
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='FNO-GRU')
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='DeepONet-GRU')
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='GRU')
-    # dataset_config, model_config, train_config = get_config(system_='s9', model_name='FNO')
+    dataset_config, model_config, train_config = get_config(system_='s9', model_name='FNO')
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='DeepONet')
-    dataset_config, model_config, train_config = get_config(system_='s10', model_name='Inverted-FNO-GRU')
+    # dataset_config, model_config, train_config = get_config(system_='s11', model_name='Inverted-FNO-GRU')
     dataset_config.dataset_version = 'v0'
     training_dataset, validation_dataset = load_dataset(dataset_config, train_config, [], run)
 
@@ -71,8 +83,8 @@ def mini_train():
 
 if __name__ == '__main__':
     # mini_train()
-    # result = baxter_test_unicycle()
     result = baxter_test_n_dof()
+    # result = baxter_test_unicycle()
     # import wandb
     # from config import get_config
     #

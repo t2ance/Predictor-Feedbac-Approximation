@@ -144,11 +144,13 @@ class TimeAwareNeuralOperator(LearningBasedPredictor):
         self.invert = invert
         if invert:
             if rnn == 'GRU':
-                self.rnn = nn.GRU(self.n_state+self.n_input, params['gru_hidden_size'], params['gru_n_layers'], batch_first=True)
+                self.rnn = nn.GRU(self.n_state + self.n_input, params['gru_hidden_size'], params['gru_n_layers'],
+                                  batch_first=True)
                 hidden_size = params['gru_hidden_size']
                 # self.projection = nn.Linear(params['gru_hidden_size'], self.n_state)
             elif rnn == 'LSTM':
-                self.rnn = nn.LSTM(self.n_state+self.n_input, params['lstm_hidden_size'], params['lstm_n_layers'], batch_first=True)
+                self.rnn = nn.LSTM(self.n_state + self.n_input, params['lstm_hidden_size'], params['lstm_n_layers'],
+                                   batch_first=True)
                 hidden_size = params['lstm_hidden_size']
                 # self.projection = nn.Linear(params['lstm_hidden_size'], self.n_state)
             else:
@@ -224,180 +226,70 @@ class FNOProjection(LearningBasedPredictor):
         return x.transpose(1, 2)
 
 
-class LinearDecoder(nn.Module):
-    def __init__(self, in_channels, out_channels, modes):
-        """
-        Fourier neural decoder layer for functions over the torus. Maps vectors to functions.
-        Inputs:
-            in_channels  (int): dimension of input vectors
-            out_channels (int): total number of functions to extract
-        """
-        super(LinearDecoder, self).__init__()
-
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-
-        # Number of Fourier modes to multiply, at most floor(N/2) + 1
-        self.modes = modes
-
-        self.scale = 1. / (self.in_channels * self.out_channels)
-        self.weights = nn.Parameter(
-            self.scale * torch.rand(self.in_channels, self.out_channels, self.modes + 1, dtype=torch.cfloat))
-
-    def forward(self, x, s):
-        """
-        Input shape (of x):     (batch, in_channels, ...)
-        s            (int):     desired spatial resolution (nx,) of functions
-        Output shape:           (batch, out_channels, ..., nx)
-        """
-        # Multiply relevant Fourier modes
-        x = compl_mul(x[..., None].type(torch.cfloat), self.weights)
-
-        # Zero pad modes
-        x = resize_rfft(x, s)
-
-        # Return to physical space
-        return torch.fft.irfft(x, n=s)
-
-
-class LinearFunctional(nn.Module):
-    def __init__(self, in_channels, out_channels, modes):
-        """
-        Fourier neural functionals (encoder) layer for functions over the torus. Maps functions to vectors.
-        Inputs:
-            in_channels  (int): number of input functions
-            out_channels (int): total number of linear functionals to extract
-        """
-        super(LinearFunctional, self).__init__()
-
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-
-        # Number of Fourier modes to multiply, at most floor(N/2) + 1
-        self.modes = modes
-
-        # Complex conjugation in L^2 inner product is absorbed into parametrization
-        self.scale = 1. / (self.in_channels * self.out_channels)
-        self.weights = nn.Parameter(
-            self.scale * torch.rand(self.in_channels, self.out_channels, self.modes + 1, dtype=torch.cfloat))
+class BranchNet(nn.Module):
+    def __init__(self, n_input_channel, seq_len, hidden_size):
+        super(BranchNet, self).__init__()
+        self.flatten = nn.Flatten()
+        self.fc = nn.Sequential(
+            nn.Linear(n_input_channel * seq_len, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size)
+        )
 
     def forward(self, x):
+        # x shape: (batch_size, n_input_channel, seq_len)
+        x = self.flatten(x)  # (batch_size, n_input_channel * seq_len)
+        out = self.fc(x)  # (batch_size, hidden_size)
+        return out
+
+
+class TrunkNet(nn.Module):
+    def __init__(self, y_dim, hidden_size):
+        super(TrunkNet, self).__init__()
+        self.fc = nn.Sequential(
+            nn.Linear(y_dim, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size)
+        )
+
+    def forward(self, y):
+        # y shape: (seq_len, y_dim)
+        out = self.fc(y)  # (seq_len, hidden_size)
+        return out
+
+
+class DeepONet(nn.Module):
+    def __init__(self, branch_net, trunk_net, hidden_size, n_output_channel):
+        super(DeepONet, self).__init__()
+        self.branch_net = branch_net
+        self.trunk_net = trunk_net
+        self.output_layer = nn.Linear(hidden_size * hidden_size, n_output_channel)
+
+    def forward(self, x, y):
         """
-        Input shape (of x):     (batch, in_channels, ..., nx_in)
-        Output shape:           (batch, out_channels, ...)
+        x: (batch_size, n_input_channel, seq_len)
+        y: (seq_len, y_dim)
         """
-        # Compute Fourier coeffcients (scaled to approximate integration)
-        x = torch.fft.rfft(x, norm="forward")
+        branch_out = self.branch_net(x)  # (batch_size, branch_size)
+        trunk_out = self.trunk_net(y)  # (seq_len, trunk_size)
 
-        # Truncate input modes
-        x = resize_rfft(x, 2 * self.modes)
+        # 假设 branch_size == trunk_size == hidden_size
+        # 扩展维度以进行广播
+        branch_out = branch_out.unsqueeze(1)  # (batch_size, 1, branch_size)
+        trunk_out = trunk_out.unsqueeze(0)  # (1, seq_len, trunk_size)
 
-        # Multiply relevant Fourier modes and take the real part
-        x = compl_mul(x, self.weights).real
+        # 结合分支和干网络嵌入
+        combined = branch_out * trunk_out  # (batch_size, seq_len, branch_size)
 
-        # Integrate the conjugate product in physical space by summing Fourier coefficients
-        return 2 * torch.sum(x, dim=-1) - x[..., 0]
+        # 展平最后两个维度以输入到输出层
+        combined = combined.view(combined.size(0), -1)  # (batch_size, seq_len * branch_size)
 
+        output = self.output_layer(combined)  # (batch_size, n_output_channel)
 
-class DeepONet(LearningBasedPredictor):
-
-    def __init__(self, hidden_size: int, n_layer: int, **kwargs):
-        super(DeepONet, self).__init__(**kwargs)
-        # creating the branch network#
-        self.branch_net = MLP(n_input=self.seq_len, hidden_size=hidden_size, depth=n_layer)
-        self.branch_net.float()
-
-        # creating the trunk network#
-        self.trunk_nets = nn.ParameterList()
-        self.biases = nn.ParameterList()
-        for _ in range(self.n_state):
-            trunk_net = MLP(n_input=1, hidden_size=hidden_size, depth=n_layer).float()
-            bias = nn.Parameter(torch.ones((1,)), requires_grad=True)
-
-            self.trunk_nets.append(trunk_net)
-            self.biases.append(bias)
-
-    def compute(self, u: torch.Tensor, z: torch.Tensor, t: torch.Tensor):
-        repeated_z = z.tile(u.shape[1]).reshape(z.shape[0], -1, z.shape[1])
-        x = torch.concatenate([u, repeated_z], -1)
-        batch_size = x.shape[0]
-        x = x.permute(0, 2, 1).reshape(-1, self.seq_len)
-        new_batch_size = x.shape[0]
-
-        x_trunk = torch.arange(self.seq_len, device=x.device, dtype=torch.float32).tile(new_batch_size).reshape(
-            new_batch_size, -1, 1)
-
-        x_i = self.forward_(x, x_trunk)
-
-        return x_i.reshape(batch_size, self.seq_len, -1)
-
-    def forward_(self, x_branch, x_trunk):
-        branch_out = self.branch_net(x_branch)
-
-        # trunk网络的输出（批量计算）
-        trunk_outputs = []
-        for trunk_net in self.trunk_nets:
-            trunk_output = trunk_net(x_trunk)
-            trunk_outputs.append(trunk_output)
-
-        trunk_outputs = torch.stack(trunk_outputs, dim=-1)  # 形状: [batch_size, seq_len, n_state]
-
-        # 广播branch_out，以便与trunk_outputs进行批量计算
-        branch_out_expanded = branch_out.unsqueeze(1).repeat(1, self.seq_len, 1)
-
-        # 批量点积计算
-        output = torch.einsum('bsi,bsi->bs', branch_out_expanded, trunk_outputs)
-
-        # 添加biases
-        biases = torch.stack(self.biases).unsqueeze(0).unsqueeze(0)  # 形状: [1, 1, n_state]
-        output += biases  # 形状: [batch_size, seq_len, n_state]
+        # 将输出扩展到每个位置
+        output = output.unsqueeze(2).repeat(1, 1, y.size(0))  # (batch_size, n_output_channel, seq_len)
 
         return output
-
-    # def compute(self, u: torch.Tensor, z: torch.Tensor, t: torch.Tensor):
-    #     batch_size = u.shape[0]
-    #     x = torch.hstack([u.reshape(batch_size, -1), z.reshape(batch_size, -1)])
-    #     out = []
-    #     for i in range(self.seq_len):
-    #         x_i = self.forward_(x, i * torch.ones(x.shape[0], 1, device=x.device))
-    #         out.append(x_i.unsqueeze(1))
-    #     return torch.concatenate(out, dim=1)
-    #
-    # def forward_(self, x_branch, x_trunk):
-    #     branch_out = self.branch_net(x_branch)
-    #     outputs = []
-    #     for trunk_net, bias in zip(self.trunk_nets, self.biases):
-    #         trunk_out = trunk_net(x_trunk, final_act=True)
-    #         output = torch.einsum('ij,ij->i', branch_out, trunk_out) + bias
-    #         outputs.append(output)
-    #     return torch.vstack(outputs).T
-
-
-class MLP(nn.Module):
-    def __init__(self, n_input, hidden_size, depth, act=None):
-        super(MLP, self).__init__()
-        self.layers = nn.ModuleList()
-
-        # the activation function#
-        if act is None:
-            act = nn.ReLU()
-        self.act = act
-
-        # Input layer
-        self.layers.append(nn.Linear(n_input, hidden_size))
-
-        for _ in range(depth - 1):
-            self.layers.append(nn.Linear(hidden_size, hidden_size))
-
-    def forward(self, x, final_act=False):
-        for i in range(len(self.layers) - 1):
-            x = self.act(self.layers[i](x))
-        x = self.layers[-1](x)  # No activation after the last layer
-
-        if not final_act:
-            return x
-        else:
-            return torch.relu(x)
 
 
 if __name__ == '__main__':

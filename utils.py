@@ -78,48 +78,6 @@ def print_args(args):
     print('=' * 100)
 
 
-def load_cp_hyperparameters(case: str):
-    """
-    tlb,tub,cp_gamma,cp_alpha
-    """
-    if case == 'toy_id':
-        return 0., 1., 0.01, 0.1, 's1'
-    elif case == 'toy_ood':
-        return 1.2, 1.6, 0.01, 0.1, 's1'
-
-    elif case == 'baxter_id':
-        return 0., 1., 0.01, 0.01, 's5'
-    elif case == 'baxter_ood1':
-        return 1., 1.1, 0.01, 0.1, 's5'
-    elif case == 'baxter_ood2':
-        return 1.5, 2., 0.01, 0.3, 's5'
-
-    elif case == 'unicycle_id':
-        return 0., 1., 0.01, 0.01, 's7'
-    elif case == 'unicycle_ood':
-        return 1., 1.5, 0.01, 0.1, 's7'
-
-    elif case == 'toy_alpha_0.01':
-        return 1.4, 1.6, 0.01, 0.01, 's1'
-    elif case == 'toy_alpha_0.05':
-        return 1.4, 1.6, 0.01, 0.05, 's1'
-    elif case == 'toy_alpha_0.1':
-        return 1.4, 1.6, 0.01, 0.1, 's1'
-    elif case == 'toy_alpha_0.2':
-        return 1.4, 1.6, 0.01, 0.2, 's1'
-    elif case == 'toy_alpha_0.5':
-        return 1.4, 1.6, 0.01, 0.5, 's1'
-
-    elif case == 'toy_gamma_0.05':
-        return 1.2, 1.6, 0.05, 0.1
-    elif case == 'toy_gamma_0.1':
-        return 1.2, 1.6, 0.1, 0.1
-    elif case == 'toy_gamma_0.2':
-        return 1.2, 1.6, 0.2, 0.1
-    else:
-        raise NotImplementedError()
-
-
 def load_model(train_config, model_config, dataset_config, n_param_out: bool = False, model_name: str = None):
     if model_name is None:
         model_name = model_config.model_name
@@ -269,23 +227,12 @@ def check_dir(path):
         os.makedirs(path)
 
 
-def predict_and_loss(inputs, labels, model, **args):
-    return model(inputs[:, 1:], labels, **args)
-
-
 def prediction_comparison(P, n_point_delay, ts):
     P_ = np.zeros_like(P[n_point_delay(0):])
     for ti, t in enumerate(ts[n_point_delay(0):]):
         P_[ti] = P[ti + n_point_delay(0) - n_point_delay(t)]
 
     return P_
-
-
-def head_points(P, n_point_start):
-    if n_point_start == 0:
-        return P
-    else:
-        return P[:-n_point_start]
 
 
 def get_time_str():
