@@ -213,8 +213,28 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
             U[t_i] = 0
 
         if n_point_start <= t_i < len(Z) - 1:
-            f_t = system.dynamic(Z[t_i], ts[t_i], U[t_i_delayed])
-            Z[t_i + 1] = Z[t_i] + dt * f_t
+            if dataset_config.n_step == 1:
+                Z[t_i + 1] = Z[t_i] + dt * system.dynamic(Z[t_i], ts[t_i], U[t_i_delayed])
+            elif dataset_config.n_step == 2:
+                Z[t_i + 1] = Z[t_i] + dt * (
+                        3 / 2 * system.dynamic(Z[t_i], ts[t_i], U[t_i_delayed])
+                        - 1 / 2 * system.dynamic(Z[t_i - 1], ts[t_i - 1], U[t_i_delayed - 1])
+                )
+            elif dataset_config.n_step == 3:
+                Z[t_i + 1] = Z[t_i] + dt * (
+                        23 / 12 * system.dynamic(Z[t_i], ts[t_i], U[t_i_delayed])
+                        - 16 / 12 * system.dynamic(Z[t_i - 1], ts[t_i - 1], U[t_i_delayed - 1])
+                        + 5 / 12 * system.dynamic(Z[t_i - 2], ts[t_i - 2], U[t_i_delayed - 2])
+                )
+            elif dataset_config.n_step == 4:
+                Z[t_i + 1] = Z[t_i] + dt * (
+                        55 / 24 * system.dynamic(Z[t_i], ts[t_i], U[t_i_delayed])
+                        - 59 / 24 * system.dynamic(Z[t_i - 1], ts[t_i - 1], U[t_i_delayed - 1])
+                        + 37 / 24 * system.dynamic(Z[t_i - 2], ts[t_i - 2], U[t_i_delayed - 2])
+                        - 9 / 24 * system.dynamic(Z[t_i - 3], ts[t_i - 3], U[t_i_delayed - 3])
+                )
+            else:
+                raise NotImplementedError()
 
     plot_result(dataset_config, img_save_path, P_no, P_numerical, P_explicit, P_switching, Z, U, method)
 
@@ -326,9 +346,13 @@ def create_simulation_result(dataset_config: DatasetConfig, train_config: TrainC
                 'dataset progress': dataset_idx / n_dataset
             }
         )
+    if len(times) == 0:
+        numerical_runtime = 0
+    else:
+        numerical_runtime = sum(times) / len(times) * 1000
     wandb.log(
         {
-            'numerical runtime': sum(times) / len(times) * 1000
+            'numerical runtime': numerical_runtime
         }
     )
     return results

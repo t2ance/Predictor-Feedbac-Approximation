@@ -243,6 +243,7 @@ class DatasetConfig:
     lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential']] = field(default='linear_with_warmup')
 
     full_supervision: Optional[bool] = field(default=True)
+    n_step: int = field(default=1)
 
     system_: Optional[str] = field(default='s1')
 
@@ -463,13 +464,13 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2, scheduler_min_lr=1e-5)
     elif system_ == 's11':
-        dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory',
+        dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(.5), duration=10, dt=0.1, n_training_dataset=200,
                                        n_validation_dataset=1, n_sample_per_dataset=-1, baxter_dof=5, baxter_f=1,
                                        baxter_magnitude=0.1, ic_lower_bound=0, ic_upper_bound=0.1,
                                        random_test_lower_bound=0, random_test_upper_bound=0.1)
         model_config = ModelConfig(model_name='FNO')
-        train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
+        train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=200, batch_size=256,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', uq_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2, scheduler_min_lr=1e-5)

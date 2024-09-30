@@ -113,7 +113,7 @@ def load_model(train_config, model_config, dataset_config, n_param_out: bool = F
                 'gru_n_layers': model_config.gru_n_layer,
                 'gru_hidden_size': model_config.gru_hidden_size
             }, n_input=n_input, n_state=n_state, seq_len=seq_len)
-    elif model_name == ['FNO-LSTM', 'Inverted-FNO-LSTM']:
+    elif model_name in ['FNO-LSTM', 'Inverted-FNO-LSTM']:
         model = TimeAwareNeuralOperator(
             ffn='FNO', rnn='LSTM', n_input=n_input, n_state=n_state, seq_len=seq_len,
             invert=model_name.startswith('Inverted'),
@@ -124,7 +124,7 @@ def load_model(train_config, model_config, dataset_config, n_param_out: bool = F
                 'lstm_n_layers': model_config.lstm_n_layer,
                 'lstm_hidden_size': model_config.lstm_hidden_size
             })
-    elif model_name == ['DeepONet-GRU', 'Inverted-DeepONet-GRU']:
+    elif model_name in ['DeepONet-GRU', 'Inverted-DeepONet-GRU']:
         model = TimeAwareNeuralOperator(
             ffn='DeepONet', rnn='GRU', n_input=n_input, n_state=n_state, seq_len=seq_len,
             invert=model_name.startswith('Inverted'),
@@ -134,7 +134,7 @@ def load_model(train_config, model_config, dataset_config, n_param_out: bool = F
                 'gru_n_layers': model_config.gru_n_layer,
                 'gru_hidden_size': model_config.gru_hidden_size
             })
-    elif model_name == ['DeepONet-LSTM', 'Inverted-DeepONet-LSTM']:
+    elif model_name in ['DeepONet-LSTM', 'Inverted-DeepONet-LSTM']:
         model = TimeAwareNeuralOperator(
             ffn='DeepONet', rnn='GRU', n_input=n_input, n_state=n_state, seq_len=seq_len,
             invert=model_name.startswith('Inverted'),

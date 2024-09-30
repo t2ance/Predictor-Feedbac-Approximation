@@ -13,6 +13,7 @@ def baxter_test_n_dof():
     # )
     # dataset_config, model_config, train_config = get_config(system_='s11', model_name='Inverted-FNO-GRU')
     dataset_config, model_config, train_config = get_config(system_='s11', model_name='FNO')
+    dataset_config.n_step = 4
     # method = 'no'
     # model = load_model(train_config, model_config, dataset_config)
     method = 'numerical'
@@ -60,30 +61,32 @@ def mini_train():
     import wandb
     from config import get_config
 
-    wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
-    run = wandb.init(
-        project="no",
-        name=f'test'
-    )
+    # wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
+    # run = wandb.init(
+    #     project="no",
+    #     name=f'test'
+    # )
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='FNO-GRU')
-    # dataset_config, model_config, train_config = get_config(system_='s9', model_name='DeepONet-GRU')
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='GRU')
-    dataset_config, model_config, train_config = get_config(system_='s9', model_name='FNO')
+    # dataset_config, model_config, train_config = get_config(system_='s9', model_name='FNO')
+    # dataset_config, model_config, train_config = get_config(system_='s9', model_name='DeepONet-GRU')
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='DeepONet')
-    # dataset_config, model_config, train_config = get_config(system_='s11', model_name='Inverted-FNO-GRU')
-    dataset_config.dataset_version = 'v0'
-    training_dataset, validation_dataset = load_dataset(dataset_config, train_config, [], run)
-
+    # dataset_config, model_config, train_config = get_config(system_='s9', model_name='Inverted-FNO-GRU')
+    dataset_config, model_config, train_config = get_config(system_='s9', model_name='Inverted-DeepONet-GRU')
+    # dataset_config.dataset_version = 'v0'
+    # training_dataset, validation_dataset = load_dataset(dataset_config, train_config, [], run)
+    #
     model = load_model(train_config, model_config, dataset_config)
-    run_training(model_config=model_config, train_config=train_config, training_dataset=training_dataset,
-                 validation_dataset=validation_dataset, model=model)
-    # result = simulation(method='no', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
-    #                     img_save_path='./misc', silence=False)
+    # run_training(model_config=model_config, train_config=train_config, training_dataset=training_dataset,
+    #              validation_dataset=validation_dataset, model=model)
+    Z0 = dataset_config.test_points[0]
+    result = simulation(method='no', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
+                        model=model, img_save_path='./misc', silence=False)
 
 
 if __name__ == '__main__':
-    # mini_train()
-    result = baxter_test_n_dof()
+    mini_train()
+    # result = baxter_test_n_dof()
     # result = baxter_test_unicycle()
     # import wandb
     # from config import get_config
