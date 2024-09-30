@@ -540,7 +540,7 @@ def load_dataset(dataset_config, train_config, test_points, run):
 
 
 def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig, run,
-         only_no_out: bool = True, save_model: bool = True, training_dataset=None, validation_dataset=None,
+         only_no_out: bool = False, save_model: bool = True, training_dataset=None, validation_dataset=None,
          test_points=None):
     assert train_config.training_type == 'sequence'
     set_everything(0)
