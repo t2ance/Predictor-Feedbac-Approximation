@@ -6,6 +6,15 @@ from utils import print_args, get_time_str
 import numpy as np
 
 
+def get_ffn_rnn(model_name):
+    splits = model_name.split('-')
+    if len(splits) == 2:
+        ffn, rnn = splits
+    else:
+        invert, ffn, rnn = splits
+    return ffn, rnn
+
+
 def set_config(config, dataset_config, model_config, train_config):
     print('Setting configuration')
     print(config)
@@ -21,11 +30,7 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.weight_decay = config.weight_decay
     model_name = model_config.model_name
     if '-' in model_name:
-        splits = model_name.split('-')
-        if len(splits) == 2:
-            ffn, rnn = splits
-        else:
-            invert, ffn, rnn = splits
+        ffn, rnn = get_ffn_rnn(model_name)
 
         if ffn == 'FNO':
             model_config.fno_n_layer = config.fno_n_layer
@@ -172,7 +177,8 @@ def get_parameters(system: str, model_name: str):
         raise NotImplementedError()
 
     if '-' in model_name:
-        ffn, rnn = model_name.split('-')
+        ffn, rnn = get_ffn_rnn(model_name)
+
         if ffn == 'FNO':
             parameters.update(fno_params)
         elif ffn == 'DeepONet':
