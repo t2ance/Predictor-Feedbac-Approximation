@@ -8,8 +8,8 @@ from matplotlib.ticker import MaxNLocator
 from dynamic_systems import ConstantDelay
 from utils import SimulationResult
 
-colors = ['red', 'green', 'blue', 'orange', 'black', 'cyan', 'magenta', 'white', 'pink', 'yellow', 'gray', 'lightblue',
-          'lightgreen', 'purple', 'brown', 'teal', 'olive', 'navy', 'lime', 'coral', 'salmon', 'aqua', 'wheat']
+colors = ['red', 'green', 'blue', 'orange', 'black', 'cyan', 'magenta', 'pink', 'yellow', 'gray', 'lightblue',
+          'lightgreen', 'purple', 'brown', 'teal', 'olive', 'navy', 'lime', 'coral', 'salmon', 'aqua', 'wheat', 'white']
 styles = ['-', '--', '-.', ':']
 legend_loc = 'best'
 # legend_loc = 'lower right'
@@ -269,7 +269,7 @@ def plot_comparison(ts, Ps, Z, delay, n_point_delay, save_path, ylim=None, Ps_la
     linesytles = ['--', ':']
     for i in range(n_state):
         for j, (P, label) in enumerate(zip(Ps, Ps_labels)):
-            ax.plot(ts[2 * n_point_start:], P[n_point_start:, i], linestyle=linesytles[i], color=colors[i],
+            ax.plot(ts[2 * n_point_start:], P[n_point_start:, i], linestyle=linesytles[j], color=colors[i],
                     label=f'$P^{{{label}}}_{i + 1}(t-{delay_label})$')
         ax.plot(ts[n_point_start:], Z[n_point_start:, i], label=f'$Z_{i + 1}(t)$', linestyle='-', color=colors[i])
     if ylim is not None:

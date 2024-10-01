@@ -1,4 +1,3 @@
-import itertools
 import os
 import pickle
 from dataclasses import dataclass, field
@@ -234,6 +233,8 @@ class DatasetConfig:
     system_n: Optional[float] = field(default=2.)
     baxter_dof: Optional[int] = field(default=2)
     baxter_f: Optional[float] = field(default=0.1)
+    baxter_alpha: Optional[float] = field(default=1)
+    baxter_beta: Optional[float] = field(default=1)
     baxter_magnitude: Optional[float] = field(default=0.2)
 
     scheduler_step_size: Optional[int] = field(default=1)
@@ -291,7 +292,8 @@ class DatasetConfig:
         elif self.system_ == 's4':
             return dynamic_systems.VanDerPolOscillator()
         elif self.system_ == 's5' or self.system_ == 's8' or self.system_ == 's10' or self.system_ == 's11':
-            return dynamic_systems.Baxter(dof=self.baxter_dof, f=self.baxter_f, magnitude=self.baxter_magnitude)
+            return dynamic_systems.Baxter(alpha=self.baxter_alpha, beta=self.baxter_beta, dof=self.baxter_dof,
+                                          f=self.baxter_f, magnitude=self.baxter_magnitude)
         elif self.system_ == 's6':
             return dynamic_systems.DynamicSystem3()
         elif self.system_ == 's7' or self.system_ == 's9':
@@ -465,9 +467,11 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    scheduled_sampling_k=1e-2, scheduler_min_lr=1e-5)
     elif system_ == 's11':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
-                                       delay=ConstantDelay(.5), duration=10, dt=0.1, n_training_dataset=200,
-                                       n_validation_dataset=1, n_sample_per_dataset=-1, baxter_dof=5, baxter_f=1,
-                                       baxter_magnitude=0.1, ic_lower_bound=0, ic_upper_bound=0.1,
+                                       delay=ConstantDelay(.5), duration=16, dt=0.1, n_training_dataset=200,
+                                       n_validation_dataset=1, n_sample_per_dataset=-1, baxter_dof=5, baxter_f=5,
+                                       baxter_magnitude=0.1,
+                                       baxter_alpha=1, baxter_beta=1,
+                                       ic_lower_bound=0, ic_upper_bound=0.1,
                                        random_test_lower_bound=0, random_test_upper_bound=0.1)
         model_config = ModelConfig(model_name='FNO')
         train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=200, batch_size=256,

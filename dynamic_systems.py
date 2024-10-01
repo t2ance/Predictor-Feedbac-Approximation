@@ -86,13 +86,13 @@ class Baxter(DynamicSystem):
     def n_state(self):
         return self.dof * 2  # dof dimensions for e1 and dof dimensions for e2
 
-    def __init__(self, alpha=None, beta=None, dof: int = 7, f: float = 0.1, magnitude: float = 0.2):
+    def __init__(self, alpha=1, beta=1, dof: int = 7, f: float = 0.1, magnitude: float = 0.2):
         assert 1 <= dof <= 7
         self.dof = dof
         self.f = f
         self.magnitude = magnitude
-        self.alpha = np.eye(dof) if alpha is None else alpha
-        self.beta = np.eye(dof) if beta is None else beta
+        self.alpha = alpha * np.eye(dof)
+        self.beta = beta * np.eye(dof)
         self.baxter_parameters = BaxterParameters(dof=dof)
 
     @lru_cache(maxsize=None)
@@ -118,9 +118,7 @@ class Baxter(DynamicSystem):
     def qd_des(self, t):
         return self.magnitude * np.array(
             [self.f * np.cos(self.f * t), -self.f * np.sin(self.f * t), self.f * np.cos(self.f * t),
-             -self.f * np.sin(self.f * t),
-             self.f * np.cos(self.f * t), 0, 0])[
-                                :self.dof]
+             -self.f * np.sin(self.f * t), self.f * np.cos(self.f * t), 0, 0])[:self.dof]
 
     @lru_cache(maxsize=None)
     def qdd_des(self, t):
