@@ -138,8 +138,8 @@ class TimeAwareNeuralOperator(LearningBasedPredictor):
                 raise NotImplementedError()
 
             if ffn == 'FNO':
-                self.ffn = FNOProjection(n_modes_height=params['n_modes_height'], n_layers=params['fno_n_layers'],
-                                         hidden_channels=params['hidden_channels'], n_input_channel=hidden_size,
+                self.ffn = FNOProjection(n_modes_height=params['fno_n_modes_height'], n_layers=params['fno_n_layers'],
+                                         hidden_channels=params['fno_hidden_channels'], n_input_channel=hidden_size,
                                          n_out_channel=self.n_state, **kwargs)
             elif ffn == 'DeepONet':
                 self.ffn = DeepONet(hidden_size=params['deeponet_hidden_size'], n_layer=params['deeponet_n_layer'],
@@ -148,8 +148,8 @@ class TimeAwareNeuralOperator(LearningBasedPredictor):
                 raise NotImplementedError()
         else:
             if ffn == 'FNO':
-                self.ffn = FNOProjection(n_modes_height=params['n_modes_height'], n_layers=params['fno_n_layers'],
-                                         hidden_channels=params['hidden_channels'], **kwargs)
+                self.ffn = FNOProjection(n_modes_height=params['fno_n_modes_height'], n_layers=params['fno_n_layers'],
+                                         hidden_channels=params['fno_hidden_channels'], **kwargs)
             elif ffn == 'DeepONet':
                 self.ffn = DeepONet(hidden_size=params['deeponet_hidden_size'], n_layer=params['deeponet_n_layer'],
                                     **kwargs)

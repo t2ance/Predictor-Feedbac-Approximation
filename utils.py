@@ -107,8 +107,8 @@ def load_model(train_config, model_config, dataset_config, n_param_out: bool = F
             ffn='FNO', rnn='GRU',
             invert=model_name.startswith('Inverted'),
             params={
-                'n_modes_height': model_config.fno_n_modes_height,
-                'hidden_channels': model_config.fno_hidden_channels,
+                'fno_n_modes_height': model_config.fno_n_modes_height,
+                'fno_hidden_channels': model_config.fno_hidden_channels,
                 'fno_n_layers': model_config.fno_n_layer,
                 'gru_n_layers': model_config.gru_n_layer,
                 'gru_hidden_size': model_config.gru_hidden_size
@@ -118,8 +118,8 @@ def load_model(train_config, model_config, dataset_config, n_param_out: bool = F
             ffn='FNO', rnn='LSTM', n_input=n_input, n_state=n_state, seq_len=seq_len,
             invert=model_name.startswith('Inverted'),
             params={
-                'n_modes_height': model_config.fno_n_modes_height,
-                'hidden_channels': model_config.fno_hidden_channels,
+                'fno_n_modes_height': model_config.fno_n_modes_height,
+                'fno_hidden_channels': model_config.fno_hidden_channels,
                 'fno_n_layers': model_config.fno_n_layer,
                 'lstm_n_layers': model_config.lstm_n_layer,
                 'lstm_hidden_size': model_config.lstm_hidden_size
@@ -136,7 +136,7 @@ def load_model(train_config, model_config, dataset_config, n_param_out: bool = F
             })
     elif model_name in ['DeepONet-LSTM', 'Inverted-DeepONet-LSTM']:
         model = TimeAwareNeuralOperator(
-            ffn='DeepONet', rnn='GRU', n_input=n_input, n_state=n_state, seq_len=seq_len,
+            ffn='DeepONet', rnn='LSTM', n_input=n_input, n_state=n_state, seq_len=seq_len,
             invert=model_name.startswith('Inverted'),
             params={
                 'deeponet_hidden_size': model_config.deeponet_hidden_size,
