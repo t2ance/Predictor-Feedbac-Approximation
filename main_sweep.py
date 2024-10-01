@@ -119,7 +119,7 @@ def get_parameters(system: str, model_name: str):
         },
     }
 
-    if system == 's8' or system == 's10':
+    if system == 's11':
         gru_params = {
             'gru_n_layer': {
                 'distribution': 'int_uniform',
