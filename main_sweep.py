@@ -251,8 +251,8 @@ def do_sweep(system, model_name):
                                   validation_dataset=data.validation_dataset,
                                   test_points=data.test_points)
             l2 = results['no'].l2
-            if l2 > 10:
-                l2 = np.nan
+            # if l2 > 10:
+            #     l2 = np.nan
             wandb.log(
                 {
                     'l2': l2

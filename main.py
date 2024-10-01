@@ -418,6 +418,8 @@ def run_training(model_config: ModelConfig, train_config: TrainConfig, training_
 
 def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method: str, base_path: str = None,
              silence: bool = False, test_points: List = None):
+    begin = time.time()
+
     if base_path is not None:
         base_path = f'{base_path}/{method}'
     assert test_points is not None
@@ -469,37 +471,45 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
     if method == 'numerical':
         n_iter = np.concatenate(n_iter_list).mean()
         print(f'Numerical method uses {n_iter} iterations on average.')
-
+    end = time.time()
+    print(f'Run test time (single test): {end - begin}')
     return TestResult(runtime=runtime, rl2=rl2, l2=l2, success_cases=len(l2_list), results=results,
                       no_pred_ratio=no_pred_ratio)
 
 
 def run_tests(model, train_config, dataset_config, model_config, test_points, only_no_out: bool = False):
+    begin = time.time()
     if only_no_out:
-        return {
+        to_return = {
             'no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
                            base_path=model_config.base_path, test_points=test_points, method='no')
         }
-    if train_config.training_type == 'switching':
-        return {
-            'no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
-                           base_path=model_config.base_path, test_points=test_points, method='no'),
-            'switching': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
-                                  base_path=model_config.base_path, test_points=test_points, method='switching'),
-            'numerical': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
-                                  base_path=model_config.base_path, test_points=test_points, method='numerical'),
-            'numerical_no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
-                                     base_path=model_config.base_path, test_points=test_points, method='numerical_no')
-        }
     else:
-        return {
-            'no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
-                           base_path=model_config.base_path, test_points=test_points, method='no'),
-            'numerical': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
-                                  base_path=model_config.base_path, test_points=test_points, method='numerical'),
-            'numerical_no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
-                                     base_path=model_config.base_path, test_points=test_points, method='numerical_no')
-        }
+        if train_config.training_type == 'switching':
+            to_return = {
+                'no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                               base_path=model_config.base_path, test_points=test_points, method='no'),
+                'switching': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                      base_path=model_config.base_path, test_points=test_points, method='switching'),
+                'numerical': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                      base_path=model_config.base_path, test_points=test_points, method='numerical'),
+                'numerical_no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                         base_path=model_config.base_path, test_points=test_points,
+                                         method='numerical_no')
+            }
+        else:
+            to_return = {
+                'no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                               base_path=model_config.base_path, test_points=test_points, method='no'),
+                'numerical': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                      base_path=model_config.base_path, test_points=test_points, method='numerical'),
+                'numerical_no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                         base_path=model_config.base_path, test_points=test_points,
+                                         method='numerical_no')
+            }
+    end = time.time()
+    print(f'Run tests time: {end - begin}')
+    return to_return
 
 
 def load_dataset(dataset_config, train_config, test_points, run):

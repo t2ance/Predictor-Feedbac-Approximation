@@ -274,7 +274,7 @@ class DatasetConfig:
     @property
     def test_points(self) -> List[Tuple]:
         if self.random_test_points is None:
-            self.random_test_points = self.get_test_points(5)
+            self.random_test_points = self.get_test_points(25)
         return self.random_test_points
 
     @property
@@ -465,7 +465,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', uq_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
-                                   scheduled_sampling_k=1e-2, scheduler_min_lr=1e-5)
+                                   scheduled_sampling_k=1e-2, scheduler_min_lr=1e-5)st
     elif system_ == 's11':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory', system_='s11',
                                        delay=ConstantDelay(0.5),
