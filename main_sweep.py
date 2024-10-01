@@ -76,8 +76,8 @@ def get_parameters(system: str, model_name: str):
     parameters = {
         'learning_rate': {
             'distribution': 'log_uniform_values',
-            'min': 1e-6,
-            'max': 1e-2
+            'min': 1e-5,
+            'max': 1e-3
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
@@ -89,92 +89,61 @@ def get_parameters(system: str, model_name: str):
     fno_params = {
         'fno_n_layer': {
             'distribution': 'int_uniform',
-            'min': 1,
+            'min': 2,
             'max': 4
         },
         'fno_n_modes_height': {
             'distribution': 'q_log_uniform_values',
             'q': 4,
-            'min': 4,
-            'max': 256
+            'min': 16,
+            'max': 128
         },
         'fno_hidden_channels': {
             'distribution': 'q_log_uniform_values',
             'q': 4,
-            'min': 4,
-            'max': 256
+            'min': 16,
+            'max': 128
         }
     }
     deeponet_params = {
         'deeponet_n_layer': {
             'distribution': 'int_uniform',
-            'min': 1,
+            'min': 2,
             'max': 4
         },
         'deeponet_hidden_size': {
             'distribution': 'q_log_uniform_values',
             'q': 4,
-            'min': 8,
-            'max': 256
+            'min': 16,
+            'max': 128
         },
     }
-
-    if system == 's11':
-        gru_params = {
-            'gru_n_layer': {
-                'distribution': 'int_uniform',
-                'min': 1,
-                'max': 4
-            },
-            'gru_hidden_size': {
-                'distribution': 'q_log_uniform_values',
-                'q': 4,
-                'min': 16,
-                'max': 256
-            }
+    gru_params = {
+        'gru_n_layer': {
+            'distribution': 'int_uniform',
+            'min': 2,
+            'max': 4
+        },
+        'gru_hidden_size': {
+            'distribution': 'q_log_uniform_values',
+            'q': 4,
+            'min': 32,
+            'max': 128
         }
-        lstm_params = {
-            'lstm_n_layer': {
-                'distribution': 'int_uniform',
-                'min': 1,
-                'max': 4
-            },
-            'lstm_hidden_size': {
-                'distribution': 'q_log_uniform_values',
-                'q': 4,
-                'min': 16,
-                'max': 256
-            }
+    }
+    lstm_params = {
+        'lstm_n_layer': {
+            'distribution': 'int_uniform',
+            'min': 2,
+            'max': 4
+        },
+        'lstm_hidden_size': {
+            'distribution': 'q_log_uniform_values',
+            'q': 4,
+            'min': 32,
+            'max': 128
         }
-    elif system == 's9':
-        gru_params = {
-            'gru_n_layer': {
-                'distribution': 'int_uniform',
-                'min': 1,
-                'max': 4
-            },
-            'gru_hidden_size': {
-                'distribution': 'q_log_uniform_values',
-                'q': 4,
-                'min': 16,
-                'max': 64
-            }
-        }
-        lstm_params = {
-            'lstm_n_layer': {
-                'distribution': 'int_uniform',
-                'min': 1,
-                'max': 4
-            },
-            'lstm_hidden_size': {
-                'distribution': 'q_log_uniform_values',
-                'q': 4,
-                'min': 16,
-                'max': 64
-            }
-        }
-    else:
-        raise NotImplementedError()
+    }
 
     if '-' in model_name:
         ffn, rnn = get_ffn_rnn(model_name)
