@@ -566,7 +566,8 @@ def solve_integral(Z_t, P_D, U_D, t: float, dataset_config, delay: Delay):
     n_state = system.n_state
     n_points = len(P_D)
     # assert n_points <= dataset_config.n_point_delay(t)
-    ts = np.linspace(t - n_points * dt, t - dt, n_points)
+    # ts = np.linspace(t - n_points * dt, t - dt, n_points)
+    ts = np.linspace(t, t + n_points * dt - dt, n_points)
     solution = IntegralSolution()
     if dataset_config.integral_method == 'rectangle':
         solution.solution = solve_integral_rectangle(f=f, Z_t=Z_t, P_D=P_D, U_D=U_D, ts=ts, dt=dt)
