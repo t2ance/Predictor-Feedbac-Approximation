@@ -21,7 +21,12 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.weight_decay = config.weight_decay
     model_name = model_config.model_name
     if '-' in model_name:
-        ffn, rnn = model_name.split('-')
+        splits = model_name.split('-')
+        if len(splits) == 2:
+            ffn, rnn = splits
+        else:
+            invert, ffn, rnn = splits
+
         if ffn == 'FNO':
             model_config.fno_n_layer = config.fno_n_layer
             model_config.fno_n_modes_height = config.fno_n_modes_height
