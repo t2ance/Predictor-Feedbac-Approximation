@@ -14,7 +14,24 @@ def baxter_test_n_dof():
     #     name=f'test'
     # )
     # dataset_config, model_config, train_config = get_config(system_='s11', model_name='Inverted-FNO-GRU')
-    dataset_config, model_config, train_config = get_config(system_='s11', model_name='FNO')
+    from dynamic_systems import ConstantDelay, TimeVaryingDelay
+    from config import DatasetConfig, ModelConfig, TrainConfig
+    dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory', system_='s11',
+                                   delay=ConstantDelay(0.5),
+                                   # delay=TimeVaryingDelay(),
+                                   # baxter_q_des_type='constant',
+                                   baxter_q_des_type='linear',
+                                   duration=12, dt=0.1, n_training_dataset=200,
+                                   n_validation_dataset=1, n_sample_per_dataset=-1, baxter_dof=5, baxter_f=1,
+                                   baxter_magnitude=0.1,
+                                   baxter_alpha=1, baxter_beta=1,
+                                   ic_lower_bound=0, ic_upper_bound=1,
+                                   random_test_lower_bound=0, random_test_upper_bound=1)
+    model_config = ModelConfig(model_name='FNO')
+    train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=200, batch_size=256,
+                               weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', uq_alpha=0.01,
+                               scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
+                               scheduled_sampling_k=1e-2, scheduler_min_lr=1e-5)
     # dataset_config.n_step = 4
     # method = 'no'
     # model = load_model(train_config, model_config, dataset_config)
@@ -23,7 +40,7 @@ def baxter_test_n_dof():
     # model_config.get_model(run, train_config, dataset_config, version='v168')
     Z0 = np.array(dataset_config.test_points[0])
     # Z0[dataset_config.baxter_dof:] = 0
-    Z0[:] = 0
+    # Z0[:] = 0
     print('initial point', Z0)
     # dataset_config.dataset_version = 'v0'
     # training_dataset, validation_dataset = load_dataset(dataset_config, train_config, [], run)

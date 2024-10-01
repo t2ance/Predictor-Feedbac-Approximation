@@ -86,7 +86,7 @@ class Baxter(DynamicSystem):
     def n_state(self):
         return self.dof * 2  # dof dimensions for e1 and dof dimensions for e2
 
-    def __init__(self, alpha=1, beta=1, dof: int = 7, f: float = 0.1, magnitude: float = 0.2):
+    def __init__(self, alpha=1, beta=1, dof: int = 7, f: float = 0.1, magnitude: float = 0.2, q_des_type: str = 'sine'):
         assert 1 <= dof <= 7
         self.dof = dof
         self.f = f
@@ -94,6 +94,8 @@ class Baxter(DynamicSystem):
         self.alpha = alpha * np.eye(dof)
         self.beta = beta * np.eye(dof)
         self.baxter_parameters = BaxterParameters(dof=dof)
+
+        self.q_des_type = q_des_type
 
     @lru_cache(maxsize=None)
     def G(self, t):
@@ -109,22 +111,56 @@ class Baxter(DynamicSystem):
 
     @lru_cache(maxsize=None)
     def q_des(self, t):
-        return self.magnitude * np.array(
-            [1 * np.sin(self.f * t), 1 * np.cos(self.f * t), 1 * np.sin(self.f * t), 1 * np.cos(self.f * t),
-             1 * np.sin(self.f * t), 0,
-             0])[:self.dof]
+        if self.q_des_type == 'sine':
+            q_des_base = np.array(
+                [np.sin(self.f * t), np.cos(self.f * t), np.sin(self.f * t), np.cos(self.f * t), np.sin(self.f * t),
+                 np.cos(self.f * t), np.sin(self.f * t)])
+            # q_des_base[:self.dof - 1] = 0
+            to_return = self.magnitude * q_des_base
+        elif self.q_des_type == 'linear':
+            to_return = 0.1 * np.array([t, t, t, t, t, t, t])
+        elif self.q_des_type == 'constant':
+            # print('constant')
+            to_return = 0.1 * np.array([1, 1, 1, 1, 1, 1, 1])
+        else:
+            raise NotImplementedError()
+        return to_return[:self.dof]
 
     @lru_cache(maxsize=None)
     def qd_des(self, t):
-        return self.magnitude * np.array(
-            [self.f * np.cos(self.f * t), -self.f * np.sin(self.f * t), self.f * np.cos(self.f * t),
-             -self.f * np.sin(self.f * t), self.f * np.cos(self.f * t), 0, 0])[:self.dof]
+        if self.q_des_type == 'sine':
+            qd_des_base = self.f * np.array(
+                [np.cos(self.f * t), - np.sin(self.f * t), np.cos(self.f * t), -np.sin(self.f * t), np.cos(self.f * t),
+                 - np.sin(self.f * t), np.cos(self.f * t)]
+            )
+            # qd_des_base[:self.dof - 1] = 0
+            to_return = self.magnitude * qd_des_base
+        elif self.q_des_type == 'linear':
+            to_return = 0.1 * np.array([1, 1, 1, 1, 1, 1, 1])
+        elif self.q_des_type == 'constant':
+            to_return = np.array([0, 0, 0, 0, 0, 0, 0])
+        else:
+            raise NotImplementedError()
+
+        return to_return[:self.dof]
 
     @lru_cache(maxsize=None)
     def qdd_des(self, t):
-        return self.magnitude * np.array(
-            [-self.f ** 2 * np.sin(self.f * t), -self.f ** 2 * np.cos(self.f * t), -self.f ** 2 * np.sin(self.f * t),
-             -self.f ** 2 * np.cos(self.f * t), -self.f ** 2 * np.sin(self.f * t), 0, 0])[:self.dof]
+        if self.q_des_type == 'sine':
+            qdd_des_base = -self.f ** 2 * np.array(
+                [np.sin(self.f * t), np.cos(self.f * t), np.sin(self.f * t), np.cos(self.f * t), np.sin(self.f * t),
+                 np.cos(self.f * t), np.sin(self.f * t)]
+            )
+            # qdd_des_base[:self.dof - 1] = 0
+            to_return = self.magnitude * qdd_des_base
+        elif self.q_des_type == 'linear':
+            to_return = np.array([0, 0, 0, 0, 0, 0, 0])
+        elif self.q_des_type == 'constant':
+            to_return = np.array([0, 0, 0, 0, 0, 0, 0])
+        else:
+            raise NotImplementedError()
+
+        return to_return[:self.dof]
 
     def h(self, e1, e2, t):
         return self.qdd_des(t) - self.alpha @ (self.alpha @ e1) + np.linalg.inv(self.M(t)) @ (
