@@ -236,26 +236,25 @@ def do_sweep(system, model_name):
             dataset_config, model_config, train_config = get_config(system_=system, model_name=model_name)
             set_config(config, dataset_config, model_config, train_config)
             if data.training_dataset is None:
-                test_points = dataset_config.test_points
+                test_points = dataset_config.test_points[:5]
                 training_dataset, validation_dataset = load_dataset(dataset_config, train_config, test_points, run)
                 training_dataset += validation_dataset
                 data.training_dataset = training_dataset
                 data.validation_dataset = validation_dataset
-                data.test_points = test_points
-                print('Create data for current sweep')
+                data.test_points = dataset_config.test_points
+                print('Created data for current sweep')
+                print('n test points', len(data.test_points))
             else:
-                print('Data already created for current sweep, skip')
+                print('Data was already created for current sweep, skip')
 
             results, model = main(dataset_config, model_config, train_config, run, only_no_out=True, save_model=True,
                                   training_dataset=data.training_dataset,
                                   validation_dataset=data.validation_dataset,
                                   test_points=data.test_points)
-            l2 = results['no'].l2
-            # if l2 > 10:
-            #     l2 = np.nan
             wandb.log(
                 {
-                    'l2': l2
+                    'l2': results['no'].l2,
+                    'rl2': results['no'].rl2
                 }
             )
 

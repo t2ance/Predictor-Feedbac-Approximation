@@ -458,6 +458,7 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
             no_pred_ratio.append(result.p_no_count / (result.p_no_count + result.p_numerical_count))
 
         l2_list.append(result.l2_p_z)
+        rl2_list.append(result.rl2_p_z)
         prediction_time.append(result.avg_prediction_time)
         n_iter_list.append(result.P_numerical_n_iters)
 
