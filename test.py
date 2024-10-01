@@ -12,22 +12,10 @@ def baxter_test_n_dof():
     #     project="no",
     #     name=f'test'
     # )
-    # dataset_config, model_config, train_config = get_config(system_='s11', model_name='Inverted-FNO-GRU')
     from dynamic_systems import ConstantDelay
     from config import DatasetConfig, ModelConfig, TrainConfig
-    dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory', system_='s11',
-                                   delay=ConstantDelay(1),
-                                   duration=8, dt=0.1, n_training_dataset=200,
-                                   n_validation_dataset=1, n_sample_per_dataset=-1, baxter_dof=5, baxter_f=1,
-                                   baxter_magnitude=0.1,
-                                   baxter_alpha=1, baxter_beta=5,
-                                   ic_lower_bound=0, ic_upper_bound=1,
-                                   random_test_lower_bound=0, random_test_upper_bound=1)
-    model_config = ModelConfig(model_name='FNO')
-    train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=200, batch_size=256,
-                               weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', uq_alpha=0.01,
-                               scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
-                               scheduled_sampling_k=1e-2, scheduler_min_lr=1e-5)
+    from config import get_config
+    dataset_config, model_config, train_config = get_config(system_='s11', model_name='Inverted-FNO-GRU')
     # dataset_config.n_step = 4
     # method = 'no'
     # model = load_model(train_config, model_config, dataset_config)
