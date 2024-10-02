@@ -1,9 +1,10 @@
+import time
+
 import wandb
 
 from config import get_config
-from main import main, load_dataset
+from main import main, load_dataset, create_simulation_result
 from utils import print_args, get_time_str
-import numpy as np
 
 
 def get_ffn_rnn(model_name):
@@ -20,13 +21,14 @@ def set_config(config, dataset_config, model_config, train_config):
     print(config)
     train_config.lr_scheduler_type = 'cosine_annealing_with_warmup'
     train_config.scheduler_min_lr = 0
-    train_config.batch_size = 2048
 
     dataset_config.recreate_dataset = False
     if dataset_config.system_ == 's9':
         dataset_config.n_training_dataset = 250
+        train_config.batch_size = 1024
     elif dataset_config.system_ == 's11':
         dataset_config.n_training_dataset = 500
+        train_config.batch_size = 4096
     else:
         raise NotImplementedError()
     train_config.n_epoch = 100
@@ -210,20 +212,22 @@ def do_sweep(system, model_name):
             dataset_config, model_config, train_config = get_config(system_=system, model_name=model_name)
             set_config(config, dataset_config, model_config, train_config)
             if data.training_dataset is None:
-                test_points = dataset_config.test_points[:5]
-                training_dataset, validation_dataset = load_dataset(dataset_config, train_config, test_points, run)
-                training_dataset += validation_dataset
+                begin = time.time()
+                create_simulation_result(dataset_config, train_config, test_points=dataset_config.test_points[:1])
+                end = time.time()
+                print(f'Numerical methods test time {end - begin}')
+                training_dataset, validation_dataset = load_dataset(dataset_config, train_config, test_points=None,
+                                                                    run=run)
                 data.training_dataset = training_dataset
                 data.validation_dataset = validation_dataset
                 data.test_points = dataset_config.test_points
-                print('Created data for current sweep')
+                print('Data loaded for current sweep')
                 print('n test points', len(data.test_points))
             else:
                 print('Data was already created for current sweep, skip')
 
             results, model = main(dataset_config, model_config, train_config, run, only_no_out=True, save_model=True,
-                                  training_dataset=data.training_dataset,
-                                  validation_dataset=data.validation_dataset,
+                                  training_dataset=data.training_dataset, validation_dataset=data.validation_dataset,
                                   test_points=data.test_points)
             wandb.log(
                 {

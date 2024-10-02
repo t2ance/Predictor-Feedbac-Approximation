@@ -341,11 +341,11 @@ def create_simulation_result(dataset_config: DatasetConfig, train_config: TrainC
         result = simulation(dataset_config, train_config, Z0, 'numerical')
         results.append(result)
         times.append(result.avg_prediction_time)
-        wandb.log(
-            {
-                'dataset progress': dataset_idx / n_dataset
-            }
-        )
+        # wandb.log(
+        #     {
+        #         'dataset progress': dataset_idx / n_dataset
+        #     }
+        # )
     if len(times) == 0:
         numerical_runtime = 0
     else:
@@ -369,40 +369,33 @@ def run_training(model_config: ModelConfig, train_config: TrainConfig, training_
     model.train()
     print('Begin Training...')
     print(f'Training size: {len(training_dataset)}, Validating size: {len(validation_dataset)}')
+    training_samples = [sample for traj in training_dataset for sample in traj]
+    validating_samples = [sample for traj in validation_dataset for sample in traj]
     for epoch in range(train_config.n_epoch):
-        np.random.shuffle(training_dataset)
-        # seq index; time index; input-output pair; data
-        n_epoch = 0
+        np.random.shuffle(training_samples)
+        n_iters = 0
         training_loss = 0.0
-        for dataset_idx in range(0, len(training_dataset), batch_size):
-            sequences = training_dataset[dataset_idx:dataset_idx + batch_size]
-            losses = []
-            subset = list(zip(*sequences))
-            np.random.shuffle(subset)
-            for batch in tqdm(subset):
-                optimizer.zero_grad()
-                _, loss = model(**to_batched_data(batch, device))
-                losses.append(loss.detach())
-                loss.backward()
-                optimizer.step()
+        for dataset_idx in range(0, len(training_samples), batch_size):
+            batch = training_samples[dataset_idx:dataset_idx + batch_size]
+            optimizer.zero_grad()
+            _, loss = model(**to_batched_data(batch, device))
+            loss.backward()
+            optimizer.step()
+            training_loss += loss.detach().item()
+            n_iters += 1
+        training_loss /= n_iters
 
-            training_loss += (sum(losses) / len(losses)).item()
-
-            n_epoch += 1
-        training_loss /= n_epoch
         with torch.no_grad():
-            n_epoch = 0
+            n_iters = 0
             validating_loss = 0.0
-            for dataset_idx in range(0, len(validation_dataset), batch_size):
-                sequences = validation_dataset[dataset_idx:dataset_idx + batch_size]
-                losses = []
-                for batch in tqdm(list(zip(*sequences))):
-                    _, loss = model(**to_batched_data(batch, device))
-                    losses.append(loss.detach())
-                validating_loss += (sum(losses) / len(losses)).item()
-                n_epoch += 1
-            validating_loss /= n_epoch
+            for dataset_idx in range(0, len(validating_samples), batch_size):
+                batch = validating_samples[dataset_idx:dataset_idx + batch_size]
+                _, loss = model(**to_batched_data(batch, device))
+                validating_loss += loss.detach().item()
+                n_iters += 1
+            validating_loss /= n_iters
         scheduler.step()
+
         for param_group in optimizer.param_groups:
             param_group['lr'] = max(param_group['lr'], train_config.scheduler_min_lr)
 
@@ -513,7 +506,7 @@ def run_tests(model, train_config, dataset_config, model_config, test_points, on
     return to_return
 
 
-def load_dataset(dataset_config, train_config, test_points, run):
+def load_dataset(dataset_config, train_config, test_points=None, run=None):
     if dataset_config.recreate_dataset:
         print('Begin generating dataset...')
         training_results = create_simulation_result(
@@ -537,8 +530,9 @@ def load_dataset(dataset_config, train_config, test_points, run):
         print(f'Dataset loaded')
 
     # the sample to visualize
-    validation_results = create_simulation_result(
-        dataset_config, train_config, test_points=test_points)
+    if test_points is not None:
+        print(f'Create new validation samples using {len(test_points)} test points')
+        validation_results = create_simulation_result(dataset_config, train_config, test_points=test_points)
 
     training_dataset = []
     for result in training_results:
