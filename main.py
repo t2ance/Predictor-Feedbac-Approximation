@@ -579,7 +579,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     wandb.log({'l2': test_results['no'].l2})
     wandb.log({'rl2': test_results['no'].rl2})
     wandb.log({'runtime': test_results['no'].runtime * 1000})
-    wandb.log({'speedup': numerical_runtime / test_results['no'].runtime * 1000})
+    wandb.log({'speedup': numerical_runtime / (test_results['no'].runtime * 1000)})
     wandb.log({'training time': (end - begin) / 60})
     return test_results, model
 
