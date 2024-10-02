@@ -25,10 +25,10 @@ def set_config(config, dataset_config, model_config, train_config):
     dataset_config.recreate_dataset = False
     if dataset_config.system_ == 's9':
         dataset_config.n_training_dataset = 250
-        train_config.batch_size = 2048
+        train_config.batch_size = 512
     elif dataset_config.system_ == 's11':
         dataset_config.n_training_dataset = 500
-        train_config.batch_size = 4096
+        train_config.batch_size = 2048
     else:
         raise NotImplementedError()
     dataset_config.n_validation_dataset = 1000
@@ -185,13 +185,18 @@ def get_parameters(system: str, model_name: str):
     return parameters
 
 
+system_name_mapping = {
+    's9': 'Unicycle',
+    's11': 'Baxter'
+}
+
+
 def do_sweep(system, model_name):
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     sweep_config = {
-        "name": 'Sweep ' + system + ' ' + model_name + ' ' + get_time_str(),
+        "name": 'Sweep ' + system_name_mapping[system] + ' ' + model_name + ' ' + get_time_str(),
         'method': 'bayes',
         'metric': {
-            # 'name': 'validating loss',
             'name': 'l2',
             'goal': 'minimize'
         },
