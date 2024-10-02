@@ -25,7 +25,7 @@ def set_config(config, dataset_config, model_config, train_config):
     dataset_config.recreate_dataset = False
     if dataset_config.system_ == 's9':
         dataset_config.n_training_dataset = 250
-        train_config.batch_size = 1024
+        train_config.batch_size = 4096
     elif dataset_config.system_ == 's11':
         dataset_config.n_training_dataset = 500
         train_config.batch_size = 4096
