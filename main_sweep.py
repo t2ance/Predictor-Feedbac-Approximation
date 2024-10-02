@@ -216,8 +216,9 @@ def do_sweep(system, model_name):
             set_config(config, dataset_config, model_config, train_config)
             if data.training_dataset is None:
                 begin = time.time()
-                numerical_runtime, _ = create_simulation_result(dataset_config, train_config,
-                                                                test_points=dataset_config.test_points[:1])
+                numerical_runtime, _ = create_simulation_result(
+                    dataset_config, train_config, test_points=dataset_config.test_points[:1],
+                    numerical_runtime_out=True)
                 end = time.time()
                 print(f'Numerical methods test time {end - begin}')
                 training_dataset, validation_dataset = load_dataset(dataset_config, train_config, test_points=None,
