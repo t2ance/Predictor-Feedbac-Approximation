@@ -25,10 +25,10 @@ def set_config(config, dataset_config, model_config, train_config):
     dataset_config.recreate_dataset = False
     if dataset_config.system_ == 's9':
         dataset_config.n_training_dataset = 250
-        train_config.batch_size = 4096
+        train_config.batch_size = 8192
     elif dataset_config.system_ == 's11':
         dataset_config.n_training_dataset = 500
-        train_config.batch_size = 4096
+        train_config.batch_size = 8192
     else:
         raise NotImplementedError()
     dataset_config.n_validation_dataset = 1000
@@ -204,6 +204,8 @@ def do_sweep(system, model_name):
         training_dataset = None
         validation_dataset = None
         test_points = None
+        numerical_runtime = None
+        other = None
 
     data = Data()
 
@@ -214,7 +216,8 @@ def do_sweep(system, model_name):
             set_config(config, dataset_config, model_config, train_config)
             if data.training_dataset is None:
                 begin = time.time()
-                create_simulation_result(dataset_config, train_config, test_points=dataset_config.test_points[:1])
+                numerical_runtime, _ = create_simulation_result(dataset_config, train_config,
+                                                                test_points=dataset_config.test_points[:1])
                 end = time.time()
                 print(f'Numerical methods test time {end - begin}')
                 training_dataset, validation_dataset = load_dataset(dataset_config, train_config, test_points=None,
@@ -222,6 +225,7 @@ def do_sweep(system, model_name):
                 data.training_dataset = training_dataset
                 data.validation_dataset = validation_dataset
                 data.test_points = dataset_config.test_points
+                data.numerical_runtime = numerical_runtime
                 print('Data loaded for current sweep')
                 print('n test points', len(data.test_points))
             else:
@@ -229,7 +233,7 @@ def do_sweep(system, model_name):
 
             results, model = main(dataset_config, model_config, train_config, run, only_no_out=True, save_model=True,
                                   training_dataset=data.training_dataset, validation_dataset=data.validation_dataset,
-                                  test_points=data.test_points)
+                                  test_points=data.test_points, numerical_runtime=numerical_runtime)
             wandb.log(
                 {
                     'l2': results['no'].l2,

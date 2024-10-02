@@ -323,7 +323,7 @@ def to_batched_data(batch, device='cuda'):
 
 
 def create_simulation_result(dataset_config: DatasetConfig, train_config: TrainConfig, n_dataset: int = None,
-                             test_points=None):
+                             test_points=None, numerical_runtime_out=False):
     assert not (n_dataset is None and test_points is None)
     results = []
     state = np.random.RandomState()
@@ -355,6 +355,8 @@ def create_simulation_result(dataset_config: DatasetConfig, train_config: TrainC
             'numerical runtime': numerical_runtime
         }
     )
+    if numerical_runtime_out:
+        return numerical_runtime, results
     return results
 
 
@@ -546,7 +548,7 @@ def load_dataset(dataset_config, train_config, test_points=None, run=None):
 
 def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config: TrainConfig, run,
          only_no_out: bool = False, save_model: bool = True, training_dataset=None, validation_dataset=None,
-         test_points=None):
+         test_points=None, numerical_runtime=None):
     assert train_config.training_type == 'sequence'
     set_everything(0)
     if test_points is None:
@@ -577,6 +579,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     wandb.log({'l2': test_results['no'].l2})
     wandb.log({'rl2': test_results['no'].rl2})
     wandb.log({'runtime': test_results['no'].runtime * 1000})
+    wandb.log({'speedup': test_results['no'].runtime * 1000 / numerical_runtime})
     wandb.log({'training time': (end - begin) / 60})
     return test_results, model
 
