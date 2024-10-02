@@ -71,7 +71,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
         Z_t = Z[t_i, :] + dataset_config.noise()
 
         # set the ground truth (or not for fast evaluation)
-        if method != 'numerical' and 'l2_p_z' in metric_list or 'rl2_p_z' in metric_list:
+        if method != 'numerical' and 'l2_p_phat' in metric_list:
             solution = solve_integral(Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
                                       dataset_config=dataset_config, delay=dataset_config.delay)
             P_numerical[t_i, :] = solution.solution
