@@ -23,7 +23,12 @@ def set_config(config, dataset_config, model_config, train_config):
     train_config.batch_size = 2048
 
     dataset_config.recreate_dataset = False
-    dataset_config.n_training_dataset = 250
+    if dataset_config.system_ == 's9':
+        dataset_config.n_training_dataset = 250
+    elif dataset_config.system_ == 's11':
+        dataset_config.n_training_dataset = 500
+    else:
+        raise NotImplementedError()
     train_config.n_epoch = 100
 
     train_config.learning_rate = config.learning_rate
