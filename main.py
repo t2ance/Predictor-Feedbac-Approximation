@@ -375,7 +375,7 @@ def run_training(model_config: ModelConfig, train_config: TrainConfig, training_
         np.random.shuffle(training_samples)
         n_iters = 0
         training_loss = 0.0
-        for dataset_idx in range(0, len(training_samples), batch_size):
+        for dataset_idx in tqdm(list(range(0, len(training_samples), batch_size))):
             batch = training_samples[dataset_idx:dataset_idx + batch_size]
             optimizer.zero_grad()
             _, loss = model(**to_batched_data(batch, device))
@@ -388,7 +388,7 @@ def run_training(model_config: ModelConfig, train_config: TrainConfig, training_
         with torch.no_grad():
             n_iters = 0
             validating_loss = 0.0
-            for dataset_idx in range(0, len(validating_samples), batch_size):
+            for dataset_idx in tqdm(list(range(0, len(validating_samples), batch_size))):
                 batch = validating_samples[dataset_idx:dataset_idx + batch_size]
                 _, loss = model(**to_batched_data(batch, device))
                 validating_loss += loss.detach().item()
