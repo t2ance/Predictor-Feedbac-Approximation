@@ -16,6 +16,7 @@ def baxter_test_n_dof():
     from config import DatasetConfig, ModelConfig, TrainConfig
     from config import get_config
     dataset_config, model_config, train_config = get_config(system_='s11', model_name='FNO')
+    train_config.use_t = True
     # dataset_config.n_step = 4
     method = 'no'
     model = load_model(train_config, model_config, dataset_config)
@@ -78,6 +79,7 @@ def mini_train():
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='DeepONet')
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='Inverted-FNO-GRU')
     dataset_config, model_config, train_config = get_config(system_='s9', model_name='Inverted-DeepONet-GRU')
+    train_config.use_t = True
     # dataset_config.dataset_version = 'v0'
     training_dataset, validation_dataset = load_dataset(dataset_config, train_config, None, run)
     model = load_model(train_config, model_config, dataset_config)
@@ -89,8 +91,8 @@ def mini_train():
 
 
 if __name__ == '__main__':
-    # mini_train()
-    result = baxter_test_n_dof()
+    mini_train()
+    # result = baxter_test_n_dof()
     # result = baxter_test_unicycle()
     # import wandb
     # from config import get_config
