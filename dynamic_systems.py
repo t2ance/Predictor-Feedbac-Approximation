@@ -541,7 +541,7 @@ def solve_integral_nn(model, U_D, Z_t, t):
     z_tensor = torch.tensor(Z_t, dtype=torch.float32, device=device).unsqueeze(0)
     outputs = model(
         **{
-            't': torch.tensor(t),
+            't': torch.tensor(t).unsqueeze(0),
             'z': z_tensor,
             'u': u_tensor,
             'label': None,

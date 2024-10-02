@@ -12,7 +12,7 @@ from torch import nn
 from torch.nn import init
 from torch.optim.lr_scheduler import LambdaLR
 
-from model import FNOProjection, FFN, GRUNet, LSTMNet, DeepONet, TimeAwareNeuralOperator
+from model import FNOProjection, GRUNet, LSTMNet, DeepONet, TimeAwareNeuralOperator
 
 
 @dataclass
@@ -93,9 +93,6 @@ def load_model(train_config, model_config, dataset_config, n_param_out: bool = F
         hidden_channels = model_config.fno_hidden_channels
         model = FNOProjection(n_modes_height=n_modes_height, hidden_channels=hidden_channels,
                               n_layers=model_config.fno_n_layer, n_input=n_input, n_state=n_state, seq_len=seq_len)
-    elif model_name == 'FFN':
-        model = FFN(n_layers=model_config.ffn_n_layer, layer_width=model_config.ffn_layer_width, n_input=n_input,
-                    n_state=n_state, seq_len=seq_len)
     elif model_name == 'GRU':
         model = GRUNet(hidden_size=model_config.gru_hidden_size, num_layers=model_config.gru_n_layer,
                        output_size=n_state, n_input=n_input, n_state=n_state, seq_len=seq_len)

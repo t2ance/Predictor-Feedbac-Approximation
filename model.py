@@ -4,11 +4,16 @@ from torch import nn
 
 
 class LearningBasedPredictor(torch.nn.Module):
-    def __init__(self, n_input: int, n_state: int, seq_len: int, *args, **kwargs):
+    def __init__(self, n_input: int, n_state: int, seq_len: int, use_t: bool, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.n_input = n_input
         self.n_state = n_state
         self.seq_len = seq_len
+        self.use_t = use_t
+        if self.use_t:
+            self.n_input_channel = n_input + n_state + 1
+        else:
+            self.n_input_channel = n_input + n_state
         self.mse_loss = torch.nn.MSELoss()
 
     def compute(self, x: torch.Tensor):
@@ -16,7 +21,12 @@ class LearningBasedPredictor(torch.nn.Module):
 
     def forward(self, u: torch.Tensor, z: torch.Tensor, t: torch.Tensor, label: torch.Tensor = None, **kwargs):
         repeated_z = z.tile(u.shape[1]).reshape(z.shape[0], -1, z.shape[1])
-        x = torch.concatenate([u, repeated_z], -1)
+        if self.use_t:
+            t = t.unsqueeze(-1)
+            repeated_t = t.tile(u.shape[1]).reshape(t.shape[0], -1, t.shape[1])
+            x = torch.concatenate([u, repeated_z, repeated_t], -1)
+        else:
+            x = torch.concatenate([u, repeated_z], -1)
         outs = self.compute(x)
         out = outs[:, -1, :]
         if label is not None:
@@ -25,36 +35,10 @@ class LearningBasedPredictor(torch.nn.Module):
             return out
 
 
-class FFN(LearningBasedPredictor):
-    def __init__(self, n_layers: int, layer_width: int, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        in_features = self.n_state + self.seq_len * self.n_input + 1
-        out_features = self.n_state
-        layers = [
-            torch.nn.Linear(in_features=in_features, out_features=layer_width * in_features),
-            torch.nn.ReLU()
-        ]
-        for _ in range(n_layers):
-            layers.extend([
-                torch.nn.Linear(in_features=layer_width * in_features, out_features=layer_width * in_features),
-                torch.nn.ReLU()
-            ])
-        layers.extend([
-            torch.nn.Linear(in_features=layer_width * in_features, out_features=in_features),
-            torch.nn.ReLU(),
-            torch.nn.Linear(in_features=in_features, out_features=out_features)
-        ])
-
-        self.projection = torch.nn.Sequential(*layers)
-
-    def compute(self, x: torch.Tensor):
-        return self.projection(x)
-
-
 class GRUNet(LearningBasedPredictor):
     def __init__(self, hidden_size, num_layers, output_size, **kwargs):
         super(GRUNet, self).__init__(**kwargs)
-        self.rnn = nn.GRU(self.n_input + self.n_state, hidden_size, num_layers, batch_first=True)
+        self.rnn = nn.GRU(self.n_input_channel, hidden_size, num_layers, batch_first=True)
         self.projection = nn.Linear(hidden_size, output_size)
 
     def compute(self, x: torch.Tensor):
@@ -66,7 +50,7 @@ class GRUNet(LearningBasedPredictor):
 class LSTMNet(LearningBasedPredictor):
     def __init__(self, hidden_size, num_layers, output_size, **kwargs):
         super(LSTMNet, self).__init__(**kwargs)
-        self.rnn = nn.LSTM(self.n_input + self.n_state, hidden_size, num_layers, batch_first=True)
+        self.rnn = nn.LSTM(self.n_input_channel, hidden_size, num_layers, batch_first=True)
         self.projection = nn.Linear(hidden_size, output_size)
 
     def compute(self, x: torch.Tensor):
@@ -75,63 +59,17 @@ class LSTMNet(LearningBasedPredictor):
         return x
 
 
-def fft_transform(input_tensor, target_length):
-    fft_result = torch.fft.rfft(input_tensor)
-    current_length = fft_result.shape[1]
-
-    if current_length > target_length:
-        output = fft_result[:, :target_length]
-    elif current_length < target_length:
-        padding = torch.zeros((input_tensor.shape[0], target_length - current_length), device=input_tensor.device)
-        output = torch.cat((fft_result, padding), dim=1)
-    else:
-        output = fft_result
-
-    output = torch.concatenate([output.real, output.imag], -1)
-    return output.to(input_tensor.device)
-
-
-def compl_mul(input_tensor, weights):
-    """
-    Complex multiplication:
-    (batch, in_channel, ...), (in_channel, out_channel, ...) -> (batch, out_channel, ...), where ``...'' represents the spatial part of the input.
-    """
-    return torch.einsum("bi...,io...->bo...", input_tensor, weights)
-
-
-def resize_rfft(ar, s):
-    """
-    Truncates or zero pads the highest frequencies of ``ar'' such that torch.fft.irfft(ar, n=s) is either an interpolation to a finer grid or a subsampling to a coarser grid.
-    Args
-        ar: (..., N) tensor, must satisfy real conjugate symmetry (not checked)
-        s: (int), desired irfft output dimension >= 1
-    Output
-        out: (..., s//2 + 1) tensor
-    """
-    N = ar.shape[-1]
-    s = s // 2 + 1 if s >= 1 else s // 2
-    if s >= N:  # zero pad or leave alone
-        out = torch.zeros(list(ar.shape[:-1]) + [s - N], dtype=torch.cfloat, device=ar.device)
-        out = torch.cat((ar[..., :N], out), dim=-1)
-    elif s >= 1:  # truncate
-        out = ar[..., :s]
-    else:  # edge case
-        raise ValueError("s must be greater than or equal to 1.")
-
-    return out
-
-
 class TimeAwareNeuralOperator(LearningBasedPredictor):
     def __init__(self, ffn: str, rnn: str, invert: bool, params, **kwargs):
         super().__init__(**kwargs)
         self.invert = invert
         if invert:
             if rnn == 'GRU':
-                self.rnn = nn.GRU(self.n_state + self.n_input, params['gru_hidden_size'], params['gru_n_layers'],
+                self.rnn = nn.GRU(self.n_input_channel, params['gru_hidden_size'], params['gru_n_layers'],
                                   batch_first=True)
                 hidden_size = params['gru_hidden_size']
             elif rnn == 'LSTM':
-                self.rnn = nn.LSTM(self.n_state + self.n_input, params['lstm_hidden_size'], params['lstm_n_layers'],
+                self.rnn = nn.LSTM(self.n_input_channel, params['lstm_hidden_size'], params['lstm_n_layers'],
                                    batch_first=True)
                 hidden_size = params['lstm_hidden_size']
             else:
@@ -183,7 +121,7 @@ class FNOProjection(LearningBasedPredictor):
         super().__init__(*args, **kwargs)
         self.n_modes_height = n_modes_height
         if n_input_channel is None:
-            n_input_channel = self.n_input + self.n_state
+            n_input_channel = self.n_input_channel
         if n_out_channel is None:
             n_out_channel = self.n_state
         self.fno = FNO1d(n_modes_height=n_modes_height, n_layers=n_layers, hidden_channels=hidden_channels,
@@ -198,7 +136,7 @@ class DeepONet(LearningBasedPredictor):
     def __init__(self, hidden_size, n_layer, n_input_channel=None, n_output_channel=None, *args, **kwargs):
         super(DeepONet, self).__init__(*args, **kwargs)
         if n_input_channel is None:
-            n_input_channel = self.n_state + self.n_input
+            n_input_channel = self.n_input_channel
         if n_output_channel is None:
             n_output_channel = self.n_state
         self.n_layer = n_layer

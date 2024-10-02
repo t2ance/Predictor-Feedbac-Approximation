@@ -15,12 +15,12 @@ def baxter_test_n_dof():
     from dynamic_systems import ConstantDelay
     from config import DatasetConfig, ModelConfig, TrainConfig
     from config import get_config
-    dataset_config, model_config, train_config = get_config(system_='s11', model_name='Inverted-FNO-GRU')
+    dataset_config, model_config, train_config = get_config(system_='s11', model_name='FNO')
     # dataset_config.n_step = 4
-    # method = 'no'
-    # model = load_model(train_config, model_config, dataset_config)
-    method = 'numerical'
-    model = None
+    method = 'no'
+    model = load_model(train_config, model_config, dataset_config)
+    # method = 'numerical'
+    # model = None
     # model_config.get_model(run, train_config, dataset_config, version='v168')
     Z0 = np.array(dataset_config.test_points[0])
     # Z0[dataset_config.baxter_dof:] = 0
@@ -89,8 +89,8 @@ def mini_train():
 
 
 if __name__ == '__main__':
-    mini_train()
-    # result = baxter_test_n_dof()
+    # mini_train()
+    result = baxter_test_n_dof()
     # result = baxter_test_unicycle()
     # import wandb
     # from config import get_config
