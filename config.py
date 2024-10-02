@@ -467,9 +467,8 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
                                    scheduled_sampling_k=1e-2, scheduler_min_lr=1e-5)
     elif system_ == 's11':
-        dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory', system_='s11',
-                                       delay=ConstantDelay(0.5),
-                                       duration=8, dt=0.02, n_training_dataset=25,
+        dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory', system_='s11',
+                                       delay=ConstantDelay(0.5), duration=8, dt=0.02, n_training_dataset=25,
                                        n_validation_dataset=1, n_sample_per_dataset=-1, baxter_dof=5, baxter_f=1,
                                        baxter_magnitude=0.1, baxter_alpha=1, baxter_beta=2, ic_lower_bound=0,
                                        ic_upper_bound=1, random_test_lower_bound=0, random_test_upper_bound=1)
