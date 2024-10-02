@@ -234,7 +234,7 @@ def do_sweep(system, model_name):
 
             results, model = main(dataset_config, model_config, train_config, run, only_no_out=True, save_model=True,
                                   training_dataset=data.training_dataset, validation_dataset=data.validation_dataset,
-                                  test_points=data.test_points, numerical_runtime=numerical_runtime)
+                                  test_points=data.test_points, numerical_runtime=data.numerical_runtime)
             wandb.log(
                 {
                     'l2': results['no'].l2,
