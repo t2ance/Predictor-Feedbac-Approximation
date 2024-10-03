@@ -59,62 +59,6 @@ class LSTMNet(LearningBasedPredictor):
         return x
 
 
-class TimeAwareNeuralOperator(LearningBasedPredictor):
-    def __init__(self, ffn: str, rnn: str, invert: bool, params, **kwargs):
-        super().__init__(**kwargs)
-        self.invert = invert
-        if invert:
-            if rnn == 'GRU':
-                self.rnn = nn.GRU(self.n_input_channel, params['gru_hidden_size'], params['gru_n_layers'],
-                                  batch_first=True)
-                hidden_size = params['gru_hidden_size']
-            elif rnn == 'LSTM':
-                self.rnn = nn.LSTM(self.n_input_channel, params['lstm_hidden_size'], params['lstm_n_layers'],
-                                   batch_first=True)
-                hidden_size = params['lstm_hidden_size']
-            else:
-                raise NotImplementedError()
-
-            if ffn == 'FNO':
-                self.ffn = FNOProjection(n_modes_height=params['fno_n_modes_height'], n_layers=params['fno_n_layers'],
-                                         hidden_channels=params['fno_hidden_channels'], n_input_channel=hidden_size,
-                                         n_out_channel=self.n_state, **kwargs)
-            elif ffn == 'DeepONet':
-                self.ffn = DeepONet(hidden_size=params['deeponet_hidden_size'], n_layer=params['deeponet_n_layer'],
-                                    n_input_channel=hidden_size, n_output_channel=self.n_state, **kwargs)
-            else:
-                raise NotImplementedError()
-        else:
-            if ffn == 'FNO':
-                self.ffn = FNOProjection(n_modes_height=params['fno_n_modes_height'], n_layers=params['fno_n_layers'],
-                                         hidden_channels=params['fno_hidden_channels'], **kwargs)
-            elif ffn == 'DeepONet':
-                self.ffn = DeepONet(hidden_size=params['deeponet_hidden_size'], n_layer=params['deeponet_n_layer'],
-                                    **kwargs)
-            else:
-                raise NotImplementedError()
-
-            if rnn == 'GRU':
-                self.rnn = nn.GRU(self.n_state, params['gru_hidden_size'], params['gru_n_layers'], batch_first=True)
-                self.projection = nn.Linear(params['gru_hidden_size'], self.n_state)
-            elif rnn == 'LSTM':
-                self.rnn = nn.LSTM(self.n_state, params['lstm_hidden_size'], params['lstm_n_layers'], batch_first=True)
-                self.projection = nn.Linear(params['lstm_hidden_size'], self.n_state)
-            else:
-                raise NotImplementedError()
-
-    def compute(self, x: torch.Tensor):
-        if self.invert:
-            rnn_out, _ = self.rnn(x)
-            ffn_out = self.ffn.compute(rnn_out)
-            return ffn_out
-        else:
-            ffn_out = self.ffn.compute(x)
-            output, _ = self.rnn(ffn_out)
-            rnn_out = self.projection(output)
-            return rnn_out
-
-
 class FNOProjection(LearningBasedPredictor):
     def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, n_input_channel=None,
                  n_out_channel=None, *args, **kwargs):
@@ -200,6 +144,64 @@ class TrunkNet(nn.Module):
         # y shape: (seq_len, y_dim)
         out = self.fc(y)  # (seq_len, hidden_size)
         return out
+
+
+class TimeAwareNeuralOperator(LearningBasedPredictor):
+    def __init__(self, ffn: str, rnn: str, invert: bool, params, **kwargs):
+        super().__init__(**kwargs)
+        self.invert = invert
+        if invert:
+            if rnn == 'GRU':
+                self.rnn = nn.GRU(self.n_input_channel, params['gru_hidden_size'], params['gru_n_layers'],
+                                  batch_first=True)
+                hidden_size = params['gru_hidden_size']
+            elif rnn == 'LSTM':
+                self.rnn = nn.LSTM(self.n_input_channel, params['lstm_hidden_size'], params['lstm_n_layers'],
+                                   batch_first=True)
+                hidden_size = params['lstm_hidden_size']
+            else:
+                raise NotImplementedError()
+
+            if ffn == 'FNO':
+                self.ffn = FNOProjection(n_modes_height=params['fno_n_modes_height'], n_layers=params['fno_n_layers'],
+                                         hidden_channels=params['fno_hidden_channels'], n_input_channel=hidden_size,
+                                         n_out_channel=self.n_state, **kwargs)
+            elif ffn == 'DeepONet':
+                self.ffn = DeepONet(hidden_size=params['deeponet_hidden_size'], n_layer=params['deeponet_n_layer'],
+                                    n_input_channel=hidden_size, n_output_channel=self.n_state, **kwargs)
+            else:
+                raise NotImplementedError()
+
+            self.residual_projection = nn.Linear(hidden_size, self.n_state)
+        else:
+            if ffn == 'FNO':
+                self.ffn = FNOProjection(n_modes_height=params['fno_n_modes_height'], n_layers=params['fno_n_layers'],
+                                         hidden_channels=params['fno_hidden_channels'], **kwargs)
+            elif ffn == 'DeepONet':
+                self.ffn = DeepONet(hidden_size=params['deeponet_hidden_size'], n_layer=params['deeponet_n_layer'],
+                                    **kwargs)
+            else:
+                raise NotImplementedError()
+
+            if rnn == 'GRU':
+                self.rnn = nn.GRU(self.n_state, params['gru_hidden_size'], params['gru_n_layers'], batch_first=True)
+                self.projection = nn.Linear(params['gru_hidden_size'], self.n_state)
+            elif rnn == 'LSTM':
+                self.rnn = nn.LSTM(self.n_state, params['lstm_hidden_size'], params['lstm_n_layers'], batch_first=True)
+                self.projection = nn.Linear(params['lstm_hidden_size'], self.n_state)
+            else:
+                raise NotImplementedError()
+
+    def compute(self, x: torch.Tensor):
+        if self.invert:
+            rnn_out, _ = self.rnn(x)
+            ffn_out = self.ffn.compute(rnn_out)
+            return ffn_out + self.residual_projection(rnn_out)
+        else:
+            ffn_out = self.ffn.compute(x)
+            output, _ = self.rnn(ffn_out)
+            rnn_out = self.projection(output)
+            return rnn_out + ffn_out
 
 
 if __name__ == '__main__':
