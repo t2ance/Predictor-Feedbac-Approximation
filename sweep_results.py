@@ -66,8 +66,11 @@ if __name__ == '__main__':
             speed_up = best_run.summary.get('speedup', 'N/A')
             l2 = best_run.summary.get('l2', 'N/A')
             rl2 = best_run.summary.get('rl2', 'N/A')
+            tr_loss = best_run.summary.get('training loss', 'N/A')
+            val_loss = best_run.summary.get('validating loss', 'N/A')
+            tr_time = best_run.summary.get('training time', 'N/A')
 
-            data.append([method, n_param, speed_up, l2, rl2])
+            data.append([method, n_param, speed_up, l2, rl2, tr_loss, val_loss, tr_time])
 
             print(f"Extracted best run's data from sweep '{sweep_id}'")
 
@@ -76,7 +79,8 @@ if __name__ == '__main__':
 
     data_array = np.array(data, dtype=object)
 
-    header = ['method', 'n_param', 'speedup', 'l2', 'rl2']
+    header = ['method', 'n_param', 'speedup', 'l2', 'rl2', 'training loss', 'validation loss',
+              'training time (minutes)']
 
     order_dict = {method: index for index, method in enumerate(orders)}
 

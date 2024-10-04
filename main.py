@@ -574,7 +574,10 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
                  validation_dataset=validation_dataset, model=model)
     end = time.time()
     if save_model:
-        model_config.save_model(run, model)
+        art_version = model_config.save_model(run, model)
+        wandb.log({
+            'model_version': art_version
+        })
     test_results = run_tests(model, train_config, dataset_config, model_config, test_point_pairs, only_no_out)
     wandb.log({'l2': test_results['no'].l2})
     wandb.log({'rl2': test_results['no'].rl2})

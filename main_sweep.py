@@ -89,7 +89,7 @@ def get_parameters(system: str, model_name: str):
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
-            'min': 1e-5,
+            'min': 1e-6,
             'max': 1e-2
         }
     }
@@ -98,58 +98,58 @@ def get_parameters(system: str, model_name: str):
         'fno_n_layer': {
             'distribution': 'int_uniform',
             'min': 2,
-            'max': 4
+            'max': 5
         },
         'fno_n_modes_height': {
             'distribution': 'q_log_uniform_values',
             'q': 4,
             'min': 16,
-            'max': 128
+            'max': 256
         },
         'fno_hidden_channels': {
             'distribution': 'q_log_uniform_values',
             'q': 4,
             'min': 16,
-            'max': 128
+            'max': 256
         }
     }
     deeponet_params = {
         'deeponet_n_layer': {
             'distribution': 'int_uniform',
             'min': 2,
-            'max': 4
+            'max': 5
         },
         'deeponet_hidden_size': {
             'distribution': 'q_log_uniform_values',
             'q': 4,
             'min': 16,
-            'max': 128
+            'max': 256
         },
     }
     gru_params = {
         'gru_n_layer': {
             'distribution': 'int_uniform',
             'min': 2,
-            'max': 4
+            'max': 5
         },
         'gru_hidden_size': {
             'distribution': 'q_log_uniform_values',
             'q': 4,
             'min': 32,
-            'max': 128
+            'max': 256
         }
     }
     lstm_params = {
         'lstm_n_layer': {
             'distribution': 'int_uniform',
             'min': 2,
-            'max': 4
+            'max': 5
         },
         'lstm_hidden_size': {
             'distribution': 'q_log_uniform_values',
             'q': 4,
             'min': 32,
-            'max': 128
+            'max': 256
         }
     }
 

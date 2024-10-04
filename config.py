@@ -42,15 +42,20 @@ class ModelConfig:
         if model_name is None:
             model_name = model.__class__.__name__
         print('save model as', model_name)
+        art_name = f'{model_name}-{self.system}'
         model_artifact = wandb.Artifact(
-            f'{model_name}-{self.system}', type="model",
+            art_name, type="model",
             description=f"{model_name} model for system {self.system}", metadata=self.__dict__
         )
 
         torch.save(model.state_dict(), "model.pth")
         model_artifact.add_file("model.pth")
         wandb.save("model.pth")
-        run.log_artifact(model_artifact)
+        logged_artifact = run.log_artifact(model_artifact)
+        logged_artifact.wait()
+        art_version = logged_artifact.version
+        print(f'Logged {art_name} as version {art_version}')
+        return art_version
 
     def load_model(self, run, model, model_name: str = None, version: str = None):
         if version is None:
