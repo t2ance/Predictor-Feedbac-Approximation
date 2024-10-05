@@ -8,11 +8,14 @@ from utils import print_args, get_time_str
 
 
 def get_ffn_rnn(model_name):
-    splits = model_name.split('-')
-    if len(splits) == 2:
-        ffn, rnn = splits
+    split1, split2 = model_name.split('-')
+    if split1 in ['FNO', 'DeepONet']:
+        ffn, rnn = split1, split2
+    elif split1 in ['RNN', 'LSTM']:
+        ffn, rnn = split2, split1
     else:
-        invert, ffn, rnn = splits
+        raise NotImplementedError()
+
     return ffn, rnn
 
 
