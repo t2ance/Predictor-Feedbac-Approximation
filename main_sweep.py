@@ -196,6 +196,7 @@ def do_sweep(system, model_name):
     sweep_config = {
         "name": 'Sweep ' + system_name_mapping[system] + ' ' + model_name + ' ' + get_time_str(),
         'method': 'bayes',
+        'count': 100,
         'metric': {
             'name': 'l2',
             'goal': 'minimize'
