@@ -11,10 +11,10 @@ def get_ffn_rnn(model_name):
     split1, split2 = model_name.split('-')
     if split1 in ['FNO', 'DeepONet']:
         ffn, rnn = split1, split2
-    elif split1 in ['RNN', 'LSTM']:
+    elif split1 in ['GRU', 'LSTM']:
         ffn, rnn = split2, split1
     else:
-        raise NotImplementedError()
+        raise NotImplementedError(split1)
 
     return ffn, rnn
 
