@@ -206,9 +206,7 @@ def do_sweep(system, model_name):
 
     sweep_id = wandb.sweep(sweep_config, project="no")
 
-    wandb.log({
-        'id': sweep_id
-    })
+    print(sweep_id)
 
     class Data:
         training_dataset = None
