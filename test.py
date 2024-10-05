@@ -15,7 +15,7 @@ def baxter_test_n_dof():
     from dynamic_systems import ConstantDelay
     from config import DatasetConfig, ModelConfig, TrainConfig
     from config import get_config
-    dataset_config, model_config, train_config = get_config(system_='s11', model_name='Inverted-FNO-GRU')
+    dataset_config, model_config, train_config = get_config(system_='s11', model_name='GRU-FNO')
     train_config.use_t = True
     # dataset_config.n_step = 4
     method = 'no'
@@ -77,8 +77,7 @@ def mini_train():
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='FNO')
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='DeepONet-GRU')
     # dataset_config, model_config, train_config = get_config(system_='s9', model_name='DeepONet')
-    # dataset_config, model_config, train_config = get_config(system_='s9', model_name='Inverted-FNO-GRU')
-    dataset_config, model_config, train_config = get_config(system_='s9', model_name='Inverted-DeepONet-GRU')
+    dataset_config, model_config, train_config = get_config(system_='s9', model_name='GRU-DeepONet')
     train_config.use_t = True
     # dataset_config.dataset_version = 'v0'
     training_dataset, validation_dataset = load_dataset(dataset_config, train_config, None, run)

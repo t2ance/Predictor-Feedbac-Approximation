@@ -15,6 +15,7 @@ import config
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import sample_to_tensor
 from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral
+from model import LearningBasedPredictor
 from plot_utils import plot_result, difference
 from utils import pad_zeros, l2_p_phat, check_dir, load_lr_scheduler, set_everything, print_result, load_model, \
     load_optimizer, print_args, get_time_str, SimulationResult, TestResult, count_params, l2_p_z
@@ -291,12 +292,11 @@ def result_to_samples(result: SimulationResult, dataset_config):
         t_u_i = t_z_i - n_point_delay(t_z)
 
         Zs.append(result.Z[t_z_i])
-        if dataset_config.full_supervision:
-            if t_z_pred_i - max_n_point_delay < 0:
-                continue
-            Zs_prediction.append(result.Z[t_z_pred_i - max_n_point_delay: t_z_pred_i])
-        else:
-            Zs_prediction.append(result.Z[t_z_pred_i])
+
+        if t_z_pred_i - max_n_point_delay < 0:
+            continue
+        Zs_prediction.append(result.Z[t_z_pred_i - max_n_point_delay: t_z_pred_i])
+
         Us.append(pad_zeros(result.U[t_u_i:t_z_i], max_n_point_delay))
         ts.append(t_z)
 
@@ -360,11 +360,12 @@ def create_simulation_result(dataset_config: DatasetConfig, train_config: TrainC
     return results
 
 
-def run_training(model_config: ModelConfig, train_config: TrainConfig, training_dataset, validation_dataset, model):
+def run_training(model_config: ModelConfig, train_config: TrainConfig, training_dataset, validation_dataset,
+                 model: LearningBasedPredictor):
     device = train_config.device
     batch_size = train_config.batch_size
     img_save_path = model_config.base_path
-    print(f'Train all parameters in {model.__class__.__name__}')
+    print(f'Train all parameters in {model.name()}')
     optimizer = load_optimizer(model.parameters(), train_config)
     scheduler = load_lr_scheduler(optimizer, train_config)
     check_dir(img_save_path)
@@ -576,7 +577,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     if save_model:
         art_version = model_config.save_model(run, model)
         wandb.log({
-            'model_version': art_version
+            'model_version': int(art_version[1:])
         })
     test_results = run_tests(model, train_config, dataset_config, model_config, test_point_pairs, only_no_out)
     wandb.log({'l2': test_results['no'].l2})
@@ -608,7 +609,7 @@ if __name__ == '__main__':
     run = wandb.init(
         project="no",
         name=f'{train_config_.system} {model_config_.model_name}'
-             f' {dataset_config_.delay.__class__.__name__} {get_time_str()}',
+             f' {dataset_config_.delay.name()} {get_time_str()}',
         config={
             'system': train_config_.system,
             'model': model_config_.model_name

@@ -1,3 +1,5 @@
+from abc import abstractmethod
+
 import torch
 from neuralop.models import FNO1d
 from torch import nn
@@ -34,6 +36,10 @@ class LearningBasedPredictor(torch.nn.Module):
         else:
             return out
 
+    @abstractmethod
+    def name(self):
+        raise NotImplementedError()
+
 
 class GRUNet(LearningBasedPredictor):
     def __init__(self, hidden_size, num_layers, output_size, **kwargs):
@@ -46,6 +52,9 @@ class GRUNet(LearningBasedPredictor):
         x = self.projection(output)
         return x
 
+    def name(self):
+        return 'GRU'
+
 
 class LSTMNet(LearningBasedPredictor):
     def __init__(self, hidden_size, num_layers, output_size, **kwargs):
@@ -57,6 +66,9 @@ class LSTMNet(LearningBasedPredictor):
         output, (_) = self.rnn(x)
         x = self.projection(output)
         return x
+
+    def name(self):
+        return 'LSTM'
 
 
 class FNOProjection(LearningBasedPredictor):
@@ -74,6 +86,9 @@ class FNOProjection(LearningBasedPredictor):
     def compute(self, x: torch.Tensor):
         x = self.fno(x.transpose(1, 2))
         return x.transpose(1, 2)
+
+    def name(self):
+        return 'FNO'
 
 
 class DeepONet(LearningBasedPredictor):
@@ -113,6 +128,9 @@ class DeepONet(LearningBasedPredictor):
 
         return output.transpose(1, 2)
 
+    def name(self):
+        return 'DeepONet'
+
 
 class BranchNet(nn.Module):
     def __init__(self, n_input_channel, seq_len, hidden_size, n_layer):
@@ -150,6 +168,8 @@ class TimeAwareNeuralOperator(LearningBasedPredictor):
     def __init__(self, ffn: str, rnn: str, invert: bool, params, **kwargs):
         super().__init__(**kwargs)
         self.invert = invert
+        self.ffn_name = ffn
+        self.rnn_name = rnn
         if invert:
             if rnn == 'GRU':
                 self.rnn = nn.GRU(self.n_input_channel, params['gru_hidden_size'], params['gru_n_layers'],
@@ -202,6 +222,12 @@ class TimeAwareNeuralOperator(LearningBasedPredictor):
             output, _ = self.rnn(ffn_out)
             rnn_out = self.projection(output)
             return rnn_out + ffn_out
+
+    def name(self):
+        if self.invert:
+            return self.rnn_name + '-' + self.ffn_name
+        else:
+            return self.ffn_name + '-' + self.rnn_name
 
 
 if __name__ == '__main__':

@@ -475,6 +475,10 @@ class Delay:
     def phi_inverse(self, t):
         ...
 
+    @abstractmethod
+    def name(self):
+        raise NotImplementedError()
+
 
 class ConstantDelay(Delay):
 
@@ -495,6 +499,9 @@ class ConstantDelay(Delay):
 
     def phi_inverse(self, t):
         return t + self.delay
+
+    def name(self):
+        return f'ConstantDelay({self.delay})'
 
 
 class TimeVaryingDelay(Delay):
@@ -534,6 +541,8 @@ class TimeVaryingDelay(Delay):
                 return 2
             return t + (1 + t) / (((1 + t) ** 2 + 1) ** 0.5 + t)
 
+    def name(self):
+        return 'TimeVaryingDelay'
 
 def solve_integral_nn(model, U_D, Z_t, t):
     device = next(model.parameters()).device

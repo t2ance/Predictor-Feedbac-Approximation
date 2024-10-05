@@ -101,10 +101,10 @@ def load_model(train_config, model_config, dataset_config, n_param_out: bool = F
         model = LSTMNet(hidden_size=model_config.lstm_hidden_size, num_layers=model_config.lstm_n_layer,
                         output_size=n_state, n_input=n_input, n_state=n_state, seq_len=seq_len,
                         use_t=train_config.use_t)
-    elif model_name in ['FNO-GRU', 'Inverted-FNO-GRU']:
+    elif model_name in ['FNO-GRU', 'GRU-FNO']:
         model = TimeAwareNeuralOperator(
             ffn='FNO', rnn='GRU',
-            invert=model_name.startswith('Inverted'),
+            invert=model_name.startswith('GRU'),
             params={
                 'fno_n_modes_height': model_config.fno_n_modes_height,
                 'fno_hidden_channels': model_config.fno_hidden_channels,
@@ -112,10 +112,10 @@ def load_model(train_config, model_config, dataset_config, n_param_out: bool = F
                 'gru_n_layers': model_config.gru_n_layer,
                 'gru_hidden_size': model_config.gru_hidden_size
             }, n_input=n_input, n_state=n_state, seq_len=seq_len, use_t=train_config.use_t)
-    elif model_name in ['FNO-LSTM', 'Inverted-FNO-LSTM']:
+    elif model_name in ['FNO-LSTM', 'LSTM-FNO']:
         model = TimeAwareNeuralOperator(
             ffn='FNO', rnn='LSTM', n_input=n_input, n_state=n_state, seq_len=seq_len, use_t=train_config.use_t,
-            invert=model_name.startswith('Inverted'),
+            invert=model_name.startswith('LSTM'),
             params={
                 'fno_n_modes_height': model_config.fno_n_modes_height,
                 'fno_hidden_channels': model_config.fno_hidden_channels,
@@ -123,20 +123,20 @@ def load_model(train_config, model_config, dataset_config, n_param_out: bool = F
                 'lstm_n_layers': model_config.lstm_n_layer,
                 'lstm_hidden_size': model_config.lstm_hidden_size
             })
-    elif model_name in ['DeepONet-GRU', 'Inverted-DeepONet-GRU']:
+    elif model_name in ['DeepONet-GRU', 'GRU-DeepONet']:
         model = TimeAwareNeuralOperator(
             ffn='DeepONet', rnn='GRU', n_input=n_input, n_state=n_state, seq_len=seq_len, use_t=train_config.use_t,
-            invert=model_name.startswith('Inverted'),
+            invert=model_name.startswith('GRU'),
             params={
                 'deeponet_hidden_size': model_config.deeponet_hidden_size,
                 'deeponet_n_layer': model_config.deeponet_n_layer,
                 'gru_n_layers': model_config.gru_n_layer,
                 'gru_hidden_size': model_config.gru_hidden_size
             })
-    elif model_name in ['DeepONet-LSTM', 'Inverted-DeepONet-LSTM']:
+    elif model_name in ['DeepONet-LSTM', 'LSTM-DeepONet']:
         model = TimeAwareNeuralOperator(
             ffn='DeepONet', rnn='LSTM', n_input=n_input, n_state=n_state, seq_len=seq_len, use_t=train_config.use_t,
-            invert=model_name.startswith('Inverted'),
+            invert=model_name.startswith('LSTM'),
             params={
                 'deeponet_hidden_size': model_config.deeponet_hidden_size,
                 'deeponet_n_layer': model_config.deeponet_n_layer,
@@ -147,7 +147,6 @@ def load_model(train_config, model_config, dataset_config, n_param_out: bool = F
         raise NotImplementedError()
     n_params = count_params(model)
     if isinstance(model, TimeAwareNeuralOperator):
-        model.full_supervision = dataset_config.full_supervision
         print('ffn parameters:', count_params(model.ffn))
         print('rnn parameters:', count_params(model.rnn))
         # print('projection parameters:', count_params(model.projection))

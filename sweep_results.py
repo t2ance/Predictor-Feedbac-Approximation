@@ -18,7 +18,7 @@ def configs(system):
             "pqin/no/pstv1cq0",
             "pqin/no/6f0xx2zm",
         ]
-    elif system == 's8':
+    elif system == 's9':
         return 'Unicycle', [
             "pqin/no/bju3cjjz",
             "pqin/no/b1iszd5b",
@@ -58,9 +58,6 @@ if __name__ == '__main__':
                 method = "Unknown"
             else:
                 method = sweep_name_parts[2]
-                if 'Inverted' in method:
-                    splits = method.split('-')
-                    method = splits[2] + '-' + splits[1]
 
             n_param = best_run.summary.get('n params', 'N/A')
             speed_up = best_run.summary.get('speedup', 'N/A')

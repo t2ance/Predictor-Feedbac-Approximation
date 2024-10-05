@@ -40,7 +40,7 @@ class ModelConfig:
 
     def save_model(self, run, model, model_name: str = None):
         if model_name is None:
-            model_name = model.__class__.__name__
+            model_name = model.name()
         print('save model as', model_name)
         art_name = f'{model_name}-{self.system}'
         model_artifact = wandb.Artifact(
@@ -61,7 +61,7 @@ class ModelConfig:
         if version is None:
             version = self.model_version
         if model_name is None:
-            model_name = model.__class__.__name__
+            model_name = model.name()
         model_artifact = run.use_artifact(f"{model_name}-{self.system}:{version}")
 
         model_dir = model_artifact.download()
@@ -249,7 +249,6 @@ class DatasetConfig:
     scheduler_ratio_warmup: Optional[float] = field(default=0.1)
     lr_scheduler_type: Optional[Literal['linear_with_warmup', 'exponential']] = field(default='linear_with_warmup')
 
-    full_supervision: Optional[bool] = field(default=True)
     n_step: int = field(default=1)
     n_test_point: int = field(default=25)
     system_: Optional[str] = field(default='s1')
