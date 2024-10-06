@@ -41,7 +41,7 @@ if __name__ == '__main__':
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     api = wandb.Api()
 
-    system_name, sweep_ids = configs('s9')
+    system_name, sweep_ids = configs('s11')
     output_csv = f'./misc/sweep_summary_{system_name}.csv'
 
     data = []

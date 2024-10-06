@@ -274,7 +274,11 @@ if __name__ == '__main__':
     elif args.m == 'figure':
         metric_list = ['l2_p_z', 'rl2_p_z']
         if args.s == 's11':
-            ...
+            model_dict = {
+                'GRU-FNO': 'v53',
+                'GRU': 'v123',
+                'FNO': 'v118'
+            }
         elif args.s == 's9':
             ...
         else:
