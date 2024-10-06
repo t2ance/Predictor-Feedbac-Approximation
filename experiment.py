@@ -245,9 +245,9 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s9')
+    parser.add_argument('-s', type=str, default='s11')
     parser.add_argument('-n', type=int, default=1)
-    parser.add_argument('-m', type=str, default='cp-ood')
+    parser.add_argument('-m', type=str, default='figure')
     args = parser.parse_args()
 
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
