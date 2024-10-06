@@ -120,13 +120,15 @@ def get_parameters(system: str, model_name: str):
         'deeponet_n_layer': {
             'distribution': 'int_uniform',
             'min': 2,
-            'max': 5
+            # 'max': 5
+            'max': 7
         },
         'deeponet_hidden_size': {
             'distribution': 'q_log_uniform_values',
             'q': 4,
             'min': 16,
-            'max': 256
+            # 'max': 256
+            'max': 512
         },
     }
     gru_params = {
