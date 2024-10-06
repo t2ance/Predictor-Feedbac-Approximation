@@ -74,23 +74,7 @@ class ModelConfig:
     def get_model(self, run, train_config, dataset_config, version: str = None):
         if version is None:
             version = self.model_version
-        if self.model_name == 'FNO':
-            model_name = 'FNOProjection'
-        elif self.model_name == 'FNO-GRU':
-            model_name = 'FNOProjectionGRU'
-        elif self.model_name == 'FNO-LSTM':
-            model_name = 'FNOProjectionLSTM'
-        elif self.model_name == 'DeepONet-GRU':
-            model_name = 'DeepONetGRU'
-        elif self.model_name == 'DeepONet-LSTM':
-            model_name = 'DeepONetLSTM'
-        elif self.model_name == 'GRU':
-            model_name = 'GRUNet'
-        elif self.model_name == 'LSTM':
-            model_name = 'LSTMNet'
-        else:
-            model_name = self.model_name
-        model_artifact = run.use_artifact(f"{model_name}-{self.system}:{version}")
+        model_artifact = run.use_artifact(f"{self.model_name}-{self.system}:{version}")
         model_name = self.model_name
         metadata = model_artifact.metadata
         model_dir = model_artifact.download()
