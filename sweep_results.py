@@ -69,9 +69,9 @@ if __name__ == '__main__':
         tr_loss = best_run.summary.get('training loss', 'N/A')
         val_loss = best_run.summary.get('validating loss', 'N/A')
         tr_time = best_run.summary.get('training time', 'N/A')
-        model_version = best_run.summary.get('training time', 'N/A')
+        model_version = best_run.summary.get('model_version', 'N/A')
 
-        data.append([method, n_param, speed_up, l2, rl2, tr_loss, val_loss, tr_time, 'v' + model_version])
+        data.append([method, n_param, speed_up, l2, rl2, tr_loss, val_loss, tr_time, 'v' + str(model_version)])
 
         print(f"Extracted best run's data from sweep '{sweep_id}'")
 

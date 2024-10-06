@@ -1,3 +1,5 @@
+from typing import List, Dict
+
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -21,7 +23,7 @@ def interval(min_, max_):
 
 def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, switching_indicators, labels, captions, results,
               plot_alpha: bool = False):
-    if system == 's8':
+    if system == 's11':
         Ps = [P[:, 4:5] for P in Ps]
         Zs = [Z[:, 4:5] for Z in Zs]
         Ds = [D[:, 4:5] for D in Ds]
@@ -100,7 +102,7 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, switching_indic
             for i, (axes, P, Z, D, U) in enumerate(zip(method_axes, Ps, Zs, Ds, Us)):
                 comment = i == n_col - 1
                 q = q_des - Z[:, :dataset_config.n_state // 2]
-                if system == 's8':
+                if system == 's11':
                     q = q[:, 4:5]
                     q_des_ = q_des[:, 4:5]
                 elif system == 's9':
@@ -129,12 +131,7 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, switching_indic
     return results_dict
 
 
-def plot_comparisons(test_point, plot_name, dataset_config, train_config, system, fno=None, deeponet=None, gru=None,
-                     lstm=None, fno_gru=None, fno_lstm=None, deeponet_gru=None, deeponet_lstm=None, fno_cp=None,
-                     deeponet_cp=None, gru_cp=None, lstm_cp=None, fno_gru_cp=None, fno_lstm_cp=None,
-                     deeponet_gru_cp=None, deeponet_lstm_cp=None, fno_gp=None, deeponet_gp=None, gru_gp=None,
-                     lstm_gp=None, fno_gru_gp=None, fno_lstm_gp=None, deeponet_gru_gp=None, deeponet_lstm_gp=None,
-                     metric_list=None):
+def plot_comparisons(test_point, plot_name, dataset_config, train_config, system, model_dict=None, metric_list=None):
     def simulate_ml_methods(model, model_name):
         if model is None:
             print(f'Model {model_name} excluded')
@@ -185,40 +182,12 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     results.append(result)
     print('Numerical approximation iteration', result.P_numerical_n_iters.mean())
 
-    simulate_ml_methods(fno, model_name='FNO')
-    simulate_ml_methods(deeponet, model_name='DeepONet')
-    simulate_ml_methods(gru, model_name='GRU')
-    simulate_ml_methods(lstm, model_name='LSTM')
-    simulate_ml_methods(fno_gru, model_name='FNO-GRU')
-    simulate_ml_methods(fno_lstm, model_name='FNO-LSTM')
-    simulate_ml_methods(deeponet_gru, model_name='DeepONet-GRU')
-    simulate_ml_methods(deeponet_lstm, model_name='DeepONet-LSTM')
+    for model_name, model in model_dict.items():
+        simulate_ml_methods(model, model_name=model_name)
 
-    simulate_ml_methods(fno_cp, model_name=r'FNO$_{CP}$')
-    simulate_ml_methods(deeponet_cp, model_name=r'DeepONet$_{CP}$')
-    simulate_ml_methods(gru_cp, model_name=r'GRU$_{CP}$')
-    simulate_ml_methods(lstm_cp, model_name=r'LSTM$_{CP}$')
-    simulate_ml_methods(fno_gru_cp, model_name=r'FNO-GRU$_{CP}$')
-    simulate_ml_methods(fno_lstm_cp, model_name=r'FNO-LSTM$_{CP}$')
-    simulate_ml_methods(deeponet_gru_cp, model_name=r'DeepONet-GRU$_{CP}$')
-    simulate_ml_methods(deeponet_lstm_cp, model_name=r'DeepONet-LSTM$_{CP}$')
-
-    simulate_ml_methods(fno_gp, model_name=r'FNO$_{GP}$')
-    simulate_ml_methods(deeponet_gp, model_name=r'DeepONet$_{GP}$')
-    simulate_ml_methods(gru_gp, model_name=r'GRU$_{GP}$')
-    simulate_ml_methods(lstm_gp, model_name=r'LSTM$_{GP}$')
-    simulate_ml_methods(fno_gru_gp, model_name=r'FNO-GRU$_{GP}$')
-    simulate_ml_methods(fno_lstm_gp, model_name=r'FNO-LSTM$_{GP}$')
-    simulate_ml_methods(deeponet_gru_gp, model_name=r'DeepONet-GRU$_{GP}$')
-    simulate_ml_methods(deeponet_lstm_gp, model_name=r'DeepONet-LSTM$_{GP}$')
-    captions = []
-    for label, result in zip(labels, results):
-        caption = label
-        captions.append(caption)
     print(f'End simulation {plot_name}')
     print(labels)
-
-    return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, switching_indicators, labels, captions, results)
+    return plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, switching_indicators, labels, labels, results)
 
 
 def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alphas, system, metric_list):
@@ -260,6 +229,16 @@ def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alpha
                      plot_alpha=True)
 
 
+def load_model_for_experiments(model_dict: Dict[str], system: str):
+    to_return = {}
+    for model_name, model_version in model_dict.items():
+        model_name_ = model_name.replace(r'$_{CP}$', '').replace(r'$_{GP}$', '')
+        dataset_config, model_config, train_config = config.get_config(system_=system, model_name=model_name_)
+        model, _ = model_config.get_model(run, train_config, dataset_config, model_version)
+        to_return[model_name] = model
+    return to_return
+
+
 if __name__ == '__main__':
     set_everything(0)
     import wandb
@@ -267,7 +246,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', type=str, default='s9')
-    parser.add_argument('-n', type=int, default=5)
+    parser.add_argument('-n', type=int, default=1)
     parser.add_argument('-m', type=str, default='cp-ood')
     args = parser.parse_args()
 
@@ -277,190 +256,36 @@ if __name__ == '__main__':
         name=f'experiment {args.s} {args.n} {args.m} {get_time_str()}'
     )
 
-    metric_list = ['l2_p_z', 'rl2_p_z', 'l2_p_phat', 'rl2_p_phat']
+    metric_list = ['l2_p_z', 'rl2_p_z']
 
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO')
-    fno, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
-    fno_cp, fno_gp = fno, fno
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet')
-    deeponet, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
-    deeponet_cp, deeponet_gp = deeponet, deeponet
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='GRU')
-    gru, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
-    gru_cp, gru_gp = gru, gru
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='LSTM')
-    lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'latest')
-    lstm_cp, lstm_gp = lstm, lstm
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-GRU')
-    train_config.zero_init = False
-    fno_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-    fno_gru_cp, fno_gru_gp = fno_gru, fno_gru
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='FNO-LSTM')
-    train_config.zero_init = False
-    fno_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-    fno_lstm_cp, fno_lstm_gp = fno_lstm, fno_lstm
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-GRU')
-    train_config.zero_init = False
-    deeponet_gru, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-    deeponet_gru_cp, deeponet_gru_gp = deeponet_gru, deeponet_gru
-
-    dataset_config, model_config, train_config = config.get_config(system_=args.s, model_name='DeepONet-LSTM')
-    train_config.zero_init = False
-    deeponet_lstm, n_params = model_config.get_model(run, train_config, dataset_config, 'best')
-    deeponet_lstm_cp, deeponet_lstm_gp = deeponet_lstm, deeponet_lstm
+    dataset_config, model_config, train_config = config.get_config(system_=args.s)
 
     if args.m == 'table':
-        if args.s == 's8':
-            fno = None
-            # deeponet = None
-            gru = None
-            lstm = None
-            fno_gru = None
-            fno_lstm = None
-            deeponet_gru = None
-            deeponet_lstm = None
-        fno_cp = None
-        deeponet_cp = None
-        gru_cp = None
-        lstm_cp = None
-        fno_gru_cp = None
-        fno_lstm_cp = None
-        deeponet_gru_cp = None
-        deeponet_lstm_cp = None
-
-        fno_gp = None
-        deeponet_gp = None
-        gru_gp = None
-        lstm_gp = None
-        fno_gru_gp = None
-        fno_lstm_gp = None
-        deeponet_gru_gp = None
-        deeponet_lstm_gp = None
+        if args.s == 's11':
+            model_dict = {
+                'DeepONet': 'v0'
+            }
+        elif args.s == 's9':
+            model_dict = {
+                'DeepONet': 'v0'
+            }
+        else:
+            raise NotImplementedError()
     elif args.m == 'figure':
         metric_list = ['l2_p_z', 'rl2_p_z']
-        if args.s == 's8':
-            # fno = None
-            deeponet = None
-            gru = None
-            # lstm = None
-            fno_gru = None
-            # fno_lstm = None
-            deeponet_gru = None
-            deeponet_lstm = None
-
-            fno_cp = None
-            deeponet_cp = None
-            gru_cp = None
-            lstm_cp = None
-            fno_gru_cp = None
-            fno_lstm_cp = None
-            deeponet_gru_cp = None
-            deeponet_lstm_cp = None
-
-            fno_gp = None
-            deeponet_gp = None
-            gru_gp = None
-            lstm_gp = None
-            fno_gru_gp = None
-            fno_lstm_gp = None
-            deeponet_gru_gp = None
-            deeponet_lstm_gp = None
+        if args.s == 's11':
+            ...
         elif args.s == 's9':
-            fno = None
-            # deeponet = None
-            # gru = None
-            lstm = None
-            fno_gru = None
-            fno_lstm = None
-            # deeponet_gru = None
-            deeponet_lstm = None
-
-            fno_cp = None
-            deeponet_cp = None
-            gru_cp = None
-            lstm_cp = None
-            fno_gru_cp = None
-            fno_lstm_cp = None
-            deeponet_gru_cp = None
-            deeponet_lstm_cp = None
-
-            fno_gp = None
-            deeponet_gp = None
-            gru_gp = None
-            lstm_gp = None
-            fno_gru_gp = None
-            fno_lstm_gp = None
-            deeponet_gru_gp = None
-            deeponet_lstm_gp = None
+            ...
         else:
             raise NotImplementedError()
     elif args.m == 'cp-ood':
-        if args.s == 's8':
-            fno = None
-            deeponet = None
-            gru = None
-            lstm = None
-            fno_gru = None
-            # fno_lstm = None
-            deeponet_gru = None
-            deeponet_lstm = None
-
-            fno_cp = None
-            deeponet_cp = None
-            gru_cp = None
-            lstm_cp = None
-            fno_gru_cp = None
-            # fno_lstm_cp = None
-            deeponet_gru_cp = None
-            deeponet_lstm_cp = None
-
-            fno_gp = None
-            deeponet_gp = None
-            gru_gp = None
-            lstm_gp = None
-            fno_gru_gp = None
-            # fno_lstm_gp = None
-            deeponet_gru_gp = None
-            deeponet_lstm_gp = None
-
+        if args.s == 's11':
             dataset_config.random_test_lower_bound = 1
             dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
             train_config.uq_alpha = 0.1
         elif args.s == 's9':
-            fno = None
-            deeponet = None
-            gru = None
-            lstm = None
-            fno_gru = None
-            fno_lstm = None
-            # deeponet_gru = None
-            deeponet_lstm = None
-
-            fno_cp = None
-            deeponet_cp = None
-            gru_cp = None
-            lstm_cp = None
-            fno_gru_cp = None
-            fno_lstm_cp = None
-            # deeponet_gru_cp = None
-            deeponet_lstm_cp = None
-
-            fno_gp = None
-            deeponet_gp = None
-            gru_gp = None
-            lstm_gp = None
-            fno_gru_gp = None
-            fno_lstm_gp = None
-            # deeponet_gru_gp = None
-            deeponet_lstm_gp = None
-
             dataset_config.random_test_lower_bound = 1
             dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
@@ -468,26 +293,24 @@ if __name__ == '__main__':
         else:
             raise NotImplementedError()
     elif args.m == 'alpha':
-        if args.s == 's8':
-            model = fno_lstm
+        if args.s == 's11':
             train_config.uq_type = 'conformal prediction'
             dataset_config.random_test_lower_bound = 1
             dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
             alphas = [0.02, 1, 0.4]
-            # metric_list = ['l2_p_z', 'rl2_p_z']
         elif args.s == 's9':
-            model = deeponet_gru
             train_config.uq_type = 'conformal prediction'
             dataset_config.random_test_lower_bound = 1
             dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
             alphas = [0.005, 0.05, 0.2]
-            # metric_list = ['l2_p_z', 'rl2_p_z']
         else:
             raise NotImplementedError()
     else:
         raise NotImplementedError()
+    to_return = load_model_for_experiments(model_dict=model_dict, system=args.s)
+
     results = None
 
     test_points = dataset_config.get_test_points(n_point=args.n)
@@ -495,35 +318,12 @@ if __name__ == '__main__':
         plot_name = f'{args.s}-{args.m}-{i}'
         if args.m == 'alpha':
             print(alphas, dataset_config.random_test_lower_bound, dataset_config.random_test_upper_bound)
-            result_dict = plot_alpha(test_point, plot_name, dataset_config, train_config, model=model, alphas=alphas,
+            result_dict = plot_alpha(test_point, plot_name, dataset_config, train_config, model=None, alphas=alphas,
                                      system=args.s, metric_list=metric_list)
         else:
             result_dict = plot_comparisons(
                 test_point, plot_name, dataset_config, train_config, system=args.s, metric_list=metric_list,
-                fno=fno,
-                deeponet=deeponet,
-                gru=gru,
-                lstm=lstm,
-                fno_gru=fno_gru,
-                fno_lstm=fno_lstm,
-                deeponet_gru=deeponet_gru,
-                deeponet_lstm=deeponet_lstm,
-                fno_cp=fno_cp,
-                deeponet_cp=deeponet_cp,
-                gru_cp=gru_cp,
-                lstm_cp=lstm_cp,
-                fno_gru_cp=fno_gru_cp,
-                fno_lstm_cp=fno_lstm_cp,
-                deeponet_gru_cp=deeponet_gru_cp,
-                deeponet_lstm_cp=deeponet_lstm_cp,
-                fno_gp=fno_gp,
-                deeponet_gp=deeponet_gp,
-                gru_gp=gru_gp,
-                lstm_gp=lstm_gp,
-                fno_gru_gp=fno_gru_gp,
-                fno_lstm_gp=fno_lstm_gp,
-                deeponet_gru_gp=deeponet_gru_gp,
-                deeponet_lstm_gp=deeponet_lstm_gp,
+                model_dict=to_return
             )
         if results is None:
             results = {k: [] for k in result_dict.keys()}
