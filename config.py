@@ -55,6 +55,7 @@ class ModelConfig:
         logged_artifact.wait()
         art_version = logged_artifact.version
         print(f'Logged {art_name} as version {art_version}')
+        os.remove("model.pth")
         return art_version
 
     def load_model(self, run, model, model_name: str = None, version: str = None):
