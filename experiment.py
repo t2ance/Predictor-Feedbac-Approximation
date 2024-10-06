@@ -229,7 +229,7 @@ def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alpha
                      plot_alpha=True)
 
 
-def load_model_for_experiments(model_dict: Dict[str], system: str):
+def load_model_for_experiments(model_dict: Dict[str, str], system: str):
     to_return = {}
     for model_name, model_version in model_dict.items():
         model_name_ = model_name.replace(r'$_{CP}$', '').replace(r'$_{GP}$', '')
