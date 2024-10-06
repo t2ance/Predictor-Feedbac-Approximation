@@ -97,17 +97,17 @@ class DeepONet(LearningBasedPredictor):
         if n_input_channel is None:
             n_input_channel = self.n_input_channel
         if n_output_channel is None:
-            n_output_channel = self.n_state
+            self.n_output_channel = self.n_state
         self.n_layer = n_layer
         self.hidden_size = hidden_size
         self.branch_net = BranchNet(n_input_channel=n_input_channel, seq_len=self.seq_len,
                                     hidden_size=hidden_size, n_layer=n_layer)
         self.trunk_net = TrunkNet(y_dim=1, hidden_size=hidden_size, n_layer=n_layer)
-        self.output_layer = nn.Linear(self.seq_len * self.hidden_size, n_output_channel)
+        self.output_layer = nn.Linear(self.seq_len * self.hidden_size, self.seq_len * self.n_output_channel)
 
     def compute(self, x: torch.Tensor):
         """
-        x: (batch_size, n_input_channel, seq_len)
+        x: (batch_size, seq_len, n_input_channel)
         y: (seq_len, y_dim)
         """
         y = torch.linspace(0, 1, steps=self.seq_len, device=x.device).unsqueeze(1)
@@ -122,9 +122,10 @@ class DeepONet(LearningBasedPredictor):
 
         combined = combined.view(combined.size(0), -1)  # (batch_size, seq_len * branch_size)
 
-        output = self.output_layer(combined)  # (batch_size, n_output_channel)
+        output = self.output_layer(combined)  # (batch_size, n_output_channel * seq_len)
 
-        output = output.unsqueeze(2).repeat(1, 1, y.size(0))  # (batch_size, n_output_channel, seq_len)
+        # output = output.unsqueeze(2).repeat(1, 1, y.size(0))  # (batch_size, n_output_channel, seq_len)
+        output = output.view(x.shape[0], self.n_output_channel, self.seq_len)  # (batch_size, n_output_channel, seq_len)
 
         return output.transpose(1, 2)
 
@@ -136,14 +137,21 @@ class BranchNet(nn.Module):
     def __init__(self, n_input_channel, seq_len, hidden_size, n_layer):
         super(BranchNet, self).__init__()
         self.flatten = nn.Flatten()
-        self.fc = nn.Sequential(
-            nn.Linear(n_input_channel * seq_len, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size)
-        )
+
+        layers = [
+            nn.Linear(n_input_channel * seq_len, hidden_size)
+        ]
+
+        for _ in range(n_layer):
+            layers += [
+                nn.ReLU(),
+                nn.Linear(hidden_size, hidden_size)
+            ]
+
+        self.fc = nn.Sequential(*layers)
 
     def forward(self, x):
-        # x shape: (batch_size, n_input_channel, seq_len)
+        # x shape: (batch_size, seq_len, n_input_channel)
         x = self.flatten(x)  # (batch_size, n_input_channel * seq_len)
         out = self.fc(x)  # (batch_size, hidden_size)
         return out
@@ -152,11 +160,15 @@ class BranchNet(nn.Module):
 class TrunkNet(nn.Module):
     def __init__(self, y_dim, hidden_size, n_layer):
         super(TrunkNet, self).__init__()
-        self.fc = nn.Sequential(
-            nn.Linear(y_dim, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size)
-        )
+        layers = [nn.Linear(y_dim, hidden_size)]
+
+        for _ in range(n_layer):
+            layers += [
+                nn.ReLU(),
+                nn.Linear(hidden_size, hidden_size)
+            ]
+
+        self.fc = nn.Sequential(*layers)
 
     def forward(self, y):
         # y shape: (seq_len, y_dim)

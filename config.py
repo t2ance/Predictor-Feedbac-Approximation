@@ -14,7 +14,7 @@ from utils import load_model
 
 @dataclass
 class ModelConfig:
-    deeponet_hidden_size: Optional[int] = field(default=512)
+    deeponet_hidden_size: Optional[int] = field(default=64)
     deeponet_n_layer: Optional[int] = field(default=5)
     fno_n_modes_height: Optional[int] = field(default=16)
     fno_hidden_channels: Optional[int] = field(default=32)
@@ -461,7 +461,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                        n_validation_dataset=1, n_sample_per_dataset=-1, baxter_dof=5, baxter_f=1,
                                        baxter_magnitude=0.1, baxter_alpha=1, baxter_beta=2, ic_lower_bound=0,
                                        ic_upper_bound=1, random_test_lower_bound=0, random_test_upper_bound=1)
-        model_config = ModelConfig(model_name='FNO', fno_n_modes_height=32, fno_hidden_channels=128, fno_n_layer=5)
+        model_config = ModelConfig(model_name='FNO')
         train_config = TrainConfig(learning_rate=3e-4, training_ratio=0.8, n_epoch=200, batch_size=256,
                                    weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential', uq_alpha=0.01,
                                    scheduled_sampling_warm_start=0, scheduled_sampling_type='linear',
