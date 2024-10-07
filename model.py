@@ -98,7 +98,8 @@ class DeepONet(LearningBasedPredictor):
             n_input_channel = self.n_input_channel
         if n_output_channel is None:
             self.n_output_channel = self.n_state
-        self.n_output_channel = n_output_channel
+        else:
+            self.n_output_channel = n_output_channel
         self.n_layer = n_layer
         self.hidden_size = hidden_size
         self.branch_net = BranchNet(n_input_channel=n_input_channel, seq_len=self.seq_len,
