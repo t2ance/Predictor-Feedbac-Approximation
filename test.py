@@ -15,7 +15,7 @@ def baxter_test_n_dof():
     from dynamic_systems import ConstantDelay
     from config import DatasetConfig, ModelConfig, TrainConfig
     from config import get_config
-    dataset_config, model_config, train_config = get_config(system_='s11', model_name='DeepONet')
+    dataset_config, model_config, train_config = get_config(system_='s11', model_name='GRU-DeepONet')
     # dataset_config.n_step = 4
     method = 'no'
     model = load_model(train_config, model_config, dataset_config)

@@ -127,8 +127,7 @@ def get_parameters(system: str, model_name: str):
             'distribution': 'q_log_uniform_values',
             'q': 4,
             'min': 16,
-            # 'max': 256
-            'max': 512
+            'max': 256
         },
     }
     gru_params = {
