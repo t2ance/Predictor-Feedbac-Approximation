@@ -1,5 +1,6 @@
 import numpy as np
 
+from config import ModelConfig
 from dynamic_systems import TimeVaryingDelay
 from main import simulation, result_to_samples
 from utils import load_model
@@ -12,11 +13,11 @@ def baxter_test_n_dof():
     #     project="no",
     #     name=f'test'
     # )
-    from dynamic_systems import ConstantDelay
-    from config import DatasetConfig, ModelConfig, TrainConfig
     from config import get_config
-    dataset_config, model_config, train_config = get_config(system_='s11', model_name='GRU-DeepONet')
+    dataset_config, model_config, train_config = get_config(system_='s11', model_name='FNO-GRU')
+    model_config.z2u = True
     # dataset_config.n_step = 4
+
     method = 'no'
     model = load_model(train_config, model_config, dataset_config)
     # method = 'numerical'
@@ -30,6 +31,7 @@ def baxter_test_n_dof():
     # training_dataset, validation_dataset = load_dataset(dataset_config, train_config, [], run)
     # training_dataset
     result = simulation(method=method, Z0=Z0, train_config=train_config, dataset_config=dataset_config,
+                        model_config=model_config,
                         img_save_path='./misc', silence=False, model=model)
     print(result.runtime)
     # result_to_samples(result, dataset_config)
@@ -50,14 +52,16 @@ def baxter_test_unicycle():
     train_config = TrainConfig(learning_rate=1e-4, training_ratio=0.8, n_epoch=750, batch_size=64,
                                weight_decay=1e-3, log_step=-1, lr_scheduler_type='exponential',
                                scheduler_min_lr=1e-5)
+    model_config = ModelConfig()
     Z0 = dataset_config.test_points[0]
     print('initial point', Z0)
     dataset_config.duration = 6
     dataset_config.delay = TimeVaryingDelay()
     dataset_config.dt = 0.02
     result = simulation(method='numerical', Z0=Z0, train_config=train_config, dataset_config=dataset_config,
+                        model_config=model_config,
                         img_save_path='./misc', silence=False)
-    samples = result_to_samples(result, dataset_config)
+    samples = result_to_samples(result, dataset_config, model_config)
     print(result.runtime)
     return result
 
@@ -79,7 +83,7 @@ def mini_train():
     dataset_config, model_config, train_config = get_config(system_='s9', model_name='GRU-DeepONet')
     train_config.use_t = True
     # dataset_config.dataset_version = 'v0'
-    training_dataset, validation_dataset = load_dataset(dataset_config, train_config, None, run)
+    training_dataset, validation_dataset = load_dataset(dataset_config, train_config, model_config, None, run)
     model = load_model(train_config, model_config, dataset_config)
     run_training(model_config=model_config, train_config=train_config, training_dataset=training_dataset,
                  validation_dataset=validation_dataset, model=model)
@@ -89,6 +93,8 @@ def mini_train():
 
 
 if __name__ == '__main__':
+    # import wandb
+    # wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
     # mini_train()
     result = baxter_test_n_dof()
     # result = baxter_test_unicycle()

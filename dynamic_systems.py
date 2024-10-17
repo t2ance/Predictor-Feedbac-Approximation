@@ -4,7 +4,6 @@ from functools import lru_cache
 
 import numpy as np
 import torch
-from scipy.integrate import simps
 
 from baxter import BaxterParameters
 
@@ -544,7 +543,8 @@ class TimeVaryingDelay(Delay):
     def name(self):
         return 'TimeVaryingDelay'
 
-def solve_integral_nn(model, U_D, Z_t, t):
+
+def model_forward(model, U_D, Z_t, t):
     device = next(model.parameters()).device
     u_tensor = torch.tensor(U_D, dtype=torch.float32, device=device).unsqueeze(0)
     z_tensor = torch.tensor(Z_t, dtype=torch.float32, device=device).unsqueeze(0)
@@ -676,6 +676,7 @@ def solve_integral_trapezoidal(f, Z_t, P_D, U_D, ts, dt: float):
 
 
 def solve_integral_simpson(f, Z_t, P_D, U_D, ts, dt: float):
+    from scipy.integrate import simps
     assert len(P_D) == len(U_D)
     if len(P_D) == 0:
         return 0

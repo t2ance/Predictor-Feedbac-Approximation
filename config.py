@@ -11,9 +11,12 @@ import dynamic_systems
 from dynamic_systems import ConstantDelay, TimeVaryingDelay
 from utils import load_model
 
+root_dir = '/data/hdc/peijia/OperatorLearning'
+
 
 @dataclass
 class ModelConfig:
+    z2u: bool = field(default=False)
     deeponet_hidden_size: Optional[int] = field(default=64)
     deeponet_n_layer: Optional[int] = field(default=5)
     fno_n_modes_height: Optional[int] = field(default=16)
@@ -36,7 +39,7 @@ class ModelConfig:
 
     @property
     def base_path(self):
-        return f'./{self.system}/result/{self.model_name}'
+        return f'{root_dir}/{self.system}/result/{self.model_name}'
 
     def save_model(self, run, model, model_name: str = None):
         if model_name is None:
@@ -48,14 +51,15 @@ class ModelConfig:
             description=f"{model_name} model for system {self.system}", metadata=self.__dict__
         )
 
-        torch.save(model.state_dict(), "model.pth")
-        model_artifact.add_file("model.pth")
-        wandb.save("model.pth")
+        model_save_name = f"{root_dir}/{art_name}.pth"
+        torch.save(model.state_dict(), model_save_name)
+        model_artifact.add_file(model_save_name)
+        # wandb.save(model_save_name)
         logged_artifact = run.log_artifact(model_artifact)
         logged_artifact.wait()
         art_version = logged_artifact.version
         print(f'Logged {art_name} as version {art_version}')
-        os.remove("model.pth")
+        os.remove(model_save_name)
         return art_version
 
     def load_model(self, run, model, model_name: str = None, version: str = None):
@@ -65,8 +69,8 @@ class ModelConfig:
             model_name = model.name()
         model_artifact = run.use_artifact(f"{model_name}-{self.system}:{version}")
 
-        model_dir = model_artifact.download()
-        model_path = os.path.join(model_dir, "model.pth")
+        model_dir = model_artifact.download(root=root_dir)
+        model_path = os.path.join(model_dir, f"{model_name}-{self.system}.pth")
 
         state_dict = torch.load(model_path)
         model.load_state_dict(state_dict)
@@ -78,9 +82,14 @@ class ModelConfig:
         model_artifact = run.use_artifact(f"{self.model_name}-{self.system}:{version}")
         model_name = self.model_name
         metadata = model_artifact.metadata
-        model_dir = model_artifact.download()
-        model_path = os.path.join(model_dir, "model.pth")
-        state_dict = torch.load(model_path)
+        model_dir = model_artifact.download(root=root_dir)
+        print(f'Loaded model from wandb to {model_dir}')
+        try:
+            model_path = os.path.join(model_dir, f"{self.model_name}-{self.system}.pth")
+            state_dict = torch.load(model_path)
+        except:
+            model_path = os.path.join(model_dir, f"model.pth")
+            state_dict = torch.load(model_path)
         if 'FNO' in model_name:
             self.fno_n_layer = metadata['fno_n_layer']
             self.fno_n_modes_height = metadata['fno_n_modes_height']
@@ -175,7 +184,7 @@ class TrainConfig:
 
     @property
     def model_save_path(self):
-        return f'./{self.system}/checkpoint'
+        return f'{root_dir}/{self.system}/checkpoint'
 
     def set_scheduled_sampling_p(self, epoch):
         if epoch < self.scheduled_sampling_warm_start:
@@ -247,7 +256,7 @@ class DatasetConfig:
 
     @property
     def base_path(self):
-        return f'./{self.system_}/datasets'
+        return f'{root_dir}/{self.system_}/datasets'
 
     def get_test_points(self, n_point=1, lower_bound=None, upper_bound=None):
         if lower_bound is None:
@@ -327,7 +336,7 @@ class DatasetConfig:
                 return pickle.load(file)
 
         data = run.use_artifact(f'{self.system_}:{version}')
-        dataset = data.download()
+        dataset = data.download(root=root_dir)
 
         training_dataset = read(dataset, "training")
         validation_dataset = read(dataset, "validation")
@@ -353,7 +362,7 @@ class DatasetConfig:
         run.log_artifact(art)
 
 
-def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=None):
+def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=None, z2u=None):
     if system_ == 's1':
         dataset_config = DatasetConfig(recreate_dataset=False, data_generation_strategy='trajectory',
                                        delay=ConstantDelay(1), duration=6, dt=0.1, n_training_dataset=900,
@@ -477,6 +486,12 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
         dataset_config.duration = duration
     if model_name is not None:
         model_config.model_name = model_name
+    if z2u is not None:
+        model_config.z2u = z2u
+        if z2u:
+            print('Using z2u mode')
+        else:
+            print('Do not use z2u mode')
     dataset_config.system_ = system_
     model_config.system = system_
     train_config.system = system_

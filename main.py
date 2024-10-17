@@ -14,7 +14,7 @@ from tqdm import tqdm
 import config
 from config import DatasetConfig, ModelConfig, TrainConfig
 from dataset import sample_to_tensor
-from dynamic_systems import solve_integral_nn, DynamicSystem, solve_integral
+from dynamic_systems import model_forward, DynamicSystem, solve_integral
 from model import LearningBasedPredictor
 from plot_utils import plot_result, difference
 from utils import pad_zeros, l2_p_phat, check_dir, load_lr_scheduler, set_everything, print_result, load_model, \
@@ -23,7 +23,7 @@ from utils import pad_zeros, l2_p_phat, check_dir, load_lr_scheduler, set_everyt
 warnings.filterwarnings('ignore')
 
 
-def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
+def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, model_config: ModelConfig, Z0,
                method: Literal[
                    'explicit', 'numerical', 'no', 'numerical_no', 'switching', 'scheduled_sampling', 'baseline'] = None,
                model=None, img_save_path: str = None, silence: bool = True, metric_list: List = None):
@@ -40,6 +40,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
     alpha = train_config.uq_alpha
     alpha_t = train_config.uq_alpha
     U = np.zeros((n_point, system.n_input))
+    U_numerical = np.zeros((n_point, system.n_input))
     Z = np.zeros((n_point, system.n_state))
     P_numerical_n_iters = np.zeros(n_point)
     subsystem_history = np.zeros(n_point)
@@ -72,11 +73,12 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
         Z_t = Z[t_i, :] + dataset_config.noise()
 
         # set the ground truth (or not for fast evaluation)
-        if method != 'numerical' and 'l2_p_phat' in metric_list:
+        if method != 'numerical' and ('l2_p_phat' in metric_list or model_config.z2u):
             solution = solve_integral(Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
                                       dataset_config=dataset_config, delay=dataset_config.delay)
             P_numerical[t_i, :] = solution.solution
             P_numerical_n_iters[t_i] = solution.n_iter
+            U_numerical[t_i] = system.kappa(P_numerical[t_i, :], t)
 
         if method == 'numerical':
             begin = time.time()
@@ -92,28 +94,34 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
             U[t_i] = system.kappa(P_baseline[t_i, :], t)
         elif method == 'no':
             U_D = pad_zeros(segment=U[t_i_delayed:t_i], length=max_n_point_delay)
-            begin = time.time()
-            P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
-            end = time.time()
+
+            if model_config.z2u:
+                begin = time.time()
+                U[t_i] = model_forward(model=model, U_D=U_D, Z_t=Z_t, t=t)
+                end = time.time()
+            else:
+                begin = time.time()
+                P_no[t_i, :] = model_forward(model=model, U_D=U_D, Z_t=Z_t, t=t)
+                end = time.time()
+                U[t_i] = system.kappa(P_no[t_i, :], t)
             runtime += end - begin
-            U[t_i] = system.kappa(P_no[t_i, :], t)
         elif method == 'numerical_no':
             begin = time.time()
             solution = solve_integral(
-                Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
-                dataset_config=dataset_config, delay=dataset_config.delay)
+                Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t, dataset_config=dataset_config,
+                delay=dataset_config.delay)
             P_numerical[t_i, :] = solution.solution
             P_numerical_n_iters[t_i] = solution.n_iter
 
             U_D = pad_zeros(segment=U[t_i_delayed:t_i], length=n_point_start)
-            P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
+            P_no[t_i, :] = model_forward(model=model, U_D=U_D, Z_t=Z_t, t=t)
             end = time.time()
             runtime += end - begin
             U[t_i] = system.kappa(P_numerical[t_i, :], t)
         elif method == 'switching':
             U_D = pad_zeros(segment=U[t_i_delayed:t_i], length=max_n_point_delay)
             begin = time.time()
-            P_no[t_i, :] = solve_integral_nn(model=model, U_D=U_D, Z_t=Z_t, t=t)
+            P_no[t_i, :] = model_forward(model=model, U_D=U_D, Z_t=Z_t, t=t)
             # actuate the controller
             start_point = n_point_start
             # start_point = 0
@@ -204,7 +212,7 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
                 P_no[t_i, :] = solution.solution
             else:
                 # Not Teacher Forcing
-                P_no[t_i, :] = solve_integral_nn(model=model, U_D=pad_zeros(
+                P_no[t_i, :] = model_forward(model=model, U_D=pad_zeros(
                     segment=U[t_i_delayed:t_i], length=max_n_point_delay), Z_t=Z_t, t=t)
             U[t_i] = system.kappa(P_no[t_i, :], t)
         else:
@@ -254,7 +262,10 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
     else:
         raise NotImplementedError()
     if 'l2_p_z' in metric_list:
-        l2_p_z_value, rl2_p_z_value = l2_p_z(P, Z, dataset_config.n_point_delay, ts)
+        if model_config.z2u:
+            l2_p_z_value, rl2_p_z_value = l2_p_phat(U, U_numerical, dataset_config.n_point_start())
+        else:
+            l2_p_z_value, rl2_p_z_value = l2_p_z(P, Z, dataset_config.n_point_delay, ts)
     else:
         l2_p_z_value, rl2_p_z_value = None, None
 
@@ -274,15 +285,15 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, Z0,
                             n_parameter=count_params(model) if model is not None else 'N/A')
 
 
-def result_to_samples(result: SimulationResult, dataset_config):
+def result_to_samples(result: SimulationResult, dataset_config, model_config):
     max_n_point_delay = dataset_config.max_n_point_delay()
 
     n_point_delay = dataset_config.n_point_delay
     n_point_start = n_point_delay(0)
 
-    Us = []
-    Zs = []
-    Zs_prediction = []
+    inputs = []
+    states = []
+    predictions = []
     ts = []
     for t_z_pred_i, (t_z_pred, z) in enumerate(zip(dataset_config.ts, result.Z)):
         if t_z_pred_i < n_point_start:
@@ -291,17 +302,22 @@ def result_to_samples(result: SimulationResult, dataset_config):
         t_z = dataset_config.ts[t_z_i]
         t_u_i = t_z_i - n_point_delay(t_z)
 
-        Zs.append(result.Z[t_z_i])
+        states.append(result.Z[t_z_i])
 
-        if t_z_pred_i - max_n_point_delay < 0:
-            continue
-        Zs_prediction.append(result.Z[t_z_pred_i - max_n_point_delay: t_z_pred_i])
-
-        Us.append(pad_zeros(result.U[t_u_i:t_z_i], max_n_point_delay))
+        if model_config.z2u:
+            if t_z_i - max_n_point_delay + 1 < 0:
+                continue
+            prediction = result.U[t_z_i - max_n_point_delay + 1: t_z_i + 1]
+        else:
+            if t_z_pred_i - max_n_point_delay < 0:
+                continue
+            prediction = result.Z[t_z_pred_i - max_n_point_delay: t_z_pred_i]
+        predictions.append(prediction)
+        inputs.append(pad_zeros(result.U[t_u_i:t_z_i], max_n_point_delay))
         ts.append(t_z)
 
     samples = []
-    for z_pred, z, t, u in zip(Zs_prediction, Zs, ts, Us):
+    for z_pred, z, t, u in zip(predictions, states, ts, inputs):
         samples.append({
             't': torch.tensor(t),
             'z': torch.from_numpy(z),
@@ -322,7 +338,8 @@ def to_batched_data(batch, device='cuda'):
     }
 
 
-def create_simulation_result(dataset_config: DatasetConfig, train_config: TrainConfig, n_dataset: int = None,
+def create_simulation_result(dataset_config: DatasetConfig, train_config: TrainConfig, model_config: ModelConfig,
+                             n_dataset: int = None,
                              test_points=None, numerical_runtime_out=False):
     assert not (n_dataset is None and test_points is None)
     results = []
@@ -338,14 +355,9 @@ def create_simulation_result(dataset_config: DatasetConfig, train_config: TrainC
 
     times = []
     for dataset_idx, Z0 in enumerate(test_points):
-        result = simulation(dataset_config, train_config, Z0, 'numerical')
+        result = simulation(dataset_config, train_config, model_config, Z0, 'numerical')
         results.append(result)
         times.append(result.avg_prediction_time)
-        # wandb.log(
-        #     {
-        #         'dataset progress': dataset_idx / n_dataset
-        #     }
-        # )
     if len(times) == 0:
         numerical_runtime = 0
     else:
@@ -412,7 +424,8 @@ def run_training(model_config: ModelConfig, train_config: TrainConfig, training_
     return model
 
 
-def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method: str, base_path: str = None,
+def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, model_config: ModelConfig, method: str,
+             base_path: str = None,
              silence: bool = False, test_points: List = None):
     begin = time.time()
 
@@ -440,7 +453,8 @@ def run_test(m, dataset_config: DatasetConfig, train_config: TrainConfig, method
             check_dir(img_save_path)
         else:
             img_save_path = None
-        result = simulation(dataset_config=dataset_config, train_config=train_config, model=m, Z0=test_point,
+        result = simulation(dataset_config=dataset_config, train_config=train_config, model_config=model_config,
+                            model=m, Z0=test_point,
                             method=method, img_save_path=img_save_path)
         results.append(result)
         if i == 0 and img_save_path is not None:
@@ -478,29 +492,36 @@ def run_tests(model, train_config, dataset_config, model_config, test_points, on
     begin = time.time()
     if only_no_out:
         to_return = {
-            'no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+            'no': run_test(m=model, dataset_config=dataset_config, train_config=train_config, model_config=model_config,
                            base_path=model_config.base_path, test_points=test_points, method='no')
         }
     else:
         if train_config.training_type == 'switching':
             to_return = {
                 'no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                               model_config=model_config,
                                base_path=model_config.base_path, test_points=test_points, method='no'),
                 'switching': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                      model_config=model_config,
                                       base_path=model_config.base_path, test_points=test_points, method='switching'),
                 'numerical': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                      model_config=model_config,
                                       base_path=model_config.base_path, test_points=test_points, method='numerical'),
                 'numerical_no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                         model_config=model_config,
                                          base_path=model_config.base_path, test_points=test_points,
                                          method='numerical_no')
             }
         else:
             to_return = {
                 'no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
-                               base_path=model_config.base_path, test_points=test_points, method='no'),
+                               model_config=model_config, base_path=model_config.base_path, test_points=test_points,
+                               method='no'),
                 'numerical': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
-                                      base_path=model_config.base_path, test_points=test_points, method='numerical'),
+                                      model_config=model_config, base_path=model_config.base_path,
+                                      test_points=test_points, method='numerical'),
                 'numerical_no': run_test(m=model, dataset_config=dataset_config, train_config=train_config,
+                                         model_config=model_config,
                                          base_path=model_config.base_path, test_points=test_points,
                                          method='numerical_no')
             }
@@ -509,13 +530,13 @@ def run_tests(model, train_config, dataset_config, model_config, test_points, on
     return to_return
 
 
-def load_dataset(dataset_config, train_config, test_points=None, run=None):
+def load_dataset(dataset_config, train_config, model_config, test_points=None, run=None):
     if dataset_config.recreate_dataset:
         print('Begin generating dataset...')
         training_results = create_simulation_result(
-            dataset_config, train_config, n_dataset=dataset_config.n_training_dataset)
+            dataset_config, train_config, model_config, n_dataset=dataset_config.n_training_dataset)
         validation_results = create_simulation_result(
-            dataset_config, train_config, n_dataset=dataset_config.n_validation_dataset)
+            dataset_config, train_config, model_config, n_dataset=dataset_config.n_validation_dataset)
         print(f'{len(training_results)} generated')
         try:
             training_results_, validation_results_ = dataset_config.load_dataset(run, resize=False)
@@ -535,14 +556,15 @@ def load_dataset(dataset_config, train_config, test_points=None, run=None):
     # the sample to visualize
     if test_points is not None:
         print(f'Create new validation samples using {len(test_points)} test points')
-        validation_results = create_simulation_result(dataset_config, train_config, test_points=test_points)
+        validation_results = create_simulation_result(dataset_config, train_config, model_config,
+                                                      test_points=test_points)
 
     training_dataset = []
     for result in training_results:
-        training_dataset.append(result_to_samples(result, dataset_config))
+        training_dataset.append(result_to_samples(result, dataset_config, model_config))
     validation_dataset = []
     for result in validation_results:
-        validation_dataset.append(result_to_samples(result, dataset_config))
+        validation_dataset.append(result_to_samples(result, dataset_config, model_config))
 
     return training_dataset, validation_dataset
 
@@ -562,7 +584,8 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
     print(test_point_pairs)
 
     if training_dataset is None or validation_dataset is None:
-        training_dataset, validation_dataset = load_dataset(dataset_config, train_config, test_points, run)
+        training_dataset, validation_dataset = load_dataset(dataset_config, train_config, model_config, test_points,
+                                                            run)
         print('Load dataset in this run')
     else:
         print('Dataset already set, skip loading dataset')

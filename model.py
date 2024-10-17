@@ -6,16 +6,21 @@ from torch import nn
 
 
 class LearningBasedPredictor(torch.nn.Module):
-    def __init__(self, n_input: int, n_state: int, seq_len: int, use_t: bool, *args, **kwargs):
+    def __init__(self, n_input: int, n_state: int, seq_len: int, use_t: bool, z2u: bool, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.n_input = n_input
         self.n_state = n_state
         self.seq_len = seq_len
         self.use_t = use_t
+        self.z2u = z2u
         if self.use_t:
             self.n_input_channel = n_input + n_state + 1
         else:
             self.n_input_channel = n_input + n_state
+        if self.z2u:
+            self.n_output_channel = n_input
+        else:
+            self.n_output_channel = n_state
         self.mse_loss = torch.nn.MSELoss()
 
     def compute(self, x: torch.Tensor):
@@ -42,10 +47,10 @@ class LearningBasedPredictor(torch.nn.Module):
 
 
 class GRUNet(LearningBasedPredictor):
-    def __init__(self, hidden_size, num_layers, output_size, **kwargs):
+    def __init__(self, hidden_size, num_layers, **kwargs):
         super(GRUNet, self).__init__(**kwargs)
         self.rnn = nn.GRU(self.n_input_channel, hidden_size, num_layers, batch_first=True)
-        self.projection = nn.Linear(hidden_size, output_size)
+        self.projection = nn.Linear(hidden_size, self.n_output_channel)
 
     def compute(self, x: torch.Tensor):
         output, (_) = self.rnn(x)
@@ -57,10 +62,10 @@ class GRUNet(LearningBasedPredictor):
 
 
 class LSTMNet(LearningBasedPredictor):
-    def __init__(self, hidden_size, num_layers, output_size, **kwargs):
+    def __init__(self, hidden_size, num_layers, **kwargs):
         super(LSTMNet, self).__init__(**kwargs)
         self.rnn = nn.LSTM(self.n_input_channel, hidden_size, num_layers, batch_first=True)
-        self.projection = nn.Linear(hidden_size, output_size)
+        self.projection = nn.Linear(hidden_size, self.n_output_channel)
 
     def compute(self, x: torch.Tensor):
         output, (_) = self.rnn(x)
@@ -73,15 +78,15 @@ class LSTMNet(LearningBasedPredictor):
 
 class FNOProjection(LearningBasedPredictor):
     def __init__(self, n_modes_height: int, hidden_channels: int, n_layers: int, n_input_channel=None,
-                 n_out_channel=None, *args, **kwargs):
+                 n_output_channel=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.n_modes_height = n_modes_height
-        if n_input_channel is None:
-            n_input_channel = self.n_input_channel
-        if n_out_channel is None:
-            n_out_channel = self.n_state
+        if n_input_channel is not None:
+            self.n_input_channel = n_input_channel
+        if n_output_channel is not None:
+            self.n_output_channel = n_output_channel
         self.fno = FNO1d(n_modes_height=n_modes_height, n_layers=n_layers, hidden_channels=hidden_channels,
-                         in_channels=n_input_channel, out_channels=n_out_channel)
+                         in_channels=self.n_input_channel, out_channels=self.n_output_channel)
 
     def compute(self, x: torch.Tensor):
         x = self.fno(x.transpose(1, 2))
@@ -94,15 +99,13 @@ class FNOProjection(LearningBasedPredictor):
 class DeepONet(LearningBasedPredictor):
     def __init__(self, hidden_size, n_layer, n_input_channel=None, n_output_channel=None, *args, **kwargs):
         super(DeepONet, self).__init__(*args, **kwargs)
-        if n_input_channel is None:
-            n_input_channel = self.n_input_channel
-        if n_output_channel is None:
-            self.n_output_channel = self.n_state
-        else:
+        if n_input_channel is not None:
+            self.n_input_channel = n_input_channel
+        if n_output_channel is not None:
             self.n_output_channel = n_output_channel
         self.n_layer = n_layer
         self.hidden_size = hidden_size
-        self.branch_net = BranchNet(n_input_channel=n_input_channel, seq_len=self.seq_len,
+        self.branch_net = BranchNet(n_input_channel=self.n_input_channel, seq_len=self.seq_len,
                                     hidden_size=hidden_size, n_layer=n_layer)
         self.trunk_net = TrunkNet(y_dim=1, hidden_size=hidden_size, n_layer=n_layer)
         self.output_layer = nn.Linear(self.seq_len * self.hidden_size, self.seq_len * self.n_output_channel)
@@ -199,14 +202,14 @@ class TimeAwareNeuralOperator(LearningBasedPredictor):
             if ffn == 'FNO':
                 self.ffn = FNOProjection(n_modes_height=params['fno_n_modes_height'], n_layers=params['fno_n_layers'],
                                          hidden_channels=params['fno_hidden_channels'], n_input_channel=hidden_size,
-                                         n_out_channel=self.n_state, **kwargs)
+                                         **kwargs)
             elif ffn == 'DeepONet':
                 self.ffn = DeepONet(hidden_size=params['deeponet_hidden_size'], n_layer=params['deeponet_n_layer'],
-                                    n_input_channel=hidden_size, n_output_channel=self.n_state, **kwargs)
+                                    n_input_channel=hidden_size, **kwargs)
             else:
                 raise NotImplementedError()
 
-            self.residual_projection = nn.Linear(hidden_size, self.n_state)
+            self.residual_projection = nn.Linear(hidden_size, self.n_output_channel)
         else:
             if ffn == 'FNO':
                 self.ffn = FNOProjection(n_modes_height=params['fno_n_modes_height'], n_layers=params['fno_n_layers'],
@@ -218,11 +221,11 @@ class TimeAwareNeuralOperator(LearningBasedPredictor):
                 raise NotImplementedError()
 
             if rnn == 'GRU':
-                self.rnn = nn.GRU(self.n_state, params['gru_hidden_size'], params['gru_n_layers'], batch_first=True)
-                self.projection = nn.Linear(params['gru_hidden_size'], self.n_state)
+                self.rnn = nn.GRU(self.n_output_channel, params['gru_hidden_size'], params['gru_n_layers'], batch_first=True)
+                self.projection = nn.Linear(params['gru_hidden_size'], self.n_output_channel)
             elif rnn == 'LSTM':
-                self.rnn = nn.LSTM(self.n_state, params['lstm_hidden_size'], params['lstm_n_layers'], batch_first=True)
-                self.projection = nn.Linear(params['lstm_hidden_size'], self.n_state)
+                self.rnn = nn.LSTM(self.n_output_channel, params['lstm_hidden_size'], params['lstm_n_layers'], batch_first=True)
+                self.projection = nn.Linear(params['lstm_hidden_size'], self.n_output_channel)
             else:
                 raise NotImplementedError()
 

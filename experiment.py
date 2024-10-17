@@ -145,8 +145,9 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         else:
             prediction_method = 'no'
         print(f'Simulating {model_name}')
-        m_result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, model=model,
-                              method=prediction_method, silence=False, metric_list=metric_list)
+        m_result = simulation(dataset_config=dataset_config, train_config=train_config, model_config=model_config,
+                              Z0=test_point, model=model, method=prediction_method, silence=False,
+                              metric_list=metric_list)
         Ps.append(m_result.P_no)
         Zs.append(m_result.Z)
         Ds.append(m_result.D_no)
@@ -170,8 +171,12 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     results = []
 
     print(f'Begin simulation {plot_name}, with initial point {test_point}')
-    print(f'Solving system with initial point {np.round(test_point, decimals=2)}.')
-    result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, method='numerical',
+    points = np.round(test_point, decimals=2)
+    points = [str(point) for point in points]
+    points = ','.join(points)
+    print(f'Solving system with initial point [{points}].')
+    result = simulation(dataset_config=dataset_config, train_config=train_config, model_config=model_config,
+                        Z0=test_point, method='numerical',
                         silence=False, metric_list=metric_list)
     Ps.append(result.P_numerical)
     Zs.append(result.Z)
@@ -200,7 +205,8 @@ def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alpha
     switching_indicators = []
     print('Begin simulation')
 
-    result = simulation(dataset_config=dataset_config, train_config=train_config, Z0=test_point, method='numerical',
+    result = simulation(dataset_config=dataset_config, train_config=train_config, model_config=model_config,
+                        Z0=test_point, method='numerical',
                         silence=False, metric_list=metric_list)
     Ps.append(result.P_numerical)
     Zs.append(result.Z)
@@ -247,7 +253,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', type=str, default='s11')
     parser.add_argument('-n', type=int, default=1)
-    parser.add_argument('-m', type=str, default='figure')
+    # parser.add_argument('-m', type=str, default='figure')
+    parser.add_argument('-m', type=str, default='cp-ood')
+    parser.add_argument('-t', type=float, default=None)
     args = parser.parse_args()
 
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
@@ -258,7 +266,7 @@ if __name__ == '__main__':
 
     metric_list = ['l2_p_z', 'rl2_p_z']
 
-    dataset_config, model_config, train_config = config.get_config(system_=args.s)
+    dataset_config, model_config, train_config = config.get_config(system_=args.s, duration=args.t)
 
     if args.m == 'table':
         if args.s == 's11':
@@ -275,12 +283,16 @@ if __name__ == '__main__':
         metric_list = ['l2_p_z', 'rl2_p_z']
         if args.s == 's11':
             model_dict = {
-                'GRU-FNO': 'v53',
+                'DeepONet': 'v97',
                 'GRU': 'v123',
-                'FNO': 'v118'
+                'GRU-FNO': 'v53'
             }
         elif args.s == 's9':
-            ...
+            model_dict = {
+                'GRU-FNO': 'v0',
+                'LSTM': 'v7',
+                'FNO-GRU': 'v5'
+            }
         else:
             raise NotImplementedError()
     elif args.m == 'cp-ood':
