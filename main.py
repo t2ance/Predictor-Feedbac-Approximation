@@ -362,7 +362,7 @@ def create_simulation_result(dataset_config: DatasetConfig, train_config: TrainC
         n_dataset = len(test_points)
 
     times = []
-    for dataset_idx, Z0 in enumerate(test_points):
+    for dataset_idx, Z0 in tqdm(list(enumerate(test_points))):
         result = simulation(dataset_config, train_config, model_config, Z0, 'numerical')
         results.append(result)
         times.append(result.avg_prediction_time)
