@@ -621,7 +621,7 @@ def main(dataset_config: DatasetConfig, model_config: ModelConfig, train_config:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=str, default='s9')
+    parser.add_argument('-s', type=str, default='s12')
     parser.add_argument('-delay', type=float, default=None)
     parser.add_argument('-training_type', type=str, default='sequence')
     parser.add_argument('-model_name', type=str, default='FNO-GRU')
