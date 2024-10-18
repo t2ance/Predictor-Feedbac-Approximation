@@ -636,7 +636,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     dataset_config_, model_config_, train_config_ = config.get_config(system_=args.s, delay=args.delay,
                                                                       model_name=args.model_name)
-    assert torch.cuda.is_available()
+    # assert torch.cuda.is_available()
     train_config_.training_type = args.training_type
 
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
