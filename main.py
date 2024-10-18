@@ -362,7 +362,7 @@ def create_simulation_result(dataset_config: DatasetConfig, train_config: TrainC
         n_dataset = len(test_points)
     print('test points', test_points)
     times = []
-    for dataset_idx, Z0 in tqdm(list(enumerate(test_points))):
+    for dataset_idx, Z0 in enumerate(test_points):
         print('dataset_dix', dataset_idx)
         result = simulation(dataset_config, train_config, model_config, Z0, 'numerical')
         results.append(result)
