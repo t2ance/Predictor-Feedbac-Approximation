@@ -363,6 +363,7 @@ def create_simulation_result(dataset_config: DatasetConfig, train_config: TrainC
 
     times = []
     for dataset_idx, Z0 in tqdm(list(enumerate(test_points))):
+        print('dataset_dix', dataset_idx)
         result = simulation(dataset_config, train_config, model_config, Z0, 'numerical')
         results.append(result)
         times.append(result.avg_prediction_time)
@@ -541,8 +542,10 @@ def run_tests(model, train_config, dataset_config, model_config, test_points, on
 def load_dataset(dataset_config, train_config, model_config, test_points=None, run=None):
     if dataset_config.recreate_dataset:
         print('Begin generating dataset...')
+        print('Begin generating training dataset...')
         training_results = create_simulation_result(
             dataset_config, train_config, model_config, n_dataset=dataset_config.n_training_dataset)
+        print('Begin generating validation dataset...')
         validation_results = create_simulation_result(
             dataset_config, train_config, model_config, n_dataset=dataset_config.n_validation_dataset)
         print(f'{len(training_results)} generated')
