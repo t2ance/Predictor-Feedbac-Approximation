@@ -63,6 +63,7 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, switching_indic
     for U in Us:
         U_mins.append(U.min())
         U_maxs.append(U.max())
+
     min_u, max_u = interval(min(*U_mins), max(*U_maxs))
 
     Z_mins, Z_maxs = [], []
@@ -99,8 +100,11 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, switching_indic
         if not plot_alpha:
             q_des = np.array([dataset_config.system.q_des(t) for t in ts])
             n_point_start = n_point_delay(0)
+            qs = []
+            q_des_s = []
+            q_mins = []
+            q_maxs = []
             for i, (axes, P, Z, D, U) in enumerate(zip(method_axes, Ps, Zs, Ds, Us)):
-                comment = i == n_col - 1
                 q = q_des - Z[:, :dataset_config.n_state // 2]
                 if system == 's11':
                     q = q[:, 4:5]
@@ -111,7 +115,16 @@ def plot_base(plot_name, dataset_config, system, Ps, Zs, Ds, Us, switching_indic
                     raise NotImplementedError()
 
                 q = q[n_point_start:]
-                plot_q(ts[n_point_start:], [q], q_des_[n_point_start:], None, ax=axes[3], comment=comment)
+                qs.append(q)
+                q_des_s.append(q_des_)
+                q_mins.append(min(q.min(), q_des_.min()))
+                q_maxs.append(max(q.max(), q_des_.max()))
+
+            min_q, max_q = interval(min(*q_mins), max(*q_maxs))
+            for i, (axes, P, Z, D, U, q, q_des_) in enumerate(zip(method_axes, Ps, Zs, Ds, Us, qs, q_des_s)):
+                comment = i == n_col - 1
+                plot_q(ts[n_point_start:], [q], q_des_[n_point_start:], None, ax=axes[3], comment=comment,
+                       ylim=[min_q, max_q])
         else:
             n_point_start = n_point_delay(0)
             for i, (result, axes, alpha) in enumerate(zip(results[1:], method_axes[1:], alphas)):
@@ -139,9 +152,23 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
         if model_name.endswith(r'$_{CP}$'):
             prediction_method = 'switching'
             train_config.uq_type = 'conformal prediction'
+            train_config.uq_non_delay = False
+            train_config.uq_warmup = True
         elif model_name.endswith(r'$_{GP}$'):
             prediction_method = 'switching'
             train_config.uq_type = 'gaussian process'
+            train_config.uq_non_delay = False
+            train_config.uq_warmup = True
+        elif model_name.endswith('$_{CP-non-delay}$'):
+            prediction_method = 'switching'
+            train_config.uq_type = 'conformal prediction'
+            train_config.uq_non_delay = True
+            train_config.uq_warmup = True
+        elif model_name.endswith('$_{GP-non-delay}$'):
+            prediction_method = 'switching'
+            train_config.uq_type = 'gaussian process'
+            train_config.uq_non_delay = True
+            train_config.uq_warmup = True
         else:
             prediction_method = 'no'
         print(f'Simulating {model_name}')
@@ -176,8 +203,7 @@ def plot_comparisons(test_point, plot_name, dataset_config, train_config, system
     points = ','.join(points)
     print(f'Solving system with initial point [{points}].')
     result = simulation(dataset_config=dataset_config, train_config=train_config, model_config=model_config,
-                        Z0=test_point, method='numerical',
-                        silence=False, metric_list=metric_list)
+                        Z0=test_point, method='numerical', silence=False, metric_list=metric_list)
     Ps.append(result.P_numerical)
     Zs.append(result.Z)
     Ds.append(result.D_numerical)
@@ -238,7 +264,8 @@ def plot_alpha(test_point, plot_name, dataset_config, train_config, model, alpha
 def load_model_for_experiments(model_dict: Dict[str, str], system: str):
     to_return = {}
     for model_name, model_version in model_dict.items():
-        model_name_ = model_name.replace(r'$_{CP}$', '').replace(r'$_{GP}$', '')
+        model_name_ = model_name.replace(
+            r'$_{CP}$', '').replace(r'$_{GP}$', '').replace(r'$_{CP-non-delay}$', '').replace(r'$_{GP-non-delay}$', '')
         dataset_config, model_config, train_config = config.get_config(system_=system, model_name=model_name_)
         model, _ = model_config.get_model(run, train_config, dataset_config, model_version)
         to_return[model_name] = model
@@ -252,10 +279,11 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', type=str, default='s11')
-    parser.add_argument('-n', type=int, default=1)
+    parser.add_argument('-n', type=int, default=5)
     # parser.add_argument('-m', type=str, default='figure')
     parser.add_argument('-m', type=str, default='cp-ood')
-    parser.add_argument('-t', type=float, default=None)
+    # parser.add_argument('-t', type=float, default=16)
+    parser.add_argument('-t', type=float, default=32)
     args = parser.parse_args()
 
     wandb.login(key='ed146cfe3ec2583a2207a02edcc613f41c4e2fb1')
@@ -271,18 +299,6 @@ if __name__ == '__main__':
     if args.m == 'table':
         if args.s == 's11':
             model_dict = {
-                'DeepONet': 'v0'
-            }
-        elif args.s == 's9':
-            model_dict = {
-                'DeepONet': 'v0'
-            }
-        else:
-            raise NotImplementedError()
-    elif args.m == 'figure':
-        metric_list = ['l2_p_z', 'rl2_p_z']
-        if args.s == 's11':
-            model_dict = {
                 'DeepONet': 'v97',
                 'GRU': 'v123',
                 'GRU-FNO': 'v53'
@@ -295,17 +311,45 @@ if __name__ == '__main__':
             }
         else:
             raise NotImplementedError()
+    elif args.m == 'figure':
+        metric_list = ['l2_p_z', 'rl2_p_z']
+        if args.s == 's11':
+            model_dict = {
+                'DeepONet': 'v97',
+                'GRU': 'v123',
+                'GRU-FNO': 'v53',
+            }
+        elif args.s == 's9':
+            model_dict = {
+                'GRU-FNO': 'v0',
+                'LSTM': 'v7',
+                'FNO-GRU': 'v5'
+            }
+        else:
+            raise NotImplementedError()
     elif args.m == 'cp-ood':
         if args.s == 's11':
-            dataset_config.random_test_lower_bound = 1
-            dataset_config.random_test_upper_bound = 2
+            dataset_config.random_test_lower_bound = -10
+            dataset_config.random_test_upper_bound = 10
             train_config.uq_gamma = 0.01
             train_config.uq_alpha = 0.1
+            model_dict = {
+                # 'DeepONet': 'v97',
+                # 'GRU': 'v123',
+                'GRU-FNO': 'v53',
+                'GRU-FNO$_{CP}$': 'v53',
+                'GRU-FNO$_{CP-non-delay}$': 'v53'
+            }
         elif args.s == 's9':
             dataset_config.random_test_lower_bound = 1
             dataset_config.random_test_upper_bound = 2
             train_config.uq_gamma = 0.01
             train_config.uq_alpha = 0.05
+            model_dict = {
+                'GRU-FNO': 'v0',
+                'LSTM': 'v7',
+                'FNO-GRU': 'v5'
+            }
         else:
             raise NotImplementedError()
     elif args.m == 'alpha':
@@ -349,8 +393,9 @@ if __name__ == '__main__':
 
     result_list_num = results['Successive \n Approximation']
     avg_prediction_time_num = sum([r.avg_prediction_time for r in result_list_num]) / len(result_list_num)
+    # print(r'Method& Parameters& \makecell{Raw Prediction Time \\ (ms/prediction)}  &  Speedup & $\mathcal{E}$ & $\mathcal{E}^\prime$ & $\mathcal{E}_r$ & $\mathcal{E}_r^\prime$ \\ \midrule')
     print(
-        r'Method& Parameters& \makecell{Raw Prediction Time \\ (ms/prediction)}  &  Speedup & $\mathcal{E}$ & $\mathcal{E}^\prime$ & $\mathcal{E}_r$ & $\mathcal{E}_r^\prime$ \\ \midrule')
+        r'Method& Parameters& \makecell{Raw Prediction Time \\ (ms/prediction)}  &  Speedup & $\mathcal{E}^\prime$ & $\mathcal{E}_r^\prime$ \\ \midrule')
     for method, result_list in results.items():
         n_test = len(result_list)
         avg_prediction_time = sum([r.avg_prediction_time for r in result_list]) / n_test
@@ -364,8 +409,7 @@ if __name__ == '__main__':
             rl2_p_phat = sum([r.rl2_p_phat for r in result_list]) / n_test
         n_success = sum([1 if r.success else 0 for r in result_list])
         line = f'{method} & {result_list[0].n_parameter} & {avg_prediction_time * 1000:.3f} ' \
-               f'& {avg_prediction_time_num / avg_prediction_time:.3f} ' \
-               f'& {l2_p_phat.item():.3f} & {l2_p_z.item():.3f} & {rl2_p_phat.item():.3f} & {rl2_p_z.item():.3f}\\\\'
+               f'& {avg_prediction_time_num / avg_prediction_time:.3f} & {l2_p_z.item():.3f} & {rl2_p_z.item():.3f}\\\\'
         if method == 'Successive \n Approximation' or method == 'DeepONet' or method == 'LSTM':
             line += r' \midrule'
         if method == 'DeepONet-LSTM':

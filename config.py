@@ -145,6 +145,8 @@ class TrainConfig:
     uq_adaptive: Optional[bool] = field(default=True)
     uq_type: Optional[Literal['conformal prediction', 'gaussian process']] = field(default='conformal prediction')
     uq_switching_type: Optional[Literal['switching', 'alternating']] = field(default='switching')
+    uq_non_delay: Optional[bool] = field(default=False)
+    uq_warmup: Optional[bool] = field(default=True)
 
     # adversarial training
     adversarial_epsilon: Optional[float] = field(default=0.0)

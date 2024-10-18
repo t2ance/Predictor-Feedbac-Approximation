@@ -123,8 +123,10 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, model_c
             begin = time.time()
             P_no[t_i, :] = model_forward(model=model, U_D=U_D, Z_t=Z_t, t=t)
             # actuate the controller
-            start_point = n_point_start
-            # start_point = 0
+            if train_config.uq_warmup:
+                start_point = n_point_start
+            else:
+                start_point = 0
             if t_i >= start_point:
                 # System switching
                 # (1) Get the uncertainty of no model
@@ -181,9 +183,12 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, model_c
                     P_switching[t_i, :] = P_no[t_i, :]
                     p_no_count += 1
                 else:
-                    P_numerical[t_i, :] = solve_integral(
-                        Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
-                        dataset_config=dataset_config, delay=dataset_config.delay).solution
+                    if train_config.uq_non_delay:
+                        P_numerical[t_i, :] = Z_t
+                    else:
+                        P_numerical[t_i, :] = solve_integral(
+                            Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
+                            dataset_config=dataset_config, delay=dataset_config.delay).solution
                     P_switching[t_i, :] = P_numerical[t_i, :]
                     p_numerical_count += 1
                 alpha_t += train_config.uq_gamma * (train_config.uq_alpha - e_t)
@@ -192,9 +197,12 @@ def simulation(dataset_config: DatasetConfig, train_config: TrainConfig, model_c
                 e_ts[t_i] = e_t
             else:
                 # Warm start
-                P_numerical[t_i, :] = solve_integral(
-                    Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
-                    dataset_config=dataset_config, delay=dataset_config.delay).solution
+                if train_config.uq_non_delay:
+                    P_numerical[t_i, :] = Z_t
+                else:
+                    P_numerical[t_i, :] = solve_integral(
+                        Z_t=Z_t, P_D=P_numerical[t_i_delayed:t_i], U_D=U[t_i_delayed:t_i], t=t,
+                        dataset_config=dataset_config, delay=dataset_config.delay).solution
                 P_switching[t_i, :] = P_numerical[t_i, :]
                 p_numerical_count += 1
                 subsystem_history[t_i] = 1

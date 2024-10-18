@@ -49,18 +49,18 @@ def plot_switched_control(ts, U, switching_indicator, n_point_delay, ylim=None, 
         try:
             ax.set_ylim(ylim)
         except:
-            ...
+            print('ylim set failed')
     if comment:
         # ax.set_xlabel('Time t')
         ax.legend(loc=legend_loc)
         if n_input < display_threshold:
             ax.legend(loc=legend_loc)
         else:
-            ax.legend(handles=[Line2D([0], [0], color='black', linestyle=styles[1]),
-                               Line2D([0], [0], color='black', linestyle=styles[0]),
-                               Line2D([0], [0], color='black', marker='o')
-                               ],
-                      labels=color_labels, loc=legend_loc)
+            ax.legend(handles=[
+                Line2D([0], [0], color='black', linestyle=styles[1]),
+                Line2D([0], [0], color='black', linestyle=styles[0]),
+                Line2D([0], [0], color='black', marker='o')
+            ], labels=color_labels, loc=legend_loc)
 
 
 def plot_control(ts, U, save_path, n_point_delay, ylim=None, ax=None, comment=True, figure=None, linestyle='-'):
