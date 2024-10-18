@@ -360,7 +360,7 @@ def create_simulation_result(dataset_config: DatasetConfig, train_config: TrainC
             test_points.append(Z0)
     else:
         n_dataset = len(test_points)
-    print('test points', test_points)
+    print('n test points', len(test_points))
     times = []
     for dataset_idx, Z0 in enumerate(test_points):
         print('dataset_dix', dataset_idx)
