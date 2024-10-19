@@ -480,7 +480,7 @@ def get_config(system_, n_iteration=None, duration=None, delay=None, model_name=
                                    scheduled_sampling_k=1e-2, scheduler_min_lr=1e-5)
     elif system_ == 's12':
         dataset_config = DatasetConfig(recreate_dataset=True, data_generation_strategy='trajectory', system_='s12',
-                                       delay=ConstantDelay(1.), duration=12, dt=0.04, n_training_dataset=500,
+                                       delay=ConstantDelay(1.), duration=12, dt=0.04, n_training_dataset=250,
                                        n_validation_dataset=10, n_sample_per_dataset=-1, baxter_dof=5, baxter_f=1,
                                        baxter_magnitude=0.1, baxter_alpha=1, baxter_beta=2, ic_lower_bound=0,
                                        ic_upper_bound=1, random_test_lower_bound=0, random_test_upper_bound=1)
