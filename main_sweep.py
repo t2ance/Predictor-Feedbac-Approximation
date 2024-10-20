@@ -29,7 +29,7 @@ def set_config(config, dataset_config, model_config, train_config):
     if dataset_config.system_ == 's9':
         dataset_config.n_training_dataset = 250
         train_config.batch_size = 512
-    elif dataset_config.system_ == 's11':
+    elif dataset_config.system_ in ['s11', 's12']:
         dataset_config.n_training_dataset = 500
         train_config.batch_size = 2048
     else:
@@ -197,7 +197,8 @@ def get_parameters(system: str, model_name: str):
 
 system_name_mapping = {
     's9': 'Unicycle',
-    's11': 'Baxter'
+    's11': 'Baxter',
+    's12': 'Baxter'
 }
 
 
