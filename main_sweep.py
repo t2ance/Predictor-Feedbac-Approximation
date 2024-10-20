@@ -280,7 +280,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', type=str, default='s11')
     parser.add_argument('-model_name', type=str, default='FNO')
     parser.add_argument('-device', type=str, default='cuda:0')
-    parser.add_argument('-z2u', type=bool, default=True)
+    parser.add_argument('-z2u', type=bool, default=False)
     args = parser.parse_args()
 
     do_sweep(system=args.s, model_name=args.model_name)
