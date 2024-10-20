@@ -367,6 +367,7 @@ def create_simulation_result(dataset_config: DatasetConfig, train_config: TrainC
         result = simulation(dataset_config, train_config, model_config, Z0, 'numerical')
         results.append(result)
         times.append(result.avg_prediction_time)
+        print(f'Numerical simulation result: {result.l2_p_z}, {result.rl2_p_z}')
     if len(times) == 0:
         numerical_runtime = 0
     else:
