@@ -100,11 +100,19 @@ def get_parameters(system: str, model_name: str):
         }
     }
 
+    if system == 's12':
+        fno_n_layer_max = 8
+        gru_n_layer_max = 8
+    else:
+        fno_n_layer_max = 5
+        gru_n_layer_max = 5
+
+
     fno_params = {
         'fno_n_layer': {
             'distribution': 'int_uniform',
             'min': 2,
-            'max': 5
+            'max': fno_n_layer_max
         },
         'fno_n_modes_height': {
             'distribution': 'q_log_uniform_values',
@@ -142,7 +150,7 @@ def get_parameters(system: str, model_name: str):
         'gru_n_layer': {
             'distribution': 'int_uniform',
             'min': 2,
-            'max': 5
+            'max': gru_n_layer_max
         },
         'gru_hidden_size': {
             'distribution': 'q_log_uniform_values',
@@ -167,7 +175,6 @@ def get_parameters(system: str, model_name: str):
 
     if '-' in model_name:
         ffn, rnn = get_ffn_rnn(model_name)
-
         if ffn == 'FNO':
             parameters.update(fno_params)
         elif ffn == 'DeepONet':
