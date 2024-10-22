@@ -101,11 +101,17 @@ def get_parameters(system: str, model_name: str):
     }
 
     if system == 's12':
-        fno_n_layer_max = 12
-        gru_n_layer_max = 12
+        fno_n_layer_max = 5
+        gru_n_layer_max = 5
+        fno_n_modes_height_max = 512
+        fno_hidden_channels_max = 512
+        gru_hidden_size_max = 512
     else:
         fno_n_layer_max = 5
         gru_n_layer_max = 5
+        fno_n_modes_height_max = 256
+        fno_hidden_channels_max = 256
+        gru_hidden_size_max = 256
 
     fno_params = {
         'fno_n_layer': {
@@ -117,13 +123,13 @@ def get_parameters(system: str, model_name: str):
             'distribution': 'q_log_uniform_values',
             'q': 4,
             'min': 16,
-            'max': 256
+            'max': fno_n_modes_height_max
         },
         'fno_hidden_channels': {
             'distribution': 'q_log_uniform_values',
             'q': 4,
             'min': 16,
-            'max': 256
+            'max': fno_hidden_channels_max
         }
     }
     deeponet_params = {
@@ -155,7 +161,7 @@ def get_parameters(system: str, model_name: str):
             'distribution': 'q_log_uniform_values',
             'q': 4,
             'min': 32,
-            'max': 256
+            'max': gru_hidden_size_max
         }
     }
     lstm_params = {
