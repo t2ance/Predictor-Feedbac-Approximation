@@ -101,12 +101,11 @@ def get_parameters(system: str, model_name: str):
     }
 
     if system == 's12':
-        fno_n_layer_max = 8
-        gru_n_layer_max = 8
+        fno_n_layer_max = 12
+        gru_n_layer_max = 12
     else:
         fno_n_layer_max = 5
         gru_n_layer_max = 5
-
 
     fno_params = {
         'fno_n_layer': {
