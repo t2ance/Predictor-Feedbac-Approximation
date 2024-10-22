@@ -103,9 +103,9 @@ def get_parameters(system: str, model_name: str):
     if system == 's12':
         fno_n_layer_max = 5
         gru_n_layer_max = 5
-        fno_n_modes_height_max = 512
-        fno_hidden_channels_max = 512
-        gru_hidden_size_max = 512
+        fno_n_modes_height_max = 1024
+        fno_hidden_channels_max = 1024
+        gru_hidden_size_max = 1024
     else:
         fno_n_layer_max = 5
         gru_n_layer_max = 5
