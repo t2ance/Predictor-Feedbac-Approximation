@@ -31,7 +31,7 @@ def set_config(config, dataset_config, model_config, train_config):
         train_config.batch_size = 512
     elif dataset_config.system_ in ['s11', 's12']:
         # dataset_config.n_training_dataset = 500
-        dataset_config.n_training_dataset = 2000
+        dataset_config.n_training_dataset = 5000
         train_config.batch_size = 2048
     else:
         raise NotImplementedError()
